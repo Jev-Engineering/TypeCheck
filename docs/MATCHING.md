@@ -14,7 +14,15 @@ Exact asks whether the same visual image is present, not a different photograph 
 
 Higher numeric rule priority wins. Ties favor individual-image, group, any-reference and then any-image rules, followed by stable rule ID. All comparisons are recorded; one effective user-level action is selected for a message. Message deletion can accompany that action. Selecting a less-severe/high-priority rule can intentionally suppress a lower-priority severe rule; severity does not silently override administrator priority.
 
-A positive candidate must satisfy the greater of the rule threshold and action floor. An eligible but uncertain result is reviewed or ignored according to server settings. Provider errors never become positive results. An incomplete multi-image evaluation suppresses punitive dispatch for the whole message because rule precedence could otherwise be resolved incorrectly.
+A positive candidate must satisfy the greater of the rule threshold and action floor. If no rule qualifies for its action, an eligible comparison enters fallback human review only when `settings.uncertain` is `review` and `settings.thresholds.review <= probability < max(rule.threshold, settings.thresholds[rule.action])`. Below the review threshold it is not escalated; `ignore` disables this fallback. Equality qualifies at either threshold. Explicit review rules still qualify normally at their effective action threshold, including under `ignore`.
+
+Action-qualified rules take precedence over all fallback candidates. Within either set, the rule priority/type/ID ordering above applies. Within a rule, choose highest probability, then ascending attachment ID and reference ID; otherwise identical conflicting verification flags favor unverified, preserving the execution gate. Both paths reject nonfinite/out-of-range probabilities and wrong-model results, and exclude disabled rules and disabled semantic/any-image modes.
+
+A review threshold equal to or above a rule's effective action threshold creates an empty fallback band for that rule; it does not raise the action floor or reject existing stored settings. This also applies when the review threshold exceeds an action floor but a higher rule threshold still leaves a review band. No migration or new cross-threshold validation is required.
+
+**Behavior change:** the existing default review threshold remains **0.8**, but older fallback routing used a hardcoded **0.5**. With defaults, comparisons in `[0.5, 0.8)` no longer create fallback review events. Existing events are retained. No default was lowered or empirically recalibrated.
+
+Fallback review is nonpunitive (`execute=false`, no deletion). The worker persists an open moderation event, visible under Activity **Logs > Moderation events**; authorized moderators can confirm, dismiss or mark it false positive in Details. The last option disables the associated rule and clears approval. Raw image evaluations remain available even when no comparison is escalated. A failed second verification uses the conservative minimum probability and may enter the review band, but cannot authorize punishment. Provider errors never become positive results. An incomplete multi-image evaluation suppresses punitive dispatch for the whole message because rule precedence could otherwise be resolved incorrectly.
 
 ## Approval gates
 
