@@ -453,10 +453,15 @@ async function settingsPage(parent: HTMLElement) {
         el.max = '1';
         el.step = '0.001';
         thresholds.set(action, el);
-        thresholdGrid.append(field(pretty(action), el));
+        thresholdGrid.append(field(action === 'review' ? 'Human-review threshold' : `${pretty(action)} action floor`, el));
     }
     parent.append(panel('Monitoring & enforcement', 'Default: no monitored channels, no automatic actions. Source images are transient and not retained.', h('div', { class: 'columns' }, h('div', { class: 'form-stack' }, monitoring.node, enforcement.node, high.node, any.node, semantic.node), h('div', { class: 'form-stack' }, bots.node, webhooks.node, dm.node, field('Uncertain result policy', uncertain))), h('div', { class: 'columns' }, monitored.node, excluded.node), exempt.node));
-    parent.append(panel('Matching, usage & retention', 'Action-specific floors combine with the rule threshold. Changing model or threshold settings makes prior approvals stale.', h('div', { class: 'form-row' }, field('Pinned Jev model', model), field('Daily request limit (UTC)', daily), field('Log retention, days', retention)), field('Moderator log channel', log), thresholdGrid, h('div', { class: 'actions' }, button('Save settings', async () => {
+    parent.append(panel('Matching, usage & retention', 'Action-specific floors combine with the rule threshold. Changing model or threshold settings makes prior approvals stale.', h('div', { class: 'form-row' }, field('Pinned Jev model', model), field('Daily request limit (UTC)', daily), field('Log retention, days', retention)), field('Moderator log channel', log), thresholdGrid,
+        h('p', {}, 'Jev automation: a comparison must reach the greater of its rule threshold and action floor. Equality qualifies; approvals, verification, permissions and all execution safeguards still apply.'),
+        h('p', {}, 'Jev human review: when the uncertain result policy is review and no rule qualifies for its action, comparisons at or above the human-review threshold but below their effective action threshold enter Logs as open moderation events. Below the review threshold, no fallback review is created. Ignore disables this fallback; explicit review rules still apply.'),
+        h('p', {}, 'A review threshold equal to or above an effective action threshold leaves no fallback review band for that rule. Action-qualified rules take precedence. Thresholds do not guarantee an error rate. The default review threshold is 0.8; older versions used 0.5 for fallback review.'),
+        h('p', {}, 'Exact normalized-image matches have no probability. These numerical bands do not apply to hash evidence; unmet approval or execution safeguards route it to review without Jev.'),
+        h('div', { class: 'actions' }, button('Save settings', async () => {
         const enabling = enforcement.box.checked && !s.enforcement;
         if (enabling && !await confirmAction('Enable automatic enforcement?', 'Only approved rules will execute. Model errors and uncertain matches do not authorize punishment. False positives remain possible.'))
             return;

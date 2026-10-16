@@ -48,7 +48,7 @@ Upload a reference: `{ "name":"Example", "groupId":null, "enabled":true, "base64
 
 Create/update a rule through `{ "rule": { ... }, "revision": 1 }`, omitting revision for creation. Required rule fields are defined and validated in `shared/domain.ts`: name, type, referenceId, groupId, mode, threshold, action, timeoutSeconds, deleteMessage, priority, enabled, automatic, secondVerification and reason. IDs for absent targets must be null. The server supplies identity, timestamps, guild and approval; unknown keys are rejected.
 
-Settings writes use `{ "value": { ...settings }, "revision": 1 }`. A transition to enforcement enabled additionally requires `"acknowledgement":"ENABLE_AUTOMATIC_ENFORCEMENT"`. Use GET immediately before editing and retain the returned revision.
+Settings writes use `{ "value": { ...settings }, "revision": 1 }`. A transition to enforcement enabled additionally requires `"acknowledgement":"ENABLE_AUTOMATIC_ENFORCEMENT"`. Use GET immediately before editing and retain the returned revision. `thresholds.review` controls fallback human review (default 0.8, formerly a hardcoded 0.5). Each threshold remains independently valid from 0.5 through 1, with the existing severe-action ordering constraints. Review may equal or exceed an action floor: the fallback band is empty when review is at or above the effective threshold `max(rule.threshold, thresholds[action])`. Action-qualified candidates retain precedence; `uncertain: "ignore"` only disables fallback, not explicit review rules. See [matching](MATCHING.md) for boundary and selection semantics.
 
 Credential replacement: `{ "apiKey":"<new key>" }`. Credential deletion: `{ "revision":1 }`. No credential GET exposes plaintext or ciphertext.
 

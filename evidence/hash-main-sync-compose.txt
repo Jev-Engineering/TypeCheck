@@ -1,0 +1,12 @@
+npm notice run typecheck@0.1.0 test:compose
+npm notice run node scripts/test-compose.mjs
+Isolated Compose validation: jev-guard-validation-hash-sync-20261016-01
+PASS image build and in-image unit tests
+PASS migrations applied twice
+PostgreSQL integration passed: revisions, tenant FKs, rollback, durable jobs, concurrent idempotency, reconnect persistence, leader recovery, unknown no-replay, quotas, nonces, payload erasure.
+PASS health, official SDK asset, unauthenticated and origin rejection
+PASS persistence seed: non-root, enforcement disabled, private storage, credential recovery, durable ledger
+PASS persistence recover: non-root, enforcement disabled, private storage, credential recovery, durable ledger
+PASS database outage readiness, project-only restart and interrupted job recovery
+PASS isolated database + object + encryption-key restoration
+PASS persistence read: non-root, enforcement disabled, private storage, credential recovery, durable ledger
