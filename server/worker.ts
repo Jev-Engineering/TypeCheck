@@ -12,6 +12,7 @@ export class Worker {
     constructor(readonly services: Services, private download = downloadAttachment, private enforcementAllowed = true) { }
     stop() { this.stopRequested = true; }
     async ingest(m: ImageMessage) {
+        if (this.stopRequested) return;
         if (m.userId === this.services.discord.botId)
             return;
         const images = m.attachments.filter(supportedAttachment);
@@ -148,6 +149,7 @@ export class Worker {
                     outcomes.push(`${action}:paused`);
                     continue;
                 }
+                assert(!this.stopRequested, 'worker_stopped', 503);
                 await discord.perform(message, action, decision.rule.timeoutSeconds, decision.rule.reason);
                 await store.finishAction(guild, message.messageId, slot, 'success', '');
                 outcomes.push(`${action}:success`);

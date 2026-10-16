@@ -17,6 +17,7 @@ export class Gateway {
         while (!this.stopping) {
             try {
                 const gateway = await this.rest.request('/gateway/bot');
+                if (this.stopping) return;
                 if (!this.sessionId && gateway.session_start_limit?.remaining === 0) {
                     await this.wait(Math.min(gateway.session_start_limit.reset_after, 3600000));
                     continue;
@@ -47,7 +48,7 @@ export class Gateway {
             const ws = new WebSocket(url);
             this.socket = ws;
             let awaitingAck = false;
-            const send = (value: unknown) => { if (ws.readyState === WebSocket.OPEN)
+            const send = (value: unknown) => { if (!this.stopping && ws.readyState === WebSocket.OPEN)
                 ws.send(JSON.stringify(value)); };
             const beat = (interval: number) => {
                 if (awaitingAck) {
@@ -60,6 +61,7 @@ export class Gateway {
             };
             ws.addEventListener('message', event => {
                 void (async () => {
+                    if (this.stopping) return;
                     const text = typeof event.data === 'string' ? event.data : '';
                     if (text.length > 8 * 1024 * 1024)
                         throw new AppError('gateway_payload_limit');

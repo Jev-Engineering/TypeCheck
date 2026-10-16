@@ -50,7 +50,7 @@ function rulePermissions(a: Authority, next: RuleInput, old?: Rule) {
     if (next.action === 'ban' && next.enabled)
         requireCapability(a, 'ban.enable');
 }
-export function createHttp(services: Services, config: Config, root = process.cwd(), readiness?: () => Promise<boolean>) {
+export function createHttp(services: Services, config: Config, root = process.cwd(), readiness?: () => Promise<boolean>, controllerState?: () => string) {
     const { store, discord } = services;
     const limits = new Map<string, {
         at: number;
@@ -70,10 +70,10 @@ export function createHttp(services: Services, config: Config, root = process.cw
         if (url.pathname === '/api/config' && method === 'GET')
             return { body: { clientId: config.clientId, version: '0.1.0', experimental: true } };
         if (url.pathname === '/api/health' && method === 'GET')
-            return { body: { status: 'running' } };
+            return { body: { status: controllerState?.() ?? 'running' } };
         if (url.pathname === '/api/ready' && method === 'GET') {
             const ready = readiness ? await readiness().catch(() => false) : false;
-            return { status: ready ? 200 : 503, body: { status: ready ? 'ready' : 'not_ready' } };
+            return { status: ready ? 200 : 503, body: { status: ready ? 'ready' : 'not_ready', ...(controllerState ? { controller: controllerState() } : {}) } };
         }
         if (url.pathname === '/api/auth/start' && method === 'POST') {
             rate('auth:' + req.socket.remoteAddress, 20);
