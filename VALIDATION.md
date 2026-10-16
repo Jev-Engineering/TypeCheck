@@ -1,5 +1,17 @@
 # Validation record
 
+## CI image remediation — October 16, 2026
+
+PR #8 replaces the Debian build/runtime base with digest-pinned official Node 22 Alpine 3.24 and applies stable Alpine updates. The old image failed the high/critical gate with 43 high Debian findings. No scanner exclusions, severity changes or workflow bypasses were added.
+
+- `npm run check`: passed.
+- `docker build --progress=plain -t typecheck-pr8-alpine:validation .`: passed production build and **164 tests**, 0 failed/skipped. Evidence: `evidence/alpine-runtime-build.txt`.
+- Read-only, network-disabled runtime smoke: Node 22.23.3, UID 1000, sharp 0.35.5 synthetic PNG decode/JPEG encode, PostgreSQL and MySQL client loading passed; runtime npm absent.
+- The same pinned Trivy scanner and `--scanners vuln --severity HIGH,CRITICAL --exit-code 1` used by CI exited **0**: **0 high/critical OS or Node-package findings**. Alpine 3.24.2, 18 OS packages. Evidence: `evidence/alpine-runtime-vulnerabilities.json` records scanned image metadata. This scan does not assert that lower-severity findings or future vulnerabilities are absent.
+
+Hosted CI must additionally verify PostgreSQL/MySQL and the Compose recovery/restore drill on the new base. Local validation used only a new image and transient smoke/scan containers; shared services and WSL were not restarted. No live providers, Discord actions, hosted database connections, deployment or merge. Historical Debian scan records below remain historical evidence; live/independent production acceptance is still separate.
+
+
 ## Configurable review threshold — October 16, 2026
 
 Issue #6; isolated branch `fix/configurable-review-threshold` based on main `2f2329f`. Synthetic images, mocked Jev/Discord and MemoryStore only; no hosted database, charged provider calls or live Discord mutations. Existing cost-analytics worktree/PR, `.env` and `ACCEPTANCE_APPROVED` were not changed.
