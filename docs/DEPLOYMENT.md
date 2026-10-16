@@ -46,28 +46,28 @@ To rotate the GoDaddy PAT, create a new token with the scopes above at https://d
 1. **Provenance.** The candidate must be a 40-character SHA on `main` with a successful `Validate` push run.
 2. **Live release.** The workflow reads `/api/health` (`release`, `storage`). For releases that predate release reporting, it falls back to the newest successful GitHub deployment for `production`.
 3. **Guard** (`scripts/release-guard.mjs`):
-   - A candidate older than the live release is refused unless dispatched with `rollback: true`.
+   - A candidate older than the live release is refused unless dispatched with `rollback: true`. For an automatic run this means a newer release is already live (CI runs finished out of order), so the run ends as a successful no-op (`superseded`).
    - A diverged history is refused.
    - Migrations are classified by diffing `db/`. *Expand-only* means new files that only create tables and indexes, and write rows only into those new tables or `schema_migrations`. Anything else (ALTER, DROP, UPDATE, DELETE, edits to shipped migrations) is *incompatible* and blocks automatic deployment.
 4. **Record.** A GitHub deployment is created for the exact candidate SHA (`in_progress`). It links to the run.
-5. **Backup.** The workflow opens a `gddy db tunnel` to the hosted MySQL, runs `mysqldump --single-transaction` and restores the dump into a disposable server of the same version. Row counts must match. The dump is then encrypted with `age` and stored as a 90-day workflow artifact (`production-db-backup-<run>`). A backup is mandatory when migrations are pending, and best effort otherwise.
-6. **Migration** (expand-only releases only). The candidate's own `dist/server/migrate.js` first runs against the restored copy as a rehearsal, then once against production through the tunnel. It uses the application's `GET_LOCK('typecheck:migrate')` and writes the version receipt last. The old release keeps serving throughout, because expand-only schema is compatible with both versions.
+5. **Backup.** The workflow opens a `gddy db tunnel` to the hosted MySQL, runs `mysqldump --single-transaction` and restores the dump into a disposable server of the same family and major.minor version. Per-table row counts taken from the dump itself (one `INSERT` per row) must equal the restored counts, so concurrent production writes cannot cause a false mismatch. The dump is then encrypted with `age` and stored as a 90-day workflow artifact (`production-db-backup-<run>`). A backup is mandatory when migrations are pending, and best effort otherwise.
+6. **Migration** (expand-only forward releases only; never for rollbacks). The candidate is built and run as a separate unprivileged OS user (`npm ci --ignore-scripts`), so its code cannot read the GoDaddy PAT or alter later workflow steps. Its own `dist/server/migrate.js` first runs against the restored copy as a rehearsal, then once against production through the tunnel. It uses the application's `GET_LOCK('typecheck:migrate')` and writes the version receipt last. The old release keeps serving throughout, because expand-only schema is compatible with both versions.
 7. **Ship.** `git archive` of the exact commit plus `release.json` (`commit`, `run`) is uploaded to PREVIEW, built by GoDaddy and then published.
-8. **Verify** (`scripts/verify-production.mjs`, read-only, about 10 minutes maximum):
+8. **Verify** (`scripts/verify-production.mjs`, read-only; up to 10 minutes for the release to appear, plus up to two 3-minute handoff retries):
    - HTTPS works.
    - `/api/health.release` equals the CI commit.
    - The storage marker is unchanged.
    - `/api/ready` is 200 (database plus controller).
    - API and unauthenticated responses are `no-store` and not edge-cached.
    - The page and its release-scoped assets load, and the Discord proxy serves the same release.
-   - The published process becomes `leader`. If PREVIEW holds the lock, PREVIEW is restarted once to hand over ownership.
+   - The published process becomes `leader`. If PREVIEW holds the lock, PREVIEW is restarted (at most twice) to hand over ownership. If PREVIEW still leads, the run passes with a warning: one controller exists, but it is the PREVIEW process.
 9. **Failure handling.** Platform logs (secrets redacted) are kept as an artifact. If publishing had started, the previous release is redeployed the same way and verified. Rollback is automatic only because the guard admitted no incompatible schema change. The GitHub deployment is marked `failure`, and the run fails.
 
 Concurrency group `production-deploy` serializes releases. A newer queued release replaces an older queued one. A running release, including its migration and cutover, is never cancelled.
 
 ## Controller ownership
 
-PREVIEW and PUBLISH share the bot token and database, and the database leader lock elects exactly one controller (see SETUP.md). An upload restarts PREVIEW on the new code while PUBLISH keeps the lock. When PUBLISH restarts, PREVIEW can win the lock. The workflow detects this (`/api/health` reports `standby` on PUBLISH) and restarts PREVIEW so PUBLISH takes over. Duplicate controllers cannot occur, because the lock is held per database connection. To check manually:
+PREVIEW and PUBLISH share the bot token and database, and the database leader lock elects exactly one controller (see SETUP.md). An upload restarts PREVIEW on the new code while PUBLISH keeps the lock. When PUBLISH restarts, PREVIEW can win the lock. The workflow detects this (`/api/health` reports `standby` on PUBLISH) and restarts PREVIEW, after which PUBLISH, retrying every five seconds, normally takes over. This is not guaranteed: a restarted PREVIEW can win again, and the run then ends with a warning rather than a rollback, because a healthy release with PREVIEW as controller is still a single controller. In that case restart PREVIEW again from the hosting UI or with `gddy hosting app restart --variant PREVIEW`. Duplicate controllers cannot occur, because the lock is held per database connection. To check manually:
 
 ```bash
 curl -s https://mxa13say2y.c24.airoapp.ai/api/health   # {"status":"leader",...} expected

@@ -36,7 +36,8 @@ jobs:
        github.event.workflow_run.head_branch == 'main' &&
        github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-24.04
-    timeout-minutes: 75
+    # Worst case: backup ~10, migrate ~5, ship <=20, verify <=16, rollback ship+verify <=36 minutes.
+    timeout-minutes: 100
     environment:
       name: production
       url: ${{ vars.PRODUCTION_URL }}
@@ -76,8 +77,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           health="$(curl -fsS --max-time 20 "$PRODUCTION_URL/api/health" || echo '{}')"
-          release="$(jq -r '.release // empty' <<<"$health")"
-          storage="$(jq -r '.storage // empty' <<<"$health")"
+          release="$(jq -r '.release // empty' <<<"$health" 2>/dev/null || true)"
+          storage="$(jq -r '.storage // empty' <<<"$health" 2>/dev/null || true)"
           source=health
           if [[ -z "$release" ]]; then
             # Older releases do not report their commit; fall back to the last recorded success.
@@ -104,14 +105,21 @@ jobs:
           code=$?
           set -e
           echo "$result" | jq .
-          echo "action=$(jq -r .action <<<"$result")" >> "$GITHUB_OUTPUT"
+          action="$(jq -r .action <<<"$result")"; reason="$(jq -r '.reason // empty' <<<"$result")"
+          # Validate runs can finish out of order; a newer release already being live is not an error.
+          if [[ "$GITHUB_EVENT_NAME" == workflow_run && "$reason" == candidate_older_than_live_release ]]; then action=superseded; code=0; fi
+          echo "action=$action" >> "$GITHUB_OUTPUT"
           echo "migrations=$(jq -r .migrations <<<"$result")" >> "$GITHUB_OUTPUT"
-          if [[ $code -ne 0 ]]; then echo "::error::release blocked: $(jq -r .reason <<<"$result")"; exit 1; fi
+          if [[ $code -ne 0 ]]; then echo "::error::release blocked: $reason"; exit 1; fi
 
-      - name: Skip a commit that is already live
+      - name: Skip a commit that is already live or superseded
         id: noop
-        if: steps.guard.outputs.action == 'redeploy' && github.event_name == 'workflow_run'
-        run: echo "skip=true" >> "$GITHUB_OUTPUT"; echo "$CANDIDATE is already live; nothing to do." >> "$GITHUB_STEP_SUMMARY"
+        if: github.event_name == 'workflow_run' && (steps.guard.outputs.action == 'redeploy' || steps.guard.outputs.action == 'superseded')
+        env:
+          ACTION: ${{ steps.guard.outputs.action }}
+        run: |
+          echo "skip=true" >> "$GITHUB_OUTPUT"
+          echo "$CANDIDATE is $ACTION; nothing to deploy." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Record deployment start
         id: record
@@ -139,13 +147,16 @@ jobs:
           gddy --version
           sudo apt-get install -y -qq age >/dev/null
 
-      - name: Build the candidate migrator (no secrets in scope)
-        if: steps.noop.outputs.skip != 'true' && steps.guard.outputs.migrations == 'expand'
-        run: |
-          git worktree add --detach "$RUNNER_TEMP/candidate" "$CANDIDATE"
-          cd "$RUNNER_TEMP/candidate"
-          npm ci --omit=dev --no-audit --no-fund
-          npm run build
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        if: steps.noop.outputs.skip != 'true' && steps.guard.outputs.migrations == 'expand' && steps.guard.outputs.action != 'rollback'
+        with:
+          node-version: '22'
+
+      - name: Build the candidate migrator as an unprivileged user
+        if: steps.noop.outputs.skip != 'true' && steps.guard.outputs.migrations == 'expand' && steps.guard.outputs.action != 'rollback'
+        # Candidate code runs as a separate OS user: it cannot write this job's GITHUB_ENV/PATH
+        # files or read the environment of processes holding the GoDaddy PAT.
+        run: scripts/godaddy-release.sh build_migrator "$CANDIDATE"
 
       - name: Back up production and run a restore drill
         id: backup
@@ -173,19 +184,19 @@ jobs:
           if-no-files-found: error
 
       - name: Rehearse the migration on the restored copy
-        if: steps.noop.outputs.skip != 'true' && steps.guard.outputs.migrations == 'expand'
+        if: steps.noop.outputs.skip != 'true' && steps.guard.outputs.migrations == 'expand' && steps.guard.outputs.action != 'rollback'
         env:
           DB_NAME: ${{ secrets.GODADDY_DB_NAME }}
-        run: scripts/godaddy-release.sh migrate "$RUNNER_TEMP/candidate" drill
+        run: scripts/godaddy-release.sh migrate drill
 
       - name: Migrate production once (expand-only, application lock)
-        if: steps.noop.outputs.skip != 'true' && steps.guard.outputs.migrations == 'expand'
+        if: steps.noop.outputs.skip != 'true' && steps.guard.outputs.migrations == 'expand' && steps.guard.outputs.action != 'rollback'
         env:
           GDDY_PAT: ${{ secrets.GODADDY_PAT }}
           DB_NAME: ${{ secrets.GODADDY_DB_NAME }}
           DB_USER: ${{ secrets.GODADDY_DB_USER }}
           DB_PASSWORD: ${{ secrets.GODADDY_DB_PASSWORD }}
-        run: scripts/godaddy-release.sh migrate "$RUNNER_TEMP/candidate" tunnel
+        run: scripts/godaddy-release.sh migrate tunnel
 
       - name: Upload the exact commit and publish
         id: ship
@@ -201,24 +212,16 @@ jobs:
           GDDY_PAT: ${{ secrets.GODADDY_PAT }}
           EXPECTED_COMMIT: ${{ env.CANDIDATE }}
           EXPECTED_STORAGE: ${{ steps.live.outputs.storage }}
-        run: |
-          set +e
-          node scripts/verify-production.mjs; code=$?
-          if [[ $code -eq 3 ]]; then
-            echo "::notice::Published release is standby; restarting PREVIEW to hand controller ownership to PUBLISH"
-            scripts/godaddy-release.sh handoff
-            TIMEOUT_SECONDS=300 node scripts/verify-production.mjs; code=$?
-          fi
-          exit $code
+        run: scripts/godaddy-release.sh verify
 
       - name: Collect diagnostics
-        if: failure() && steps.record.outputs.id
+        if: (failure() || cancelled()) && steps.record.outputs.id
         env:
           GDDY_PAT: ${{ secrets.GODADDY_PAT }}
         run: scripts/godaddy-release.sh logs "$RUNNER_TEMP/diagnostics"
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: failure() && steps.record.outputs.id
+        if: (failure() || cancelled()) && steps.record.outputs.id
         with:
           name: deployment-diagnostics-${{ github.run_id }}
           path: ${{ runner.temp }}/diagnostics
@@ -227,7 +230,7 @@ jobs:
       - name: Roll back to the previous release
         id: rollback
         # Safe only because the guard admitted no incompatible schema change.
-        if: failure() && steps.ship.outputs.publish_started == 'true' && steps.live.outputs.release != env.CANDIDATE
+        if: (failure() || cancelled()) && steps.ship.outputs.publish_started == 'true' && steps.live.outputs.release != env.CANDIDATE
         env:
           GDDY_PAT: ${{ secrets.GODADDY_PAT }}
           PREVIOUS: ${{ steps.live.outputs.release }}
@@ -237,10 +240,7 @@ jobs:
           scripts/godaddy-release.sh ship "$PREVIOUS" "$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           # Releases that predate release reporting are verified by readiness only.
           if [[ "$PREVIOUS_SOURCE" == health ]]; then export EXPECTED_COMMIT="$PREVIOUS"; fi
-          set +e
-          node scripts/verify-production.mjs; code=$?
-          if [[ $code -eq 3 ]]; then scripts/godaddy-release.sh handoff; TIMEOUT_SECONDS=300 node scripts/verify-production.mjs; code=$?; fi
-          exit $code
+          scripts/godaddy-release.sh verify
 
       - name: Record deployment result
         if: always() && steps.record.outputs.id

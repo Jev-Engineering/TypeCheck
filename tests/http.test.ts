@@ -260,6 +260,8 @@ test('the page references release-scoped assets that resolve to the current buil
     assert.equal(css.raw, await (await import('node:fs/promises')).readFile('activity/style.css', 'utf8'));
     assert.equal((await f.request('/r/0123456789ab/.env', 'GET', undefined, undefined, '')).status, 404);
     assert.equal((await f.request('/r/zzzzzzzzzzzz/style.css', 'GET', undefined, undefined, '')).status, 404);
+    assert.equal((await f.request('/r/ffffffffffff/style.css', 'GET', undefined, undefined, '')).status, 404);
+    assert.equal((await f.request('/r/dev/style.css', 'GET', undefined, undefined, '')).status, 404);
 });
 
 test('development pages use the dev asset scope', async t => {

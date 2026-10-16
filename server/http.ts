@@ -439,8 +439,8 @@ export function createHttp(services: Services, config: Config, root = process.cw
     // so the page references release-scoped paths and old modules cannot mix with new ones.
     const version = assetVersion(deployment?.release ?? null);
     async function staticFile(requested: string): Promise<Reply> {
-        const scoped = /^\/r\/(?:[0-9a-f]{12}|dev)(\/.+)$/.exec(requested);
-        const pathname = scoped ? scoped[1]! : requested;
+        // Only this build's scope: content cached under another release's path would be wrong for a month.
+        const pathname = requested.startsWith(`/r/${version}/`) ? requested.slice(version.length + 3) : requested;
         if (pathname === '/') {
             const html = await readFile(resolve(root, 'activity/index.html'), 'utf8');
             return { bytes: Buffer.from(html.replace(/(href|src)="\/(style\.css|activity\/src\/main\.js)"/g, `$1="/r/${version}/$2"`)), type: 'text/html; charset=utf-8' };

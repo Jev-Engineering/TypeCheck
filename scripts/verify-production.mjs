@@ -36,7 +36,7 @@ async function waitForRelease() {
 let health;
 try { health = await waitForRelease(); }
 catch (e) { check('release serving', false, e.message); }
-if (health) {
+if (health) try {
     check('https origin', origin.startsWith('https://'), origin);
     check('release matches CI commit', !expected || health.release === expected, `${health.release} (expected ${expected ?? 'any'})`);
     check('object storage persisted', !storage || health.storage === storage, `${health.storage} (expected ${storage ?? 'new marker'})`);
@@ -58,9 +58,9 @@ if (health) {
         const proxied = await get(`https://${process.env.DISCORD_CLIENT_ID}.discordsays.com/api/health`).catch(e => ({ status: 0, body: e.name }));
         check('discord activity proxy reaches release', proxied.status === 200 && (!expected || json(proxied.body)?.release === expected), `${proxied.status} ${proxied.body.slice(0, 100)}`);
     }
-}
+} catch (e) { check('request completed', false, e.name); }
 const failed = checks.filter(c => !c.ok);
-const standby = health && health.status !== 'leader';
+const standby = health?.status === 'standby';
 const summary = ['| Check | Result | Detail |', '|---|---|---|', ...checks.map(c => `| ${c.name} | ${c.ok ? 'pass' : 'FAIL'} | ${c.detail.replace(/\|/g, '/')} |`), `| published controller | ${standby ? 'STANDBY' : 'leader'} | ${health?.status ?? 'unknown'} |`].join('\n');
 console.log(summary);
 if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `\n### Production verification (${origin})\n\n${summary}\n`);
