@@ -128,7 +128,7 @@ CREATE TABLE IF NOT EXISTS seen_attachments (
 CREATE TABLE IF NOT EXISTS action_ledger (
  guild_id VARCHAR(22) NOT NULL, message_id VARCHAR(22) NOT NULL,
  slot VARCHAR(16) NOT NULL CHECK(slot IN ('delete','user','dm','log')),
- action VARCHAR(32) NOT NULL, status VARCHAR(32) NOT NULL, detail TEXT NOT NULL,
+ action VARCHAR(32) NOT NULL, status VARCHAR(32) NOT NULL, detail TEXT NOT NULL DEFAULT (''),
  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3), PRIMARY KEY(guild_id,message_id,slot),
  FOREIGN KEY(guild_id) REFERENCES guilds(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;

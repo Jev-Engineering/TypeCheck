@@ -1,4 +1,5 @@
 import { assert } from '../shared/domain.js';
+import { checkServerIdentity } from 'node:tls';
 import type { SqlClient, SqlPool, QueryResult } from './postgres.js';
 
 export interface MySqlClient extends SqlClient { destroy(): void; }
@@ -19,7 +20,7 @@ export async function openMySqlPool(connectionString: string, tls?: MySqlTls): P
         user: decodeURIComponent(url.username), password: decodeURIComponent(url.password), database: decodeURIComponent(url.pathname.slice(1)),
         connectionLimit: 5, queueLimit: 100, connectTimeout: 10000, timezone: 'Z', charset: 'utf8mb4_bin',
         flags: ['-FOUND_ROWS'], jsonStrings: true, supportBigNumbers: true, bigNumberStrings: true,
-        ssl: tls ? { ...tls, rejectUnauthorized: true } : undefined, multipleStatements: false });
+        ssl: tls ? { ...tls, rejectUnauthorized: true, verifyIdentity: true } : undefined, multipleStatements: false });
     const connect = async (): Promise<MySqlClient> => {
         const c = await raw.getConnection();
         const query = async (sql: string, values: unknown[] = []): Promise<QueryResult> => {
@@ -37,6 +38,12 @@ export async function openMySqlPool(connectionString: string, tls?: MySqlTls): P
             }
         };
         try {
+            // mysql2 skips its hostname check for IP literals. Verify explicitly for
+            // both DNS and IP hosts (including resumed TLS sessions) before any SQL.
+            if (tls) {
+                const socket = c.connection.stream;
+                assert(socket.authorized && !checkServerIdentity(url.hostname.replace(/^\[|\]$/g, ''), socket.getPeerCertificate(true)), 'mysql_tls_identity_failed');
+            }
             await query("SET time_zone='+00:00', SESSION sql_mode='STRICT_ALL_TABLES,NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION', SESSION innodb_lock_wait_timeout=20");
             checkMySqlVersion(String((await query('SELECT VERSION() AS version')).rows[0].version));
         } catch (e) { c.destroy(); throw e; }

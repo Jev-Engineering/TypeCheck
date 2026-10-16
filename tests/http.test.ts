@@ -7,10 +7,10 @@ import { digest } from '../server/security.js';
 import { fingerprint } from '../server/policy.js';
 import { fixture, rule, G, G2, ADMIN, MOD, ROLE, CHANNEL, API_KEY, PNG } from './helpers.js';
 const ORIGIN = 'http://localhost:3000';
-async function setup(t: TestContext, production = false, readiness?: () => Promise<boolean>) {
+async function setup(t: TestContext, production = false, readiness?: () => Promise<boolean>, controllerState?: () => string) {
     const f = await fixture(t);
     const config = { port: 3000, production, publicOrigin: ORIGIN, clientId: G, clientSecret: 'fake-secret', botToken: 'fake-token', databaseUrl: 'not-used', masterKey: 'not-used', objectDir: 'not-used', model: 'jev-1.14.0', apiOnly: true };
-    const server = createHttp(f.services, config, process.cwd(), readiness);
+    const server = createHttp(f.services, config, process.cwd(), readiness, controllerState);
     await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
     const address = server.address() as {
         port: number;
@@ -100,4 +100,13 @@ test('readiness reports dependency failure without leaking error text', async t 
     assert.equal(response.status, 503);
     assert.deepEqual(response.data, {status: 'not_ready'});
     assert.equal((await f.request('/api/health')).status, 200);
+});
+
+test('standby serves health and authenticated API without requiring a Gateway', async t => {
+    const f = await setup(t, false, async () => true, () => 'standby');
+    assert.deepEqual((await f.request('/api/health')).data, { status: 'standby' });
+    const ready = await f.request('/api/ready'); assert.equal(ready.status, 200);
+    assert.equal(ready.data.controller, 'standby');
+    const login = await f.login(); assert.equal(login.status, 200);
+    assert.equal((await f.request(`/api/g/${G}/me`, 'GET', undefined, login.data.sessionToken)).status, 200);
 });

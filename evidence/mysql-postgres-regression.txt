@@ -1,0 +1,5 @@
+Migration 001 applied or already present.
+Migration 001 applied or already present.
+npm notice run typecheck@0.1.0 test:postgres
+npm notice run node scripts/test-postgres.mjs
+PostgreSQL integration passed: revisions, tenant FKs, rollback, durable jobs, concurrent idempotency, reconnect persistence, leader recovery, unknown no-replay, quotas, nonces, payload erasure.
