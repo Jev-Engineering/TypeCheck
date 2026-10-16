@@ -1,3 +1,4 @@
+import { thresholdPersistence } from './test-threshold-persistence.mjs';
 /** Destructive only to newly generated test guilds. Use a disposable database. */
 import nativeAssert from 'node:assert/strict';
 let assertions=0;
@@ -14,6 +15,7 @@ assert.ok(['localhost','127.0.0.1','[::1]'].includes(url.hostname),'Only loopbac
 let pool=await openMySqlPool(process.env.TEST_DATABASE_URL),store=new MySqlStore(pool);
 const g=String(Date.now())+'01',g2=String(Date.now())+'02';
 try{
+  await thresholdPersistence(store,pool,'mysql',g+'9');
   console.log(`MySQL version: ${(await pool.query('SELECT VERSION() AS version')).rows[0].version}`);
   await Promise.all([migrateDatabase(pool,'mysql'),migrateDatabase(pool,'mysql')]);
   assert.equal((await pool.query("SELECT version FROM schema_migrations WHERE version='001'")).rowCount,1);

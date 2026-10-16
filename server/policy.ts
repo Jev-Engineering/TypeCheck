@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { isPunitive, isSevere, type Rule, type ReferenceImage, type Match, type Settings, type Action } from '../shared/domain.js';
+import { effectiveThreshold } from '../shared/domain.js';
 export const PROMPT_VERSION = 'image-identity-v1';
 const rank = { individual: 0, group: 1, any_match: 2, any_image: 3 };
 export function referencesFor(rule: Rule, images: ReferenceImage[]): ReferenceImage[] {
@@ -21,7 +22,7 @@ export interface Decision {
 export function resolvePolicy(rules: Rule[], matches: Match[], settings: Settings, images: ReferenceImage[]): Decision | null {
     const eligible = rules.filter(r => r.enabled && (r.type !== 'any_image' || settings.anyImageEnabled) && (r.mode !== 'semantic' || settings.semanticEnabled));
     const matched = eligible.flatMap(rule => {
-        const floor = Math.max(rule.threshold, settings.thresholds[rule.action]);
+        const floor = effectiveThreshold(rule, settings);
         const candidates = matches.filter(m => m.ruleId === rule.id && Number.isFinite(m.probability) && m.probability >= floor && m.probability <= 1 && m.model === settings.model)
             .sort((a, b) => b.probability - a.probability || a.attachmentId.localeCompare(b.attachmentId));
         return candidates[0] ? [{ rule, match: candidates[0] }] : [];

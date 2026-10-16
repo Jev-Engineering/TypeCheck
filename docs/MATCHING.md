@@ -16,6 +16,18 @@ Higher numeric rule priority wins. Ties favor individual-image, group, any-refer
 
 A positive candidate must satisfy the greater of the rule threshold and action floor. An eligible but uncertain result is reviewed or ignored according to server settings. Provider errors never become positive results. An incomplete multi-image evaluation suppresses punitive dispatch for the whole message because rule precedence could otherwise be resolved incorrectly.
 
+## Configurable match thresholds
+
+Shared configuration in `shared/domain.ts` supplies **Standard (0.70)** for general matching and **Strict (0.90)** for cases requiring stronger confidence. These are practical starting points from experience; suitability depends on the domain, model and images. **0.90 is a stricter threshold, never a guarantee of accuracy or a claim of 90% accuracy.** Calibrate on representative examples.
+
+New rules start at 0.70. New server action floors are 0.70 for none, review, warn and delete, and 0.90 for timeout, kick and ban. The Activity rule editor offers Standard, Strict and Custom alongside an editable numeric value. Administrators can change each floor in Settings. Values must be finite numbers in the inclusive range 0.5–1.0, with timeout <= kick <= ban; other action floors are independent.
+
+For reference matching, `effective threshold = max(rule threshold, action floor)`, and a score qualifies when `score >= effective threshold`. For example, a Standard timeout rule uses max(0.70, 0.90) = 0.90: 0.90 qualifies and 0.899999 does not. A custom rule value of 0.93 with a 0.90 floor uses 0.93. Qualification still requires every enforcement safeguard. Tests show the returned score (the conservative combined score after second verification), configured rule value, action floor, effective value and inclusive comparison result; tests never execute sanctions.
+
+Existing saved values, including the older 0.95/0.97/0.99/0.999 floors, remain unchanged. Missing stored fields receive defaults on read without rewriting records. API updates preserve omitted existing thresholds; explicitly invalid values are rejected. No migration resets servers or rules. Threshold edits do not enable enforcement: rule saves clear approval, and floor changes make prior fingerprints stale.
+
+Any-image rules do not use match thresholds or Jev similarity scores. Their test score is a synthetic presence marker, and effective threshold / meets-threshold fields are null. Explicit any-image enablement, approval and enforcement gates still apply. Uncertain-review routing is unchanged by this configuration update (tracked separately in #6 / #8).
+
 ## Approval gates
 
 Punitive reference rules require a current administrator-approved fingerprint tied to rule content, reference content/revisions, model, prompt version and thresholds. Saving a rule clears approval; changing a dependency makes approval stale.
