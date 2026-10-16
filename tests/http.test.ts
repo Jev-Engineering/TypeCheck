@@ -7,10 +7,10 @@ import { digest } from '../server/security.js';
 import { fingerprint } from '../server/policy.js';
 import { fixture, rule, G, G2, ADMIN, MOD, ROLE, CHANNEL, API_KEY, PNG } from './helpers.js';
 const ORIGIN = 'http://localhost:3000';
-async function setup(t: TestContext) {
+async function setup(t: TestContext, production = false, readiness?: () => Promise<boolean>) {
     const f = await fixture(t);
-    const config = { port: 3000, production: false, publicOrigin: ORIGIN, clientId: G, clientSecret: 'fake-secret', botToken: 'fake-token', databaseUrl: 'not-used', masterKey: 'not-used', objectDir: 'not-used', model: 'jev-1.14.0', apiOnly: true };
-    const server = createHttp(f.services, config);
+    const config = { port: 3000, production, publicOrigin: ORIGIN, clientId: G, clientSecret: 'fake-secret', botToken: 'fake-token', databaseUrl: 'not-used', masterKey: 'not-used', objectDir: 'not-used', model: 'jev-1.14.0', apiOnly: true };
+    const server = createHttp(f.services, config, process.cwd(), readiness);
     await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
     const address = server.address() as {
         port: number;
@@ -81,3 +81,23 @@ test('CSV export is a separate delegated capability', async (t) => { const f = a
 test('unexpected backend errors never echo secrets', async (t) => { const f = await setup(t); const login = await f.login(); f.services.credentialStatus = async () => { throw new Error(API_KEY); }; const r = await f.request(`/api/g/${G}/credentials`, 'GET', undefined, login.data.sessionToken); assert.equal(r.status, 500); assert.equal(r.data.error, 'internal_error'); assert.ok(!r.raw.includes(API_KEY)); });
 test('durable action ledger is visible only with log permission', async (t) => { const f = await setup(t); await f.store.beginAction({ guildId: G, messageId: '100000000000000111', slot: 'user', action: 'ban', status: 'unknown', detail: 'network_unknown', createdAt: new Date().toISOString() }); await f.grant(['images.view']); const denied = await f.login('moderator-code'); assert.equal((await f.request(`/api/g/${G}/actions`, 'GET', undefined, denied.data.sessionToken)).status, 403); const allowed = await f.login(); const result = await f.request(`/api/g/${G}/actions`, 'GET', undefined, allowed.data.sessionToken); assert.equal(result.status, 200); assert.equal(result.data.items[0].status, 'unknown'); });
 test('durable action ledger cannot expose another guild records', async (t) => { const f = await setup(t); await f.store.beginAction({ guildId: G2, messageId: '100000000000000111', slot: 'user', action: 'ban', status: 'unknown', detail: 'other_guild', createdAt: new Date().toISOString() }); const login = await f.login(); const r = await f.request(`/api/g/${G}/actions`, 'GET', undefined, login.data.sessionToken); assert.equal(r.data.items.length, 0); });
+
+
+test('production enforcement requires deployment acceptance even for an administrator', async t => {
+    const f = await setup(t, true), login = await f.login();
+    const settings = await f.store.getSettings(G);
+    const response = await f.request(`/api/g/${G}/settings`, 'PUT', {value: {...settings.value, channels: [CHANNEL], enforcement: true}, revision: settings.revision, acknowledgement: 'ENABLE_AUTOMATIC_ENFORCEMENT'}, login.data.sessionToken);
+    assert.equal(response.status, 403);
+    assert.equal(response.data.error, 'deployment_acceptance_required');
+    assert.equal((await f.store.getSettings(G)).value.enforcement, false);
+});
+test('readiness reports dependency failure without leaking error text', async t => {
+    let available = true;
+    const f = await setup(t, false, async () => { if (!available) throw new Error('secret database connection'); return true; });
+    assert.equal((await f.request('/api/ready')).status, 200);
+    available = false;
+    const response = await f.request('/api/ready');
+    assert.equal(response.status, 503);
+    assert.deepEqual(response.data, {status: 'not_ready'});
+    assert.equal((await f.request('/api/health')).status, 200);
+});

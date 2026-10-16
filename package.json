@@ -16,7 +16,8 @@
     "migrate": "node --env-file=.env dist/server/migrate.js",
     "preview": "node scripts/preview.mjs",
     "evaluate": "node --env-file=.env dist/server/evaluate-cli.js",
-    "test:postgres": "node scripts/test-postgres.mjs"
+    "test:postgres": "node scripts/test-postgres.mjs",
+    "test:compose": "node scripts/test-compose.mjs"
   },
   "dependencies": {
     "@discord/embedded-app-sdk": "^2.0.0",

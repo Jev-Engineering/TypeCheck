@@ -7,13 +7,13 @@ import { DEFAULT_SETTINGS, CAPABILITIES } from '../dist/shared/domain.js';
 const root=fileURLToPath(new URL('..',import.meta.url));
 import {guild,user,authority,metadata,settings,groups,images,rules,events,credential} from './preview-data.mjs';
 const sdk=`export class DiscordSDK {guildId='${guild}';async ready(){};commands={authorize:async()=>({code:'offline-preview-code'}),authenticate:async()=>({user:{id:'${user}'}})};}`;
-const files={'/':'activity/index.html','/index.html':'activity/index.html','/style.css':'activity/style.css','/activity/src/main.js':'dist/activity/src/main.js','/shared/domain.js':'dist/shared/domain.js'};
+const files={'/':'activity/index.html','/index.html':'activity/index.html','/style.css':'activity/style.css','/activity/src/main.js':'dist/activity/src/main.js','/shared/domain.js':'dist/shared/domain.js','/fonts/schibsted-grotesk-400.woff2':'activity/fonts/schibsted-grotesk-400.woff2','/fonts/schibsted-grotesk-500.woff2':'activity/fonts/schibsted-grotesk-500.woff2','/fonts/vt323-400.woff2':'activity/fonts/vt323-400.woff2','/fonts/jetbrains-mono-400.woff2':'activity/fonts/jetbrains-mono-400.woff2'};
 const server=createServer(async(req,res)=>{
   const path=new URL(req.url,'http://localhost').pathname;
   const send=(status,value,type='application/json')=>{res.writeHead(status,{'Content-Type':type,'Cache-Control':'no-store','X-Preview-Only':'true'});res.end(type.startsWith('application/json')?JSON.stringify(value):value);};
   try {
     if(path==='/vendor/discord-sdk.js')return send(200,sdk,'text/javascript');
-    if(files[path])return send(200,await readFile(resolve(root,files[path])),path.endsWith('.js')?'text/javascript':path.endsWith('.css')?'text/css':'text/html');
+    if(files[path])return send(200,await readFile(resolve(root,files[path])),path.endsWith('.js')?'text/javascript':path.endsWith('.css')?'text/css':path.endsWith('.woff2')?'font/woff2':'text/html');
     if(path==='/api/config')return send(200,{clientId:'100000000000000099',preview:true});
     if(path==='/api/auth/start')return send(200,{nonce:'offline-preview-nonce'});
     if(path==='/api/auth/exchange')return send(200,{sessionToken:'offline-preview-session',accessToken:'offline-preview-access',authority,expiresIn:900});

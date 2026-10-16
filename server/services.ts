@@ -42,7 +42,7 @@ export class Services {
         assert(key.length >= 8 && key.length <= 4096 && !/[\r\n]/.test(key), 'invalid_api_key');
         const before = await this.credential(guild);
         const settings = (await this.store.getSettings(guild)).value;
-        const sample = await normalize(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a9WQAAAAASUVORK5CYII=', 'base64'));
+        const sample = await normalize(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADElEQVQImWP4//8/AAX+Av5Y8msOAAAAAElFTkSuQmCC', 'base64'));
         await this.call(guild, sample.bytes, sample.bytes, 'exact', settings.model, false, key);
         await this.store.withGuild(guild, async (tx) => {
             const current = await this.credential(guild, tx);

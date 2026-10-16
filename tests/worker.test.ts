@@ -35,3 +35,13 @@ test('rule test records labeled result but never calls Discord moderation', asyn
 test('daily budget exhaustion stops comparisons safely', async (t) => { const f = await fixture(t); await enable(f, rule(f.ref)); const s = await f.store.getSettings(G); s.value.dailyCallLimit = 1; await f.store.putSettings(G, s.value, s.revision); await f.store.reserveCall(G, 1); const m = message(); f.discord.messages.set(m.messageId, m); await assert.rejects(workerFor(f).process(m)); assert.equal(f.discord.performed.length, 0); assert.equal(f.control.calls, 0); });
 test('group rule selects only references from its own group', async (t) => { const f = await fixture(t); const group: Group = { ...baseRecord(G, randomUUID()), name: 'Group' }; await f.store.put('groups', group, 0); const image: ReferenceImage = { ...f.ref, groupId: group.id, revision: 2 }; await f.store.put('images', image, 1); f.ref = image; await enable(f, rule(image, { type: 'group', referenceId: null, groupId: group.id })); const m = message(); f.discord.messages.set(m.messageId, m); await workerFor(f).process(m); assert.equal(f.discord.performed.length, 1); });
 test('pause after evaluation but before dispatch suppresses the action', async (t) => { const f = await fixture(t); await enable(f, rule(f.ref)); const original = f.services.evaluate.bind(f.services); f.services.evaluate = async (...args) => { const result = await original(...args); const s = await f.store.getSettings(G); s.value.enforcement = false; await f.store.putSettings(G, s.value, s.revision); return result; }; const m = message(); f.discord.messages.set(m.messageId, m); await workerFor(f).process(m); assert.equal(f.discord.performed.length, 0); });
+
+
+test('deployment acceptance blocks persisted approved enforcement settings', async t => {
+    const f = await fixture(t); await enable(f, rule(f.ref));
+    const m = message(); f.discord.messages.set(m.messageId, m);
+    await new Worker(f.services, async () => f.image, false).process(m);
+    assert.equal(f.discord.performed.length, 0);
+    assert.equal((await f.store.actions(G)).length, 0);
+    assert.equal((await f.store.all<ModerationEvent>('events', G))[0]?.reason, 'deployment_acceptance_required');
+});

@@ -1,0 +1,32 @@
+# Used ONLY with -p jev-guard-validation-<unique suffix>. No live credentials.
+services:
+  db:
+    ports: !override
+      - "127.0.0.1::5432"
+  app:
+    env_file: !reset []
+    environment:
+      NODE_ENV: development
+      API_ONLY: "1"
+      ACCEPTANCE_APPROVED: "0"
+      PUBLIC_ORIGIN: http://localhost:3000
+      DISCORD_CLIENT_ID: "100000000000000001"
+      DISCORD_CLIENT_SECRET: offline-fixture-only
+      DISCORD_BOT_TOKEN: offline-fixture-only
+      CREDENTIAL_MASTER_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+    command: [node, --import, /validation/offline-discord.mjs, dist/server/main.js]
+    ports: !override
+      - "127.0.0.1::3000"
+    volumes:
+      - ./tests/offline-discord.mjs:/validation/offline-discord.mjs:ro
+      - ./tests/persistence-drill.mjs:/validation/persistence-drill.mjs:ro
+    healthcheck:
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: ${VALIDATION_SUBNET:-10.253.215.0/28}

@@ -1,0 +1,1 @@
+PostgreSQL integration passed: revisions, tenant FKs, rollback, durable jobs, concurrent idempotency, reconnect persistence, leader recovery, unknown no-replay, quotas, nonces, payload erasure.

@@ -9,7 +9,7 @@ export function monitored(m: ImageMessage, s: Settings): boolean {
 }
 export class Worker {
     private stopRequested = false;
-    constructor(readonly services: Services, private download = downloadAttachment) { }
+    constructor(readonly services: Services, private download = downloadAttachment, private enforcementAllowed = true) { }
     stop() { this.stopRequested = true; }
     async ingest(m: ImageMessage) {
         if (m.userId === this.services.discord.botId)
@@ -99,7 +99,8 @@ export class Worker {
         const { store, discord } = this.services;
         const guild = message.guildId;
         const event: ModerationEvent = { ...baseRecord(guild, randomUUID()), messageId: message.messageId, channelId: message.channelId, userId: message.userId, ruleId: decision.rule.id, intended: decision.action, actual: 'suppressed', reason: decision.reason, matches, reviewStatus: decision.action === 'review' || !decision.execute ? 'open' : null };
-        if (!decision.execute) {
+        if (!decision.execute || !this.enforcementAllowed) {
+            if (!this.enforcementAllowed) event.reason = 'deployment_acceptance_required';
             await store.put('events', event, 0);
             return;
         }

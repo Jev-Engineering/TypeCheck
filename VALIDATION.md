@@ -1,44 +1,44 @@
-# Implementation and validation record
-
-Prepared October 15, 2026. Candidate version: 0.1.0. This record distinguishes source implementation, local execution evidence, and external acceptance.
-
-## Executed locally
-
-| Check | Actual evidence | Scope |
-|---|---|---|
-| TypeScript compilation | `evidence/typecheck.txt` | All server, Activity, shared and test TypeScript compiled using the available compiler |
-| Automated tests | `evidence/local-tests.tap` | 142 passed; zero failed, skipped, or cancelled |
-| HTTP/security | Included in the 142 | Real loopback HTTP server with test persistence, mocked Discord and Jev |
-| Image decoding | Included in the 142 | Real local sharp decoder and filesystem; malformed input, bounds and isolation |
-| Gateway protocol tests | Included in the 142 | Synthetic WebSocket events, identification intents, heartbeat sequence, image-only ingestion |
-| UI browser checks | `evidence/browser-smoke.json` | Six screens and a rule dialog at desktop and mobile widths: 14 checks |
-| UI visual inspection | `evidence/preview-*.png` | Offline sample data; no live Activity connection |
-
-Tests use an in-memory Store implementation, fake Discord identities/actions, and explicitly controlled Jev responses. Their success does not establish PostgreSQL behavior, API compatibility in a live account, or visual matching accuracy. The browser environment blocked loopback navigation; the browser checks render compiled UI with isolated synthetic SDK/fetch boundaries and no network. The production frontend is not replaced with this fixture transport.
-
-The native decoder available for authoring was sharp 0.34.1; the declared install range begins at 0.34.4. Local Node type declarations were 25.1.0, whereas the package requests the Node 22 type line. Re-run all tests against the actual resolved dependency graph. Environment details are in `evidence/environment.json`.
-
-## Blocked or not executed
-
-- **Dependency installation and full browser bundle:** npm registry DNS access was unavailable. TypeScript compilation succeeded, but `npm run build` stopped at missing esbuild. The official Embedded App SDK bundle and a clean install remain unverified. See `evidence/build-attempt.txt`.
-- **PostgreSQL:** No PostgreSQL server/driver was available locally. SQL migration and `scripts/test-postgres.mjs` were written, not executed. The provided CI workflow has not been run.
-- **Docker:** No Docker build, image pull, container startup, persistent-volume recovery, or deployed health check was executed.
-- **Discord:** No application registration, intent approval, real OAuth, Activity launch, reconnect soak test, role mutation, or real moderation action was performed.
-- **Jev:** No key was available or requested. No real comparisons, authentication checks, threshold calibration or accuracy measurements were performed.
-- **Public hosting/security:** No TLS proxy, penetration test, load test, secrets-manager integration or independent security review was completed.
-
-## Implemented candidate, not completed acceptance
-
-All primary components contain executable application code, not placeholder handlers that report success. External failures do not fabricate matches or successful sanctions. Nevertheless, the source specification's end-to-end completion criteria remain open until the real deployment/provider tests pass. See the acceptance matrix for precise differences and manual gates.
-
-## Important limitations
-
-This is a single-worker/single-shard, modest-volume candidate, not a horizontally scaled moderation platform. No thread/forum traversal, historical-message backfill, animated image extraction, video analysis, arbitrary image URLs, stickers or embeds are processed. The normal channel picker covers text and announcement channels. Missing an event during an unrecoverable Gateway gap is possible.
-
-Reference images use private local filesystem objects, not S3. Posted image bytes are transient and never retained for history thumbnails. Logs show identifiers, matches and reference metadata; ordinary retained records expire, while minimal idempotency/action tombstones remain until guild deletion.
-
-Partial matching is a Noul decision, not a Box localization feature. Semantic matching is disabled by default and is review-only when enabled. Optional repeat-offender escalation and a mandatory two-administrator rule-change approval workflow are not implemented. Approval is a single administrator's attestation against labeled examples. False-positive review disables the rule but does not undo a timeout, kick, ban or deletion.
-
-Bulk changes are sequential and can partially succeed. Log filtering loads retained rows before paginating; database-backed cursor/search and large-library candidate retrieval are future scaling work. An image that fails to decode/evaluate suppresses the whole multi-image enforcement decision. This prioritizes avoiding uncertain sanctions over perfect detection availability.
-
-Action delivery is **conservative at-most-once dispatch**, not exactly-once execution. A crash after a durable claim can suppress an action that never reached Discord. A lost response becomes unknown and is not retried automatically. Review the action ledger and Discord records manually. Pausing prevents subsequent dispatch where observed; it cannot cancel a request already sent.
+# Validation record
+
+Validation run: October 15–16, 2026 (local date October 15). **Not production ready.** Earlier authoring results are historical and preserved in `evidence/validation-authoring.txt`; old screenshots and browser-smoke results were not rerun.
+
+## Fresh local checks
+
+| Check | Result | Evidence |
+|---|---|---|
+| Dependency install | `npm install`, then clean `npm ci` passed | Reviewed lockfile v3; resolved versions in dependency inventory |
+| Vulnerability review | Initial sharp high-severity advisory remediated with sharp 0.35.5; final npm audit: zero | `evidence/dependency-audit-initial.json`, `evidence/dependency-audit.json` |
+| Licenses | 86 locked package entries reviewed, including optional native platforms; LGPL components explicitly identified | `evidence/dependency-licenses.json`, `docs/DEPENDENCIES.md` |
+| Type checking | Passed | `evidence/current-typecheck.txt` |
+| Full production build | Passed, official Discord SDK 2.5.0 bundled with full license notices | `evidence/current-build.txt` |
+| Automated tests | 147 passed; none failed, skipped or cancelled | `evidence/current-tests.tap` |
+
+Host: Windows, Node 24.18.0, npm 12.2.0. Container builds also run the full suite under Node 22. Unit/HTTP/Gateway/evaluation tests use mocked providers and do not establish provider accuracy or live authorization. The CLI evaluation regression explicitly tests second-verification disagreement and action-specific threshold floors without granting approval.
+
+## Isolated PostgreSQL and containers
+
+`npm run test:compose` creates a unique `jev-guard-validation-*` Compose project with dedicated PostgreSQL 16 storage and random loopback ports. It never uses `.env` credentials or a production database. A development-only, explicitly mounted offline identity fixture permits API startup; Gateway and worker startup are disabled in this fixture deployment. No fake authentication handler is added to the production application.
+
+Passed: migration 001 twice; optimistic revisions; rollback; cross-guild foreign keys and reads; queue deduplication; concurrent action claims; reconnect persistence; leader recovery of interrupted jobs; unknown action tombstones that cannot replay; quotas; one-use nonces; completed-job payload erasure. Evidence: `evidence/postgres-validation.txt`.
+
+Passed: Docker image build and in-image tests; non-root app startup; readiness health checks; official SDK serving; unauthorized API and hostile-origin rejection; private object permissions; persisted disabled enforcement; encrypted credential/guild AAD recovery; readiness failure when the dedicated DB stops; project-only restart; recovery of interrupted jobs; database dump/restore into a separate database; image archive restore into a separate volume; key-assisted decryption after restore; public fixture secrets absent from app logs. Evidence: `evidence/container-drill.txt`, `evidence/container-validation.json`, `evidence/container-result.json`. The final result file records the exact project and execution time.
+
+Test containers/networks are removed at the end; test volumes are retained. No shared workload or WSL VM was restarted. The machine's exhausted default address pool required an unused project-only subnet. An initial backup-volume permission failure was corrected with a short-lived root/CHOWN helper scoped only to new test backup/restore volumes; the app remains non-root with capabilities dropped. The failed attempt remains in `evidence/container-attempt-restore-permissions.json`.
+
+## Fixes verified
+
+- Controlled installs use `npm ci`; fixed native decoder vulnerability. A corrupt PNG shared by tests and the credential probe was replaced; a new regression asserts the corrupt checksum is rejected. Decoder safety was not relaxed.
+- `/api/health` remains liveness; `/api/ready` checks PostgreSQL and Gateway (API-only development skips Gateway). Container health uses readiness. Unexpected background-loop termination exits the process for supervised recovery.
+- `ACCEPTANCE_APPROVED=0` blocks production enforcement at both settings API and worker dispatch, including persisted approved rules. This is operator attestation, not an automatic acceptance certificate; never set it merely because unit tests pass.
+- Private image writes use a flushed temporary file and atomic rename. This reduces partial-file replacement risk; it is not a whole-host power-loss durability guarantee.
+- Browser SDK distribution carries third-party license notices. The live evaluation CLI records input/manifest hashes, prompt/model version, action floors, and optional/required second checks; it never grants rule approval.
+
+## Still open
+
+Real Discord Activity OAuth/proxy launch, role revocation, Gateway ingestion/reconnection, real consenting test-account moderation and rate limits have not passed. Claude's requested Chrome setup session reports progress/blockers in `evidence/claude-live-status.json`; setup is not an acceptance result.
+
+Real Jev calls and representative held-out image accuracy remain blocked on the evaluation key and labeled corpus. Synthetic fixtures cannot close this gate. Numerical thresholds and a second call to the same model do not establish an independent false-positive bound.
+
+Public HTTPS/proxy validation, target-specific backup automation/retention and off-host restore, independent security/operations review, live load/soak tests and hosted CI execution remain open. Container vulnerability scanning is tracked separately in `docs/DEPENDENCIES.md`; npm audit does not cover the OS image.
+
+The application remains a single-worker candidate with private filesystem storage, at-most-once dispatch (unknown outcomes are never automatically replayed), and possible loss of moderation during unrecoverable Gateway gaps. No production release or enforcement authorization has been granted.

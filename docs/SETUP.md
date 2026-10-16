@@ -24,7 +24,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 
 Set `CREDENTIAL_MASTER_KEY` to this value. Back it up separately from database/object backups; losing it makes existing Jev credentials unreadable. Set `DATABASE_URL`, `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DISCORD_BOT_TOKEN`, `PUBLIC_ORIGIN` and `OBJECT_DIR`. For Compose, generate a URL-safe password, for example `randomBytes(24).toString('hex')`, and set `POSTGRES_PASSWORD`.
 
-Install dependencies, review/freeze the generated lockfile, build, test, provision PostgreSQL and run migration 001 before starting the application. The runtime does not silently create schema. Run the database integration helper against a dedicated disposable database before accepting the deployment.
+Run `npm ci`, `npm run check`, `npm run build` and `npm test`; provision PostgreSQL and run migration 001 before starting the application. Keep `ACCEPTANCE_APPROVED=0` until the documented live and independent acceptance gates pass. The runtime does not silently create schema. Run the database integration helper against a dedicated disposable database before accepting the deployment.
 
 A local private object volume must be writable by the app user and backed up with the database. It must never be exposed as a public static directory. The HTTP endpoint authorizes each reference-image read.
 
@@ -61,3 +61,9 @@ Use Permissions to grant capabilities to specific roles. Read-only, image-manage
 [D4] https://docs.discord.com/developers/activities/development-guides/networking
 
 Official documentation consulted October 15, 2026. Portal UI and approval processes can change; recheck before installation.
+
+## Repeatable isolated deployment validation
+
+Run `npm ci`, `npm run build`, then `npm run test:compose` with Docker Compose 2.24.4+ (override tags required). This uses `tests/compose.env` with public disposable values, never your `.env`, and disables Gateway/worker startup. It builds the official image, tests PostgreSQL, exercises outage/restart/backup/restore and removes only its containers/network. Dedicated test volumes remain for inspection. `VALIDATION_SUBNET` may select an unused private subnet if the default 10.253.215.0/28 conflicts; inspect existing networks/routes first. Do not prune shared resources.
+
+Live setup belongs in the ignored `.env`: test application credentials, test guild/channel/consenting users, explicitly permitted actions, authorized HTTPS origin, TypeSafe evaluation key and labeled corpus manifest path. Never use a production database. No browser setup agent should start a second bot controller.

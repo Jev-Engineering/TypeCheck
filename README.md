@@ -6,7 +6,7 @@
 
 A Discord image-only moderation bot with an embedded management Activity. A member posts an attachment; Jev compares it to this server's reference library; the policy engine chooses an action; the continuously running backend executes eligible actions. Text-only messages are ignored.
 
-**This is not a production acceptance certificate.** Local TypeScript compilation and 142 automated tests passed. The compiled UI passed 14 offline browser checks with synthetic SDK/transport data. Real Jev accuracy, real Discord moderation/Activity authentication, the resolved dependency graph, PostgreSQL integration, and Docker deployment have not been executed in the authoring environment. Read [VALIDATION.md](VALIDATION.md) before enabling enforcement.
+**Not production ready.** Fresh dependency installation, type checking, the official SDK bundle, 147 automated tests, isolated PostgreSQL integration, and an offline Compose recovery/restore drill passed. Real Discord/Activity acceptance, representative Jev accuracy, public TLS, and independent operational/security sign-off remain open. See [VALIDATION.md](VALIDATION.md) for scope and evidence.
 
 ## Included implementation
 
@@ -32,7 +32,7 @@ Requirements: Node.js 22.13 or later, npm, a PostgreSQL 16 database, a Discord a
 ```bash
 cp .env.example .env
 # Fill Discord credentials, database URL, public origin, and a generated master key.
-npm install
+npm ci
 npm run build
 npm test
 npm run migrate
@@ -41,7 +41,7 @@ npm start
 
 The final two commands require a configured `.env` and a reachable database. Detailed application registration, Activity URL mapping, permissions, and onboarding are in [docs/SETUP.md](docs/SETUP.md).
 
-**Dependency lock:** Registry access was unavailable during authoring. The committed `package-lock.json` was generated afterwards by a local `npm install`; it has not had a vulnerability or license review. Run those checks, then use `npm ci` for controlled builds. The bundled official SDK has not been resolved or executed here.
+**Dependency lock:** `package-lock.json` now freezes the resolved graph. Controlled builds and CI use `npm ci`. The vulnerable sharp 0.34 line was upgraded to 0.35.5; the fresh npm audit reports zero advisories. Native-library license notices and limits are recorded in [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md).
 
 ### Docker Compose
 
@@ -54,7 +54,7 @@ docker compose run --rm app node dist/server/migrate.js
 docker compose up -d app
 ```
 
-Compose publishes the app/database on loopback only. Put an HTTPS reverse proxy in front of the app and set `PUBLIC_ORIGIN` accordingly. Use `NODE_ENV=production` for hosted operation. Compose is supplied, not deployment-tested. Run one active application process per database/bot.
+Compose publishes the app/database on loopback only. Put an HTTPS reverse proxy in front of the app and set `PUBLIC_ORIGIN` accordingly. Use `NODE_ENV=production` for hosted operation. The Compose image passed an isolated offline deployment drill; live Discord startup and public HTTPS are still unverified. Keep `ACCEPTANCE_APPROVED=0` until all acceptance gates pass. Run one active application process per database/bot.
 
 ## First-server workflow
 
@@ -79,7 +79,7 @@ npm run check
 npm test
 # Dedicated migrated test database only; never a production database:
 TEST_DATABASE_URL=postgresql://... ALLOW_DATABASE_TESTS=true npm run test:postgres
-# Actual provider calls, charged to your key; not run during authoring:
+# Actual provider calls, charged to your key; still require live acceptance:
 TYPESAFE_EVAL_KEY=... npm run evaluate -- fixtures/manifest.json
 ```
 

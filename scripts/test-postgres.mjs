@@ -5,7 +5,7 @@ import { PostgresStore,openPool } from '../dist/server/postgres.js';
 import { baseRecord } from '../dist/shared/domain.js';
 assert.equal(process.env.ALLOW_DATABASE_TESTS,'true','Set ALLOW_DATABASE_TESTS=true for an isolated, migrated test database.');
 assert.ok(process.env.TEST_DATABASE_URL,'TEST_DATABASE_URL is required; DATABASE_URL is deliberately not used.');
-const pool=await openPool(process.env.TEST_DATABASE_URL),store=new PostgresStore(pool);
+let pool=await openPool(process.env.TEST_DATABASE_URL),store=new PostgresStore(pool);
 const g=String(Date.now())+'01',g2=String(Date.now())+'02';
 try{
   const s=await store.getSettings(g);await store.getSettings(g2);assert.equal(s.value.enforcement,false);
@@ -27,5 +27,26 @@ try{
   assert.equal(reservations.filter(r=>r.status==='fulfilled').length,3);assert.equal((await store.usage(g)).calls,3);
   const nonce=randomUUID();await store.createNonce(nonce,'https://example.invalid');assert.equal(await store.consumeNonce(nonce,'https://wrong.invalid'),false);assert.equal(await store.consumeNonce(nonce,'https://example.invalid'),true);assert.equal(await store.consumeNonce(nonce,'https://example.invalid'),false);
   const release=await store.acquireLeader();assert.ok(release);assert.equal(await store.acquireLeader(),null);await release();
-  console.log('PostgreSQL integration assertions passed against the configured disposable database.');
+  // Close every connection and re-open: durable state must not depend on process memory.
+  const interrupted={...message,messageId:'234567892'};
+  assert.equal(await store.enqueue(interrupted),true);
+  const inFlight=await store.claim(); assert.equal(inFlight.message.messageId,interrupted.messageId);
+  const pending={...action,messageId:interrupted.messageId};
+  assert.equal(await store.beginAction(pending),true);
+  await pool.end(); pool=await openPool(process.env.TEST_DATABASE_URL); store=new PostgresStore(pool);
+  assert.equal(await store.seen(g,message.messageId,message.attachments[0].id),true);
+  assert.equal(await store.seen(g2,message.messageId,message.attachments[0].id),false);
+  assert.equal(await store.beginAction(action),false);
+  assert.deepEqual(await store.actions(g2),[]);
+  const recovered=await store.acquireLeader(); assert.ok(recovered);
+  const recoveredJob=await store.claim(); assert.equal(recoveredJob.id,inFlight.id);
+  assert.equal((await store.actions(g)).find(a=>a.messageId===interrupted.messageId).status,'unknown');
+  assert.equal(await store.beginAction(pending),false);
+  await store.finish(recoveredJob.id,null); await recovered();
+  const raced=await Promise.all(Array.from({length:10},()=>store.beginAction({...action,messageId:'234567893'})));
+  assert.equal(raced.filter(Boolean).length,1);
+  assert.equal(await store.beginAction({...action,guildId:g2}),true);
+  const completed=(await pool.query('SELECT message,status FROM jobs WHERE id=$1',[recoveredJob.id])).rows[0];
+  assert.deepEqual(completed.message,{}); assert.equal(completed.status,'done');
+  console.log('PostgreSQL integration passed: revisions, tenant FKs, rollback, durable jobs, concurrent idempotency, reconnect persistence, leader recovery, unknown no-replay, quotas, nonces, payload erasure.');
 } finally {await pool.query('DELETE FROM guilds WHERE id = ANY($1::text[])',[[g,g2]]);await pool.end();}

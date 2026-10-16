@@ -8,7 +8,7 @@ One Node process hosts HTTP, the Gateway connection and a serial worker. Postgre
 
 ## Health and monitoring
 
-`GET /api/health` is a basic liveness/status endpoint, not proof that Jev, database writes and moderation work. The dashboard shows bot connectivity, credential state, counts and daily usage. Collect structured operational codes from stdout/stderr, not raw bodies/tokens. Monitor queue backlog, database availability, gateway-offline duration, credential failures, unknown ledger outcomes and disk usage. Hosted metrics exporters, alerts and dashboards are not provisioned by this project.
+`GET /api/health` is liveness. `GET /api/ready` checks PostgreSQL connectivity and Gateway online state (development API-only mode checks PostgreSQL only); Docker health uses readiness. Neither proves Jev accuracy or successful moderation. Unexpected completion/failure of the background loops terminates the process; Compose can restart it. The dashboard shows bot connectivity, credential state, counts and daily usage. Collect structured operational codes from stdout/stderr, not raw bodies/tokens. Monitor queue backlog, database availability, gateway-offline duration, credential failures, unknown ledger outcomes and disk usage. Hosted metrics exporters, alerts and dashboards are not provisioned by this project.
 
 No channels selected means no monitoring. Excluded channels override selected channels. Only image attachments in exact selected text/announcement channels are in the supported UI scope; threads/forums/embeds are not expanded. Server owners/admins are protected. Other bots/webhooks are ignored unless enabled, and webhook identities never receive user-level sanctions.
 
@@ -45,6 +45,14 @@ Pausing prevents new eligible dispatch where observed, but cannot cancel an HTTP
 
 ## Deployment gates and scaling
 
-Run the provided SQL integration helper against a disposable database. Build and launch containers. Verify non-root object writes, retention and orphan cleanup, TLS/proxy headers, OAuth launch, intent approval, rate limits, runtime restarts and the action ledger against real services. Pin reviewed dependency lockfiles and container digests. CI is supplied but not run in this delivery.
+Run the provided SQL integration helper against a disposable database. Build and launch containers. Verify non-root object writes, retention and orphan cleanup, TLS/proxy headers, OAuth launch, intent approval, rate limits, runtime restarts and the action ledger against real services. Pin reviewed dependency lockfiles and container digests. The local Compose drill passed; hosted CI has not been run.
 
 Limits are deliberately modest: up to 250 references/rules per guild, 100 groups, 1000 queued/processing jobs per guild, one serial worker, bounded provider/Discord queues and per-guild request caps. At higher traffic, logs must move to database-backed pagination/search, queues need admission/tenant fairness review, and image candidate reduction must be evaluated for false negatives. Do not treat the current caps as capacity benchmarks.
+
+## Restore drill and operational limits
+
+`npm run test:compose` performs an actual `pg_dump -Fc` / `pg_restore --exit-on-error` into a separate database, archives private objects while the app is stopped, restores into a fresh volume, and checks decryption with the test master key. See `scripts/test-compose.mjs` for the exact ordered commands. Backup/restore volume ownership is initialized explicitly; normal app runs remain non-root. This is local test recovery, not an off-host disaster-recovery certificate.
+
+For hosting, schedule encrypted off-host backups of a quiesced DB/object pair, store key recovery material separately, document retention/RPO/RTO, alert on failures, and rerun restore drills on the actual target. Never start a restored production snapshot against Discord before reconciling post-backup actions; stale ledgers can permit duplicate sanctions. No backup scheduler or public TLS endpoint is provisioned by this repository.
+
+Terminate TLS at an authorized proxy; forward to loopback port 3000, preserve the Origin and Authorization headers without logging them, enforce request/body/time limits, and restrict database exposure. Verify TLS chain/renewal, the Activity proxy mapping, CSP, unauthorized routes and live OAuth on that target. An HTTPS `PUBLIC_ORIGIN` does not prove TLS is deployed.

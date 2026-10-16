@@ -11,6 +11,7 @@ export interface Config {
     objectDir: string;
     model: string;
     apiOnly: boolean;
+    enforcementApproved?: boolean;
 }
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     const production = env.NODE_ENV === 'production';
@@ -24,5 +25,5 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     const model = env.JEV_MODEL ?? 'jev-1.14.0';
     assert(/^jev-\d+\.\d+\.\d+$/.test(model), 'pin_versioned_jev_model');
     assert(!(production && env.API_ONLY === '1'), 'api_only_is_development_only');
-    return { port, production, publicOrigin, clientId, clientSecret: required('DISCORD_CLIENT_SECRET'), botToken: required('DISCORD_BOT_TOKEN'), databaseUrl: required('DATABASE_URL'), masterKey: required('CREDENTIAL_MASTER_KEY'), objectDir: env.OBJECT_DIR ?? './objects', model, apiOnly: env.API_ONLY === '1' };
+    return { port, production, publicOrigin, clientId, clientSecret: required('DISCORD_CLIENT_SECRET'), botToken: required('DISCORD_BOT_TOKEN'), databaseUrl: required('DATABASE_URL'), masterKey: required('CREDENTIAL_MASTER_KEY'), objectDir: env.OBJECT_DIR ?? './objects', model, apiOnly: env.API_ONLY === '1', enforcementApproved: env.ACCEPTANCE_APPROVED === '1' };
 }

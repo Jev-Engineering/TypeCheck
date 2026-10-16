@@ -17,3 +17,5 @@ test('streamed body cap does not trust missing Content-Length', async () => { le
 test('declared oversized response is rejected', async () => assert.rejects(readBounded(new Response('x', { headers: { 'content-length': '999999999' } }), 10)));
 test('object storage isolates guilds and prevents path traversal', async (t) => { const f = await fixture(t); assert.ok((await f.objects.get(G, f.ref.objectKey)).length > 0); await assert.rejects(f.objects.get(G2, f.ref.objectKey)); await assert.rejects(f.objects.get(G, `${G}/../../etc/passwd`)); });
 test('normalization is deterministic for identical inputs', async () => assert.equal((await normalize(PNG)).sha256, (await normalize(PNG)).sha256));
+
+test('PNG with corrupt IDAT checksum is rejected', async () => assert.rejects(normalize(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a9WQAAAAASUVORK5CYII=', 'base64'))));
