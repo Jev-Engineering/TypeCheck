@@ -12,15 +12,17 @@
     "compile": "tsc",
     "build": "tsc && node scripts/bundle-sdk.mjs",
     "test": "tsc && node --test --test-concurrency=1 dist/tests/*.test.js",
-    "start": "node --env-file=.env dist/server/main.js",
-    "migrate": "node --env-file=.env dist/server/migrate.js",
+    "start": "node --env-file-if-exists=.env dist/server/main.js",
+    "migrate": "node --env-file-if-exists=.env dist/server/migrate.js",
     "preview": "node scripts/preview.mjs",
-    "evaluate": "node --env-file=.env dist/server/evaluate-cli.js",
+    "evaluate": "node --env-file-if-exists=.env dist/server/evaluate-cli.js",
     "test:postgres": "node scripts/test-postgres.mjs",
-    "test:compose": "node scripts/test-compose.mjs"
+    "test:compose": "node scripts/test-compose.mjs",
+    "test:mysql": "node scripts/test-mysql.mjs"
   },
   "dependencies": {
     "@discord/embedded-app-sdk": "^2.0.0",
+    "mysql2": "3.24.6",
     "pg": "^8.16.3",
     "sharp": "^0.35.5"
   },
@@ -28,5 +30,6 @@
     "@types/node": "^22.15.0",
     "esbuild": "^0.25.0",
     "typescript": "^5.8.3"
-  }
+  },
+  "main": "dist/server/main.js"
 }
