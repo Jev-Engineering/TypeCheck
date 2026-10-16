@@ -2,6 +2,8 @@ import { test, type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { baseRecord, type RoleGrant, type Rule, type Calibration, type ModerationEvent } from '../shared/domain.js';
+import { Worker } from '../server/worker.js';
+import { enable, message } from './helpers.js';
 import { createHttp } from '../server/http.js';
 import { digest } from '../server/security.js';
 import { fingerprint } from '../server/policy.js';
@@ -139,4 +141,102 @@ test('analytics CSV export is bounded, cursor paginated and formula safe',async 
     const cursor=new URLSearchParams({before:first.headers.get('x-next-before')!,beforeId:first.headers.get('x-next-before-id')!});
     const second=await f.request(p+'&'+cursor,'GET',undefined,session);assert.equal(second.status,200);assert.equal(second.headers.get('x-next-before'),null);
     assert.ok((first.raw+second.raw).includes("'="));assert.ok(!(first.raw+second.raw).includes(API_KEY));
+});
+
+test('threshold API round trips custom/legacy values and preserves omitted values', async t => {
+    const f = await setup(t), login = await f.login(), token = login.data.sessionToken;
+    const s = await f.store.getSettings(G);
+    const thresholds = { none: .95, review: .8, warn: .97, delete: .97, timeout: .99, kick: .999, ban: .999 };
+    assert.equal((await f.request(`/api/g/${G}/settings`, 'PUT', { value: { thresholds }, revision: s.revision }, token)).status, 200);
+    const saved = await f.request(`/api/g/${G}/settings`, 'GET', undefined, token);
+    assert.deepEqual(saved.data.value.thresholds, thresholds);
+    const changed = await f.request(`/api/g/${G}/settings`, 'PUT', { value: { thresholds: { review: .812345 } }, revision: saved.data.revision }, token);
+    assert.equal(changed.status, 200);
+    assert.deepEqual(changed.data.value.thresholds, { ...thresholds, review: .812345 });
+    assert.equal(changed.data.value.enforcement, false);
+    const { id, guildId, revision, createdAt, updatedAt, approval, threshold, ...input } = rule(f.ref);
+    const created = await f.request(`/api/g/${G}/rules`, 'POST', { rule: input }, token);
+    assert.equal(created.status, 201); assert.equal(created.data.threshold, .7);
+    const edit = await f.request(`/api/g/${G}/rules/${created.data.id}`, 'PUT', { rule: { ...input, threshold: .98765 }, revision: 1 }, token);
+    assert.equal(edit.status, 200); assert.equal(edit.data.threshold, .98765);
+    const omit = await f.request(`/api/g/${G}/rules/${created.data.id}`, 'PUT', { rule: input, revision: 2 }, token);
+    assert.equal(omit.status, 200); assert.equal(omit.data.threshold, .98765);
+    const loaded = await f.request(`/api/g/${G}/rules`, 'GET', undefined, token);
+    assert.equal(loaded.data.find((r: Rule) => r.id === created.data.id).threshold, .98765);
+});
+test('threshold edits clear approval; floor-only reads do not expand settings permissions', async t => {
+    const f = await setup(t), login = await f.login(), token = login.data.sessionToken;
+    const r = rule(f.ref, { approval: { actor: ADMIN, at: 'test', note: 'test', fingerprint: 'test' } });
+    await f.store.put('rules', r, 0);
+    const { id, guildId, revision, createdAt, updatedAt, approval, ...input } = r;
+    const edit = await f.request(`/api/g/${G}/rules/${id}`, 'PUT', { rule: { ...input, threshold: .75 }, revision }, token);
+    assert.equal(edit.status, 200); assert.equal(edit.data.approval, null);
+    await f.grant(['rules.create']);
+    const mod = (await f.login('moderator-code')).data.sessionToken;
+    const floors = await f.request(`/api/g/${G}/match-thresholds`, 'GET', undefined, mod);
+    assert.equal(floors.status, 200); assert.equal(floors.data.timeout, .9);
+    assert.equal(floors.data.enforcement, undefined);
+    assert.equal((await f.request(`/api/g/${G}/settings`, 'GET', undefined, mod)).status, 403);
+    assert.equal((await f.request(`/api/g/${G}/settings`, 'PUT', { value: { thresholds: { review: .6 } }, revision: 1 }, mod)).status, 403);
+    await f.grant([]);
+    assert.equal((await f.request(`/api/g/${G}/match-thresholds`, 'GET', undefined, mod)).status, 403);
+});
+test('API rejects invalid thresholds and reversed severity floors without saving', async t => {
+    const f = await setup(t), token = (await f.login()).data.sessionToken;
+    const s = await f.store.getSettings(G);
+    for (const value of [null, '0.7', .49, 1.01]) {
+        const response = await f.request(`/api/g/${G}/settings`, 'PUT', { value: { thresholds: { review: value } }, revision: s.revision }, token);
+        assert.equal(response.status, 400); assert.match(response.data.error, /match_threshold_must_be_a_finite_number/);
+    }
+    const reversed = await f.request(`/api/g/${G}/settings`, 'PUT', { value: { thresholds: { timeout: .95 } }, revision: s.revision }, token);
+    assert.equal(reversed.status, 400); assert.equal(reversed.data.error, 'severe_threshold_must_not_be_lower');
+    assert.deepEqual(await f.store.getSettings(G), s);
+});
+
+test('review-band worker result reaches moderator HTTP workflow without a punitive action', async t => {
+    const f = await setup(t);
+    await enable(f, rule(f.ref, { secondVerification: true, deleteMessage: true }));
+    // A second check can reduce an action candidate into the configured review band.
+    f.control.probability = 1; f.control.secondProbability = 0.8;
+    const m = message(); f.discord.messages.set(m.messageId, m);
+    await new Worker(f.services, async () => f.image).process(m);
+    assert.equal(f.control.calls, 2);
+    await f.grant(['logs.view', 'rules.edit']);
+    const login = await f.login('moderator-code'), token = login.data.sessionToken;
+    const listed = await f.request(`/api/g/${G}/events`, 'GET', undefined, token);
+    assert.equal(listed.status, 200); assert.equal(listed.data.items.length, 1);
+    const event = listed.data.items[0];
+    assert.equal(event.intended, 'review'); assert.equal(event.actual, 'suppressed');
+    assert.equal(event.reason, 'uncertain'); assert.equal(event.reviewStatus, 'open');
+    assert.equal(event.matches[0].probability, 0.8); assert.equal(event.matches[0].verified, false);
+    const reviewed = await f.request(`/api/g/${G}/events/${event.id}/review`, 'POST', { status: 'confirmed', revision: event.revision }, token);
+    assert.equal(reviewed.status, 200); assert.equal(reviewed.data.reviewStatus, 'confirmed');
+    assert.equal((await f.store.get<ModerationEvent>('events', G, event.id))?.reviewStatus, 'confirmed');
+    assert.equal(f.discord.performed.length, 0); assert.equal(f.discord.notifications.length, 0);
+    const actions = await f.request(`/api/g/${G}/actions`, 'GET', undefined, token);
+    assert.deepEqual(actions.data.items, []);
+});
+
+test('settings API round trips review thresholds above action floors without rejecting stored settings', async t => {
+    const f = await setup(t), login = await f.login();
+    const old = await f.store.getSettings(G);
+    const updated = await f.request(`/api/g/${G}/settings`, 'PUT', { value: { ...old.value, thresholds: { ...old.value.thresholds, review: 1 } }, revision: old.revision }, login.data.sessionToken);
+    assert.equal(updated.status, 200);
+    const read = await f.request(`/api/g/${G}/settings`, 'GET', undefined, login.data.sessionToken);
+    assert.equal(read.data.value.thresholds.review, 1);
+});
+
+test('hash upload provenance is server-derived and preserved by metadata edits; test API reports no model or usage', async t => {
+    const f = await setup(t), token = (await f.login()).data.sessionToken;
+    const body = {name:'Synthetic hash reference',groupId:null,enabled:true,base64:PNG.toString('base64')};
+    assert.equal((await f.request(`/api/g/${G}/images`,'POST',{...body,hashVersion:'forged'},token)).status,400);
+    const created=await f.request(`/api/g/${G}/images`,'POST',body,token);
+    assert.equal(created.status,201);assert.equal(created.data.hashVersion,f.image.hashVersion);
+    const edited=await f.request(`/api/g/${G}/images/${created.data.id}`,'PUT',{name:'Renamed',groupId:null,enabled:true,revision:1},token);
+    assert.equal(edited.status,200);assert.equal(edited.data.hashVersion,created.data.hashVersion);
+    const r=rule(edited.data);await f.store.put('rules',r,0);
+    const result=await f.request(`/api/g/${G}/rules/${r.id}/test`,'POST',{base64:PNG.toString('base64'),expected:true},token);
+    assert.equal(result.status,200);assert.equal(result.data.probability,null);assert.equal(result.data.hashComparisons,1);
+    assert.equal(result.data.matches[0].model,null);assert.equal(result.data.matches[0].provenance,'exact_hash');assert.equal(f.control.calls,0);
+    assert.equal((await f.store.usage(G)).calls,0);assert.equal(f.discord.performed.length,0);
 });

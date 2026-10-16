@@ -1,3 +1,5 @@
+![TypeCheck banner: the TypeCheck wordmark and the tagline "Image moderation for Discord" on an ink background inside a pink frame, beside a row of picture cards passing through a scanning frame. One card is struck through with a red bar; the matched card carries a pink check mark.](docs/assets/typecheck-banner.png)
+
 # TypeCheck
 
 Cost analytics: Overview and **Cost & Usage** report guild-scoped attempts, reported input tokens and **estimated** Jev input-token spend. Retries, verification and credential tests are tracked separately. Administrators supply revisioned rates; missing rates and unknown usage produce coverage warnings, never an invented full bill. Legacy daily totals remain separate. See [cost accounting](docs/COSTS.md), [API](docs/API.md) and [validation](VALIDATION.md). Existing installations require forward migration 002; no deployment or production acceptance is implied.
@@ -6,7 +8,7 @@ Cost analytics: Overview and **Cost & Usage** report guild-scoped attempts, repo
 
 **Version 0.1.0 Â· implementation candidate Â· October 15, 2026**
 
-A Discord image-only moderation bot with an embedded management Activity. A member posts an attachment; Jev compares it to this server's reference library; the policy engine chooses an action; the continuously running backend executes eligible actions. Text-only messages are ignored.
+A Discord image-only moderation bot with an embedded management Activity. A member posts an attachment; compatible exact normalized-image hashes are checked before Jev compares remaining references; the policy engine chooses an action; the continuously running backend executes eligible actions. Text-only messages are ignored.
 
 **Not production ready.** Fresh dependency installation, type checking, the official SDK bundle, 155 automated tests, isolated PostgreSQL and MySQL integration, and an offline Compose recovery/restore drill passed. Real Discord/Activity acceptance, representative Jev accuracy, public TLS, and independent operational/security sign-off remain open. See [VALIDATION.md](VALIDATION.md) for scope and evidence.
 
@@ -15,7 +17,7 @@ A Discord image-only moderation bot with an embedded management Activity. A memb
 | Area | Implementation |
 |---|---|
 | Bot | Gateway v10 ingestion, image-bearing edits, reconnect/resume, durable jobs, REST actions |
-| Matching | Official Jev multipart image requests, strict Noul answers, pinned model, per-action thresholds, second verification |
+| Matching | Versioned exact normalized-content SHA-256 evidence, official Jev multipart image requests, strict Noul answers, pinned model, per-action thresholds, second verification |
 | Rules | Individual, group, any-reference, explicit any-image; deterministic priority; one user sanction per message |
 | Actions | Log only, review, delete, warn, timeout, kick, ban; optional delete alongside a user sanction |
 | Activity | Overview, private image previews/uploads/bulk changes, graphical rules and tests, logs, permissions, settings, credential rotation |
@@ -111,3 +113,13 @@ No user credentials, dependencies, or private Discord data are included. The sou
 Set `MIGRATE_ON_START=1` for an explicitly authorized first boot where there is no release step, then turn it off. Migration is serialized and repeatable. MySQL must be 8.0.16+; MariaDB is rejected. `DB_SSL=1` enables certificate and host verification; `DB_SSL_CA` optionally supplies a PEM CA. Non-leaders serve HTTP/API in standby while retrying election; only the winner runs Gateway/worker. See [setup](docs/SETUP.md) for storage and deployment requirements.
 
 The MySQL port passed 155 unit/HTTP tests, the unchanged PostgreSQL harness, and 104 integration assertions on local MySQL 8.0.46. `npm run test:mysql` requires `ALLOW_DATABASE_TESTS=true` and a loopback-only `TEST_DATABASE_URL`; it must never target GoDaddy. The hosted database version, app-specific database guide, deployment, Gateway operation and live acceptance remain unverified. See [validation](VALIDATION.md).
+
+## Exact normalized-image matching
+
+Compatible SHA-256 digests are compared before each Jev reference comparison. Equality is shown as **Exact normalized-image match**, with no model probability, provider call, verification claim or provider tokens. Inequality is not a nonmatch: Jev still evaluates it. Other references and rules still run. This recognizes normalized JPEG byte equality, not original-file byte identity or perceptual similarity; crops, recompression and watermarks are not reliably recognized by hashes.
+
+Legacy unversioned references remain on Jev fallback until explicitly re-uploaded from source. Existing approvals become stale because the matching fingerprint now includes the hash scheme and reference version. Exact evidence that cannot satisfy existing execution safeguards goes to review without calling Jev; severe actions still require second verification. See [matching](docs/MATCHING.md).
+
+### Match threshold configuration
+
+New rules use Standard (0.70). The Activity also offers Strict (0.90) and Custom numeric values from 0.5 to 1.0. Strict is a stricter threshold, not an accuracy claim; these practical starting points depend on the domain, model and images. Server action floors default to 0.70 for none/review/warn/delete and 0.90 for timeout/kick/ban. Matching uses `score >= max(rule threshold, action floor)`; the editor and test results explain the effective value. Existing saved thresholds remain intact, and threshold edits never enable enforcement or bypass approvals. Any-image rules do not use match thresholds. See [configuration and compatibility](docs/MATCHING.md#configurable-match-thresholds).

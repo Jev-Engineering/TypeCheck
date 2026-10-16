@@ -7,7 +7,7 @@ import { digest } from './security.js';
 import { PROMPT_VERSION } from './policy.js';
 import { JevClient } from './jev.js';
 import { normalize } from './images.js';
-import { assert, MODES, DEFAULT_SETTINGS, isSevere, type Action, type Mode } from '../shared/domain.js';
+import { matchThreshold, DEFAULT_RULE_THRESHOLD, assert, MODES, DEFAULT_SETTINGS, isSevere, type Action, type Mode } from '../shared/domain.js';
 const manifestPath = process.argv[2];
 assert(manifestPath, 'usage_npm_run_evaluate_--_manifest_json');
 const key = process.env.TYPESAFE_EVAL_KEY;
@@ -32,6 +32,10 @@ const results: {
     predicted: boolean;
     threshold: number;
     probability: number;
+    ruleThreshold: number;
+    actionFloor: number | null;
+    effectiveThreshold: number;
+    meetsThreshold: boolean;
     model: string;
     inputTokens: number;
     firstProbability: number;
@@ -47,12 +51,13 @@ const usageAttempts: Attempt[] = [];
 let failure: string | null = null;
 try {
 for (const c of cases) {
-    assert(MODES.includes(c.mode) && typeof c.expected === 'boolean' && c.threshold >= 0.5 && c.threshold <= 1, 'invalid_case');
+    assert(MODES.includes(c.mode) && typeof c.expected === 'boolean', 'invalid_case');
+    const ruleThreshold = matchThreshold(Object.hasOwn(c, 'threshold') ? c.threshold : DEFAULT_RULE_THRESHOLD);
     const ref = await normalize(await readFile(resolve(root, c.reference)));
     const sample = await normalize(await readFile(resolve(root, c.sample)));
     assert(c.action === undefined || Object.hasOwn(DEFAULT_SETTINGS.thresholds, c.action), 'invalid_action');
     assert(c.secondVerification === undefined || typeof c.secondVerification === 'boolean', 'invalid_second_verification');
-    const threshold = Math.max(c.threshold, c.action ? DEFAULT_SETTINGS.thresholds[c.action] : 0);
+    const threshold = Math.max(ruleThreshold, c.action ? DEFAULT_SETTINGS.thresholds[c.action] : 0);
     const correlationId = randomUUID();
     const callbacks = (verification: boolean) => ({
         onAttempt: async (info?: { id: string; retry: number; startedAt: string }) => {
@@ -70,7 +75,7 @@ for (const c of cases) {
         secondProbability = second.probability; inputTokens += second.inputTokens;
     }
     const probability = Math.min(result.probability, secondProbability ?? 1);
-    results.push({ id: c.id, mode: c.mode, expected: c.expected, predicted: probability >= threshold, threshold, probability, model, inputTokens, firstProbability:result.probability, secondProbability, referenceSha256:ref.sha256, sampleSha256:sample.sha256 });
+    results.push({ id: c.id, mode: c.mode, expected: c.expected, predicted: probability >= threshold, threshold, probability, ruleThreshold, actionFloor: c.action ? DEFAULT_SETTINGS.thresholds[c.action] : null, effectiveThreshold: threshold, meetsThreshold: probability >= threshold, model, inputTokens, firstProbability:result.probability, secondProbability, referenceSha256:ref.sha256, sampleSha256:sample.sha256 });
 }
 } catch (e) { failure = safeError(e); process.exitCode = 1; }
 const summary = Object.fromEntries(MODES.map(mode => { const r = results.filter(r => r.mode === mode); return [mode, { total: r.length, tp: r.filter(x => x.expected && x.predicted).length, tn: r.filter(x => !x.expected && !x.predicted).length, fp: r.filter(x => !x.expected && x.predicted).length, fn: r.filter(x => x.expected && !x.predicted).length }]; }));

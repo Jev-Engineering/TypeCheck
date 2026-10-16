@@ -1,6 +1,6 @@
 import { SqlAnalytics } from './usage-sql.js';
 import { randomUUID } from 'node:crypto';
-import { DEFAULT_SETTINGS, AppError, assert, type RecordBase, type Kind, type Settings, type ImageMessage, type Job, type Session } from '../shared/domain.js';
+import { storedSettings, storedRecord, DEFAULT_SETTINGS, AppError, assert, type RecordBase, type Kind, type Settings, type ImageMessage, type Job, type Session } from '../shared/domain.js';
 import { digest } from './security.js';
 import type { Store, SettingsVersion, Usage, ActionRecord } from './store.js';
 export interface QueryResult {
@@ -30,12 +30,12 @@ export class PostgresStore implements Store {
     async getSettings(guild: string): Promise<SettingsVersion> {
         await this.query('INSERT INTO guilds(id,settings) VALUES($1,$2) ON CONFLICT DO NOTHING', [guild, { ...DEFAULT_SETTINGS, model: this.defaultModel }]);
         const r = (await this.query('SELECT settings,revision FROM guilds WHERE id=$1', [guild])).rows[0];
-        return { value: r.settings, revision: r.revision };
+        return { value: storedSettings(r.settings), revision: r.revision };
     }
     async putSettings(guild: string, value: Settings, revision: number) { const r = await this.query('UPDATE guilds SET settings=$2,revision=revision+1 WHERE id=$1 AND revision=$3', [guild, value, revision]); assert(r.rowCount === 1, 'revision_conflict', 409); }
     async guilds() { return (await this.query('SELECT id FROM guilds ORDER BY id')).rows.map(r => r.id as string); }
-    async all<T extends RecordBase>(kind: Kind, guild: string): Promise<T[]> { return (await this.query(`SELECT data FROM ${TABLES[kind]} WHERE guild_id=$1 ORDER BY updated_at DESC,id`, [guild])).rows.map(r => r.data as T); }
-    async get<T extends RecordBase>(kind: Kind, guild: string, id: string): Promise<T | null> { const r = (await this.query(`SELECT data FROM ${TABLES[kind]} WHERE guild_id=$1 AND id=$2`, [guild, id])).rows[0]; return r?.data ?? null; }
+    async all<T extends RecordBase>(kind: Kind, guild: string): Promise<T[]> { return (await this.query(`SELECT data FROM ${TABLES[kind]} WHERE guild_id=$1 ORDER BY updated_at DESC,id`, [guild])).rows.map(r => storedRecord(kind, r.data as T)); }
+    async get<T extends RecordBase>(kind: Kind, guild: string, id: string): Promise<T | null> { const r = (await this.query(`SELECT data FROM ${TABLES[kind]} WHERE guild_id=$1 AND id=$2`, [guild, id])).rows[0]; return r ? storedRecord(kind, r.data as T) : null; }
     async put<T extends RecordBase>(kind: Kind, record: T, expected: number) {
         assert(record.revision === expected + 1, 'invalid_revision');
         const table = TABLES[kind];

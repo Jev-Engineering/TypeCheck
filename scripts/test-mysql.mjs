@@ -1,3 +1,4 @@
+import { thresholdPersistence } from './test-threshold-persistence.mjs';
 /** Destructive only to newly generated test guilds. Use a disposable database. */
 import nativeAssert from 'node:assert/strict';
 let assertions=0;
@@ -17,6 +18,7 @@ try{
   console.log(`MySQL version: ${(await pool.query('SELECT VERSION() AS version')).rows[0].version}`);
   await Promise.all([migrateDatabase(pool,'mysql'),migrateDatabase(pool,'mysql')]);
   assert.equal((await pool.query("SELECT version FROM schema_migrations WHERE version='001'")).rowCount,1);
+  await thresholdPersistence(store,pool,'mysql',g+'9');
   const s=await store.getSettings(g);await store.getSettings(g2);assert.equal(s.value.enforcement,false);
   await store.putSettings(g,{...s.value,channels:['123456789']},s.revision);
   await assert.rejects(store.putSettings(g,s.value,s.revision),/revision_conflict/);

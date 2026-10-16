@@ -26,6 +26,7 @@ const server=createServer(async(req,res)=>{
     if(route.startsWith('analytics/')) return send(200,previewCosts(route,new URL(req.url,'http://localhost').searchParams));
     if(route==='me')return send(200,authority);
     if(route==='meta')return send(200,metadata);
+    if(route==='match-thresholds')return send(200,settings.value.thresholds);
     if(route==='settings')return send(200,settings);
     if(route==='credentials')return send(200,credential);
     if(route==='dashboard')return send(200,{settings,botOnline:false,credential,usage:{calls:0,inputTokens:0,day:'2026-10-15'},counts:{images:3,rules:3,evaluations:0,events:2,successful:0,suppressedOrFailed:2},recent:events});

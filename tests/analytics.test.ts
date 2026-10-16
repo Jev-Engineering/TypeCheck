@@ -111,3 +111,16 @@ test('interrupted response body remains uncertain, and reservation failure never
     await assert.rejects(f.services.call(G,PNG,PNG,'exact',model),/usage_accounting_unavailable/);
     assert.equal(f.control.calls,0);assert.deepEqual(await f.services.credential(G),before);
 });
+
+test('rule tests preserve threshold diagnostics and attribute verification attempts without hash charges',async t=>{
+    const f=await fixture(t), r=rule(f.ref,{threshold:.7,action:'ban'});
+    await f.store.put('rules',r,0);
+    f.control.probability=.9; f.control.secondProbability=.9;
+    const result=await f.services.testRule(G,ADMIN,r.id,f.image);
+    assert.equal(result.effectiveThreshold,.9); assert.equal(result.meetsThreshold,true); assert.equal(result.executed,false);
+    const rows=(await f.store.analytics.attempts(G,query())).items;
+    assert.equal(rows.length,2); assert.ok(rows.every(a=>a.purpose==='rule_test'));
+    assert.equal(new Set(rows.map(a=>a.correlationId)).size,1);
+    assert.deepEqual(rows.map(a=>a.verification).sort(),[false,true]);
+    assert.equal((await f.store.usage(G)).inputTokens,200);
+});

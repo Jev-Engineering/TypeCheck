@@ -1,5 +1,14 @@
 # Dependency and image review
 
+## PR #8 runtime remediation — October 16, 2026
+
+The Debian image's 43 high findings failed CI even after stable distro updates. The Docker build and runtime now use official `node:22-alpine3.24`, pinned at index digest `sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402`, with `apk upgrade --no-cache` in runtime. This removes the affected Debian package set instead of suppressing findings or mixing unstable Debian packages. Node remains 22.23.3. Build tools and runtime package-manager tools remain removed, and the runtime stays non-root.
+
+[Official Node image documentation](https://github.com/nodejs/docker-node) describes Alpine's musl libc difference. [Sharp installation documentation](https://sharp.pixelplumbing.com/install/) supports prebuilt Linux musl binaries. Both Docker stages use the same Alpine base so npm selects the matching native binaries; do not copy Windows or glibc node_modules into this runtime. Native notices remain included. Other architectures still need their own validation.
+
+Local linux/amd64 build passed all 164 tests, including native decoder tests. A read-only, network-disabled, non-root runtime smoke test decoded and re-encoded a synthetic image and loaded both PostgreSQL and MySQL clients. The unchanged CI high/critical scan and isolated Compose recovery drill remain required. Build and scan evidence use the `evidence/alpine-runtime-*` prefix. Historical Debian findings below describe the previous image, not this replacement. Distro updates and vulnerability databases are time-dependent; scans are not a guarantee of absence of vulnerabilities. Hosted GoDaddy processes outside Docker and remaining live/independent acceptance gates are unaffected.
+
+
 Reviewed October 15-16, 2026. `package-lock.json` is generated from the real registry resolution; CI and Docker use `npm ci`. No automatic `npm audit fix --force` was used.
 
 MySQL port review (October 16): mysql2 3.24.6 is an exact pin, loaded lazily through its promise API. Added driver/transitive declarations are MIT or Apache-2.0. The regenerated inventory contains 96 entries: MIT 61, Apache-2.0 16, LGPL-3.0-or-later 10, Apache-2.0 AND LGPL-3.0-or-later 3, ISC 3, Apache-2.0 AND LGPL-3.0-or-later AND MIT 1, Unlicense 1, 0BSD 1. The license check passed and npm audit reported zero advisories.

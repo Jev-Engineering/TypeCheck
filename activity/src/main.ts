@@ -1,5 +1,5 @@
 import { money, type AnalyticsReport, type Bucket, type Attempt, type Rate } from '../../shared/analytics.js';
-import { ACTIONS, MODES, RULE_TYPES, CAPABILITIES, ADMIN_ONLY, DEFAULT_SETTINGS, type Authority, type Capability, type Group, type ReferenceImage, type Rule, type Settings, type RoleGrant, type ModerationEvent, type Calibration } from '../../shared/domain.js';
+import { MATCH_THRESHOLDS, DEFAULT_RULE_THRESHOLD, matchThreshold, parseRule, parseSettings, effectiveThreshold, type Action, ACTIONS, MODES, RULE_TYPES, CAPABILITIES, ADMIN_ONLY, DEFAULT_SETTINGS, type Authority, type Capability, type Group, type ReferenceImage, type Rule, type Settings, type RoleGrant, type ModerationEvent, type Calibration } from '../../shared/domain.js';
 interface SDK {
     guildId: string | null;
     ready(): Promise<void>;
@@ -44,7 +44,7 @@ let session = '', guild = '', authority: Authority | null = null, sdk: SDK | nul
 let status: HTMLDivElement;
 const can = (cap: Capability) => authority?.capabilities.includes(cap) ?? false;
 const admin = () => !!(authority?.owner || authority?.administrator);
-const pretty = (s: string) => s.replaceAll('_', ' ').replaceAll('.', ' / ');
+const pretty = (s: string) => s === 'severe_threshold_must_not_be_lower' ? 'Action floors must satisfy timeout <= kick <= ban.' : s === 'match_threshold_must_be_a_finite_number_from_0.5_to_1.0' ? 'Match threshold must be a finite number from 0.5 to 1.0 (inclusive).' : s.replaceAll('_', ' ').replaceAll('.', ' / ');
 function h<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Record<string, unknown> = {}, ...children: Child[]): HTMLElementTagNameMap[K] {
     const el = document.createElement(tag);
     for (const [key, value] of Object.entries(attrs)) {
@@ -298,22 +298,39 @@ async function rulesPage(parent: HTMLElement) {
     if (can('rules.create'))
         parent.append(h('div', { class: 'actions section-actions' }, button('Create rule', () => editRule())));
     parent.append(panel('Moderation rules', 'Rules do not run automatically until their current configuration is approved and enforcement is enabled.', rules.length ? table(['Rule', 'Trigger', 'Action', 'Threshold / priority', 'Approval', 'Manage'], rules.map(r => [
-        h('div', {}, h('strong', {}, r.name), h('small', {}, r.enabled ? 'Enabled' : 'Disabled')), h('div', {}, pretty(r.type), h('small', {}, r.type === 'any_image' ? 'No Jev comparison' : r.mode)), h('div', {}, badge(r.action), r.deleteMessage ? h('small', {}, 'Also delete message') : null), h('div', {}, `${r.threshold}`, h('small', {}, `Priority ${r.priority}`)), badge(r.approvalCurrent ? 'CURRENT' : 'REQUIRED', r.approvalCurrent ? 'green' : 'amber'), h('div', { class: 'actions wrap' }, can('rules.edit') ? button('Edit', () => editRule(r), 'quiet') : null, can('matching.test') ? button('Test', () => testRule(r), 'quiet') : null, admin() ? button('Approve', () => approveRule(r), 'quiet') : null, can('rules.delete') ? button('Delete', async () => { if (await confirmAction('Delete rule?', r.name)) {
+        h('div', {}, h('strong', {}, r.name), h('small', {}, r.enabled ? 'Enabled' : 'Disabled')), h('div', {}, pretty(r.type), h('small', {}, r.type === 'any_image' ? 'No Jev comparison' : r.mode)), h('div', {}, badge(r.action), r.deleteMessage ? h('small', {}, 'Also delete message') : null), h('div', {}, r.type === 'any_image' ? 'Not applicable' : `${r.threshold}`, h('small', {}, `Priority ${r.priority}`)), badge(r.approvalCurrent ? 'CURRENT' : 'REQUIRED', r.approvalCurrent ? 'green' : 'amber'), h('div', { class: 'actions wrap' }, can('rules.edit') ? button('Edit', () => editRule(r), 'quiet') : null, can('matching.test') ? button('Test', () => testRule(r), 'quiet') : null, admin() ? button('Approve', () => approveRule(r), 'quiet') : null, can('rules.delete') ? button('Delete', async () => { if (await confirmAction('Delete rule?', r.name)) {
             await api(`rules/${r.id}`, 'DELETE', { revision: r.revision });
             await render();
         } }, 'danger') : null)
     ])) : empty('No rules configured', 'Create a rule that connects an image, image group, or matching library to a moderation action.')));
 }
 async function editRule(old?: Rule) {
+    const floors = await api<Settings['thresholds']>('match-thresholds');
     const images = can('images.view') ? await api<ReferenceImage[]>('images') : [], groups = can('images.view') ? await api<Group[]>('groups') : [];
     const name = input(old?.name ?? ''), type = select(RULE_TYPES.map(t => [t, pretty(t)]), old?.type ?? 'individual'), mode = select(MODES.map(m => [m, m === 'semantic' ? 'semantic (review only)' : m]), old?.mode ?? 'exact');
     const ref = select(images.map(i => [i.id, i.name]), old?.referenceId ?? images[0]?.id ?? ''), group = select(groups.map(g => [g.id, g.name]), old?.groupId ?? groups[0]?.id ?? '');
     const available = ACTIONS.filter(v => can('actions.change') ? (v !== 'kick' || can('kick.enable')) && (v !== 'ban' || can('ban.enable')) : v === (old?.action ?? 'none'));
     const action = select(available.map(v => [v, v]), old?.action ?? (available.includes('review') ? 'review' : 'none'));
-    const threshold = input(String(old?.threshold ?? 0.99), 'number');
+    const threshold = input(String(old?.threshold ?? DEFAULT_RULE_THRESHOLD), 'number');
     threshold.min = '0.5';
     threshold.max = '1';
-    threshold.step = '0.001';
+    threshold.step = 'any';
+    const presetFor = (value: number) => value === MATCH_THRESHOLDS.standard ? 'standard' : value === MATCH_THRESHOLDS.strict ? 'strict' : 'custom';
+    const matchPreset = select([['standard', 'Standard (0.70)'], ['strict', 'Strict (0.90)'], ['custom', 'Custom']], presetFor(Number(threshold.value)));
+    const thresholdHelp = h('p', { class: 'muted', 'aria-live': 'polite' });
+    const updateThreshold = () => {
+        const anyImage = type.value === 'any_image';
+        threshold.disabled = matchPreset.disabled = anyImage;
+        if (anyImage) { thresholdHelp.textContent = 'Match thresholds do not apply to any-image rules. No Jev comparison is made.'; return; }
+        try {
+            const value = matchThreshold(Number(threshold.value));
+            const floor = floors[action.value as Action];
+            const effective = effectiveThreshold({ threshold: value, action: action.value as Action }, { thresholds: floors } as Settings);
+            thresholdHelp.textContent = `Rule threshold ${value} · Action floor ${floor} · Effective threshold ${effective}. Score >= ${effective} meets the threshold. ${floor > value ? 'The action floor overrides the selected rule value.' : 'The rule value is at least the action floor.'}`;
+        } catch { thresholdHelp.textContent = 'Enter a threshold from 0.5 to 1.0 (inclusive).'; }
+    };
+    matchPreset.onchange = () => { if (matchPreset.value !== 'custom') threshold.value = String(MATCH_THRESHOLDS[matchPreset.value as 'standard' | 'strict']); updateThreshold(); };
+    threshold.oninput = () => { matchPreset.value = presetFor(Number(threshold.value)); updateThreshold(); };
     const timeout = input(String(old?.timeoutSeconds ?? 600), 'number');
     timeout.min = '1';
     timeout.max = '2419200';
@@ -322,7 +339,7 @@ async function editRule(old?: Rule) {
     const priority = input(String(old?.priority ?? 0), 'number'), reason = input(old?.reason ?? 'Posted an image prohibited by this server’s image policy');
     const enabled = check('Rule enabled', old?.enabled ?? true), automatic = check('Allow automatic enforcement after approval', old?.automatic ?? false), deletion = check('Also delete the message', old?.deleteMessage ?? false), verification = check('Require a second Jev check', old?.secondVerification ?? false, 'Always required for kick and ban. The checks can share correlated errors.');
     const refField = field('Reference image', ref), groupField = field('Image group', group), timeoutField = field('Timeout duration, seconds', timeout);
-    const update = () => { refField.hidden = type.value !== 'individual'; groupField.hidden = type.value !== 'group'; timeoutField.hidden = action.value !== 'timeout'; presets.hidden = action.value !== 'timeout'; if (type.value === 'any_image') {
+    const update = () => { updateThreshold(); refField.hidden = type.value !== 'individual'; groupField.hidden = type.value !== 'group'; timeoutField.hidden = action.value !== 'timeout'; presets.hidden = action.value !== 'timeout'; if (type.value === 'any_image') {
         mode.value = 'exact';
         mode.disabled = true;
     }
@@ -342,9 +359,9 @@ async function editRule(old?: Rule) {
     action.onchange = update;
     update();
     let d: HTMLDialogElement;
-    d = modal(old ? 'Edit rule' : 'Create rule', 'Saving any rule edit clears its prior approval. An any-image rule requires no positive Jev match.', h('div', { class: 'form-stack' }, field('Rule name', name), h('div', { class: 'form-row' }, field('When', type), field('Matching mode', mode)), refField, groupField, h('div', { class: 'form-row' }, field('Action', action), field('Match probability threshold', threshold), field('Priority', priority)), presets, timeoutField, field('Moderation reason', reason), enabled.node, automatic.node, deletion.node, verification.node), [button('Save rule', async () => {
+    d = modal(old ? 'Edit rule' : 'Create rule', 'Saving any rule edit clears its prior approval. An any-image rule requires no positive Jev match.', h('div', { class: 'form-stack' }, field('Rule name', name), h('div', { class: 'form-row' }, field('When', type), field('Matching mode', mode)), refField, groupField, h('div', { class: 'form-row' }, field('Action', action), field('Threshold preset', matchPreset), field('Match score threshold', threshold), field('Priority', priority)), thresholdHelp, h('p', { class: 'muted' }, 'Standard and Strict are practical starting points that depend on the domain, model and images. Strict is a stricter threshold, not an accuracy guarantee. Action floors are configurable by administrators in Settings.'), presets, timeoutField, field('Moderation reason', reason), enabled.node, automatic.node, deletion.node, verification.node), [button('Save rule', async () => {
             const rule = { name: name.value, type: type.value, referenceId: type.value === 'individual' ? ref.value : null, groupId: type.value === 'group' ? group.value : null, mode: mode.value, threshold: Number(threshold.value), action: action.value, timeoutSeconds: Number(timeout.value), deleteMessage: deletion.box.checked, priority: Number(priority.value), enabled: enabled.box.checked, automatic: automatic.box.checked, secondVerification: verification.box.checked, reason: reason.value };
-            await api(old ? `rules/${old.id}` : 'rules', old ? 'PUT' : 'POST', { rule, ...(old ? { revision: old.revision } : {}) });
+            await api(old ? `rules/${old.id}` : 'rules', old ? 'PUT' : 'POST', { rule: parseRule(rule), ...(old ? { revision: old.revision } : {}) });
             d.close();
             await render();
         })]);
@@ -353,14 +370,14 @@ async function testRule(rule: Rule) {
     const files = h('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp,image/gif', multiple: true }), expected = select([['unlabeled', 'Do not label'], ['match', 'Should match'], ['nonmatch', 'Should not match']], 'unlabeled');
     const results = h('div');
     const trials = await api<Calibration[]>(`rules/${rule.id}/calibration`);
-    const history = table(['Sample', 'Expected', 'Predicted', 'Probability', 'Model'], trials.slice(0, 15).map(t => [t.sampleSha256.slice(0, 10), String(t.expected), String(t.predicted), String(t.probability), t.model]));
+    const history = table(['Sample', 'Expected', 'Predicted', 'Probability', 'Model'], trials.slice(0, 15).map(t => [t.sampleSha256.slice(0, 10), String(t.expected), String(t.predicted), t.provenance === 'exact_hash' ? 'Exact normalized-image match' : String(t.probability), t.model ?? 'Not applicable']));
     modal('Test: ' + rule.name, 'Tests never moderate a Discord user. Use distinct representative positive and negative examples; synthetic examples alone do not establish real-world accuracy.', h('div', { class: 'form-stack' }, field('Sample images', files), field('Expected result for these images', expected), results, h('h3', {}, 'Recent calibration samples'), history), [button('Run tests', async () => {
             if (!files.files?.length)
                 throw new Error('Select sample images');
             results.replaceChildren();
             for (const file of Array.from(files.files)) {
                 const r = await api(`rules/${rule.id}/test`, 'POST', { base64: await base64(file), ...(expected.value !== 'unlabeled' ? { expected: expected.value === 'match' } : {}) });
-                results.append(h('div', { class: 'test-result' }, h('strong', {}, file.name), badge(r.predicted ? 'MATCH' : 'NO MATCH', r.predicted ? 'amber' : 'green'), h('span', {}, `Probability ${r.probability} · ${r.inputTokens} input tokens · No action executed`)));
+                results.append(h('div', { class: 'test-result' }, h('strong', {}, file.name), badge(r.predicted ? 'MATCH' : 'NO MATCH', r.predicted ? 'amber' : 'green'), h('span', {}, `${r.hashComparisons ? 'Exact normalized-image match; numerical thresholds do not apply' : r.thresholdApplies === false ? 'Any-image policy; numerical thresholds do not apply' : 'Jev score ' + r.probability + ' / rule ' + r.ruleThreshold + ' / action floor ' + r.actionFloor + ' / effective ' + r.effectiveThreshold + ' / meets threshold: ' + r.meetsThreshold} / ${r.hashComparisons ?? 0} hash-handled comparisons / ${r.inputTokens} reported provider input tokens / No action executed`)));
             }
             message('Tests finished. Labeled examples were stored without retaining their uploaded image bytes.');
         })]);
@@ -386,7 +403,7 @@ async function logs(parent: HTMLElement) {
             return;
         }
         results.append(table(['Time', 'Summary', 'Outcome', 'Details'], r.items.map((row: any) => [date(row.createdAt), h('div', {}, row.userId ?? row.actor ?? '', h('small', {}, row.messageId ?? row.target ?? '')), pretty(row.actual ?? row.outcome ?? row.event ?? row.status ?? ''), button('View', () => {
-                const body = h('div', { class: 'form-stack' }, h('pre', { class: 'code-block' }, JSON.stringify(row, null, 2)));
+                const body = h('div', { class: 'form-stack' }, ...(row.matches ?? []).map((m: any) => h('p', {}, `${m.provenance === 'exact_hash' ? 'Exact normalized-image match' : m.provenance === 'any_image' ? 'Any-image policy' : 'Jev estimate ' + m.probability} · Reference ${m.referenceId ?? 'none'} · ${row.reason ?? row.outcome ?? ''}`)), h('pre', { class: 'code-block' }, JSON.stringify(row, null, 2)));
                 const actions: HTMLElement[] = [];
                 let d: HTMLDialogElement;
                 if (category.value === 'events' && can('rules.edit'))
@@ -455,17 +472,22 @@ async function settingsPage(parent: HTMLElement) {
         const el = input(String(s.thresholds[action]), 'number');
         el.min = '0.5';
         el.max = '1';
-        el.step = '0.001';
+        el.step = 'any';
         thresholds.set(action, el);
-        thresholdGrid.append(field(pretty(action), el));
+        thresholdGrid.append(field(action === 'review' ? 'Human-review threshold' : `${pretty(action)} action floor`, el));
     }
     parent.append(panel('Monitoring & enforcement', 'Default: no monitored channels, no automatic actions. Source images are transient and not retained.', h('div', { class: 'columns' }, h('div', { class: 'form-stack' }, monitoring.node, enforcement.node, high.node, any.node, semantic.node), h('div', { class: 'form-stack' }, bots.node, webhooks.node, dm.node, field('Uncertain result policy', uncertain))), h('div', { class: 'columns' }, monitored.node, excluded.node), exempt.node));
-    parent.append(panel('Matching, usage & retention', 'Action-specific floors combine with the rule threshold. Changing model or threshold settings makes prior approvals stale.', h('div', { class: 'form-row' }, field('Pinned Jev model', model), field('Daily request limit (UTC)', daily), field('Log retention, days', retention)), field('Moderator log channel', log), thresholdGrid, h('div', { class: 'actions' }, button('Save settings', async () => {
+    parent.append(panel('Matching, usage & retention', 'Action-specific floors combine with the rule threshold. Changing model or threshold settings makes prior approvals stale. Valid range: 0.5-1.0 inclusive; timeout <= kick <= ban. Standard 0.70 and Strict 0.90 are starting points, not accuracy claims.', h('div', { class: 'form-row' }, field('Pinned Jev model', model), field('Daily request limit (UTC)', daily), field('Log retention, days', retention)), field('Moderator log channel', log), thresholdGrid,
+        h('p', {}, 'Jev automation: a comparison must reach the greater of its rule threshold and action floor. Equality qualifies; approvals, verification, permissions and all execution safeguards still apply.'),
+        h('p', {}, 'Jev human review: when the uncertain result policy is review and no rule qualifies for its action, comparisons at or above the human-review threshold but below their effective action threshold enter Logs as open moderation events. Below the review threshold, no fallback review is created. Ignore disables this fallback; explicit review rules still apply.'),
+        h('p', {}, 'A review threshold equal to or above an effective action threshold leaves no fallback review band for that rule. Action-qualified rules take precedence. Thresholds do not guarantee an error rate. New servers default to a review threshold of 0.70; older versions used 0.5 for fallback review.'),
+        h('p', {}, 'Exact normalized-image matches have no probability. Numerical bands do not apply to hash evidence; unmet execution safeguards route it to review without Jev.'),
+        h('div', { class: 'actions' }, button('Save settings', async () => {
         const enabling = enforcement.box.checked && !s.enforcement;
         if (enabling && !await confirmAction('Enable automatic enforcement?', 'Only approved rules will execute. Model errors and uncertain matches do not authorize punishment. False positives remain possible.'))
             return;
         const value = { ...s, monitoring: monitoring.box.checked, enforcement: enforcement.box.checked, highImpactEnabled: high.box.checked, anyImageEnabled: any.box.checked, semanticEnabled: semantic.box.checked, processBots: bots.box.checked, processWebhooks: webhooks.box.checked, dmNotify: dm.box.checked, uncertain: uncertain.value, channels: monitored.values(), excludedChannels: excluded.values(), exemptRoles: exempt.values(), logChannel: log.value || null, dailyCallLimit: Number(daily.value), logRetentionDays: Number(retention.value), model: model.value, thresholds: Object.fromEntries([...thresholds].map(([a, v]) => [a, Number(v.value)])) };
-        await api('settings', 'PUT', { value, revision: settings!.revision, ...(enabling ? { acknowledgement: 'ENABLE_AUTOMATIC_ENFORCEMENT' } : {}) });
+        await api('settings', 'PUT', { value: parseSettings(value), revision: settings!.revision, ...(enabling ? { acknowledgement: 'ENABLE_AUTOMATIC_ENFORCEMENT' } : {}) });
         await render();
         message('Settings saved. Review any stale rule approvals.');
     }))));

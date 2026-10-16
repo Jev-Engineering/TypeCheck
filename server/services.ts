@@ -1,12 +1,18 @@
 import type { Purpose, Attempt } from '../shared/analytics.js';
 import { randomUUID } from 'node:crypto';
 import { assert, AppError, baseRecord, effectiveAuthority, isSevere, type Authority, type Audit, type Calibration, type Credential, type ImageMessage, type Match, type ReferenceImage, type RoleGrant, type Rule, type Settings } from '../shared/domain.js';
+import { effectiveThreshold } from '../shared/domain.js';
 import type { Store } from './store.js';
 import { Vault, safeError } from './security.js';
 import { JevClient, type JevResult } from './jev.js';
-import { ObjectStore, normalize, type NormalizedImage } from './images.js';
+import { ObjectStore, normalize, NORMALIZATION_HASH_VERSION, type NormalizedImage } from './images.js';
 import { fingerprint, referencesFor } from './policy.js';
 import type { DiscordAdapter } from './discord.js';
+export class EvaluationFailure extends AppError {
+    constructor(error: unknown, readonly matches: Match[], readonly inputTokens: number, readonly hashComparisons: number) {
+        super(safeError(error), 503);
+    }
+}
 export class Services {
     constructor(readonly store: Store, readonly objects: ObjectStore, readonly vault: Vault, readonly jev: JevClient, readonly discord: DiscordAdapter) { }
     async audit(guild: string, actor: string, event: string, target: string, detail: Record<string, unknown> = {}, store: Store = this.store) {
@@ -74,26 +80,34 @@ export class Services {
     async evaluate(guild: string, attachmentId: string, image: NormalizedImage, rules: Rule[], images: ReferenceImage[], settings: Settings, purpose: Purpose = 'moderation'): Promise<{
         matches: Match[];
         inputTokens: number;
+        hashComparisons: number;
     }> {
         const correlationId = randomUUID();
         const matches: Match[] = [];
-        let inputTokens = 0;
+        let inputTokens = 0, hashComparisons = 0;
         const cache = new Map<string, JevResult>();
         const deadline = Date.now() + 120000;
+        try {
         for (const rule of rules.filter(r => r.guildId === guild && r.enabled)) {
             if (rule.mode === 'semantic' && !settings.semanticEnabled)
                 continue;
             if (rule.type === 'any_image') {
                 if (settings.anyImageEnabled)
-                    matches.push({ ruleId: rule.id, referenceId: null, probability: 1, verified: true, model: settings.model, attachmentId });
+                    matches.push({ provenance: 'any_image', ruleId: rule.id, referenceId: null, probability: 1, verified: true, model: settings.model, attachmentId });
                 continue;
             }
             const refs = referencesFor(rule, images);
             assert(refs.length <= 250, 'reference_comparison_limit');
             for (const ref of refs) {
                 assert(Date.now() < deadline, 'evaluation_deadline_exceeded', 503);
+                const binding = { referenceRevision: ref.revision, policyFingerprint: fingerprint(rule, images, settings) };
+                if (image.hashVersion === NORMALIZATION_HASH_VERSION && image.hashVersion === ref.hashVersion && /^[a-f0-9]{64}$/.test(image.sha256) && image.sha256 === ref.sha256) {
+                    matches.push({ ...binding, provenance: 'exact_hash', ruleId: rule.id, referenceId: ref.id, hashVersion: image.hashVersion, probability: null, model: null, verified: false, attachmentId });
+                    hashComparisons++;
+                    continue;
+                }
                 const compare = async (verification: boolean) => {
-                    const k = `${ref.sha256}:${rule.mode}:${verification}`;
+                    const k = `${guild}:${ref.sha256}:${ref.objectKey}:${rule.mode}:${settings.model}:${verification}`;
                     let r = cache.get(k);
                     if (!r) {
                         r = await this.call(guild, image.bytes, await this.objects.get(guild, ref.objectKey), rule.mode, settings.model, verification, undefined, purpose, correlationId);
@@ -103,17 +117,18 @@ export class Services {
                     return r;
                 };
                 const result = await compare(false);
-                const floor = Math.max(rule.threshold, settings.thresholds[rule.action]);
+                const floor = effectiveThreshold(rule, settings);
                 let p = result.probability, verified = false;
                 if (p >= floor && (rule.secondVerification || isSevere(rule.action))) {
                     const second = await compare(true);
                     p = Math.min(p, second.probability);
                     verified = second.probability >= floor;
                 }
-                matches.push({ ruleId: rule.id, referenceId: ref.id, probability: p, verified, model: result.model, attachmentId });
+                matches.push({ ...binding, provenance: 'jev', ruleId: rule.id, referenceId: ref.id, probability: p, verified, model: result.model, attachmentId });
             }
         }
-        return { matches, inputTokens };
+        } catch (error) { throw new EvaluationFailure(error, matches, inputTokens, hashComparisons); }
+        return { matches, inputTokens, hashComparisons };
     }
     async testRule(guild: string, actor: string, ruleId: string, image: NormalizedImage, expected?: boolean) {
         const rule = await this.store.get<Rule>('rules', guild, ruleId);
@@ -123,15 +138,19 @@ export class Services {
         assert(rule.type !== 'any_image' || settings.anyImageEnabled, 'any_image_mode_disabled');
         assert(rule.mode !== 'semantic' || settings.semanticEnabled, 'semantic_mode_disabled');
         const result = await this.evaluate(guild, 'test', image, [{ ...rule, enabled: true }], images, settings, 'rule_test');
-        const probability = Math.max(0, ...result.matches.map(m => m.probability));
-        const predicted = probability >= Math.max(rule.threshold, settings.thresholds[rule.action]);
+        const exact = result.matches.some(m => m.provenance === 'exact_hash');
+        const probability = exact ? null : Math.max(0, ...result.matches.map(m => m.probability ?? 0));
+        const thresholdApplies = !exact && rule.type !== 'any_image';
+        const actionFloor = settings.thresholds[rule.action];
+        const effective = thresholdApplies ? effectiveThreshold(rule, settings) : null;
+        const predicted = exact || (thresholdApplies ? probability! >= effective! : result.matches.length > 0);
         const fp = fingerprint(rule, images, settings);
         if (expected !== undefined) {
-            const trial: Calibration = { ...baseRecord(guild, randomUUID()), ruleId, fingerprint: fp, model: settings.model, expected, predicted, probability, sampleSha256: image.sha256, actor };
+            const trial: Calibration = { ...baseRecord(guild, randomUUID()), ruleId, fingerprint: fp, provenance: exact ? 'exact_hash' : 'jev', model: exact ? null : settings.model, expected, predicted, probability, sampleSha256: image.sha256, actor };
             await this.store.put('calibrations', trial, 0);
         }
         await this.audit(guild, actor, 'rule.tested', ruleId, { expected: expected ?? null, predicted, probability });
-        return { ...result, probability, predicted, fingerprint: fp, executed: false };
+        return { ...result, probability, predicted, ruleThreshold: rule.threshold, actionFloor, effectiveThreshold: effective, thresholdApplies, meetsThreshold: thresholdApplies ? predicted : null, fingerprint: fp, executed: false };
     }
     async approveRule(guild: string, actor: string, ruleId: string, note: string) {
         return this.store.withGuild(guild, async (tx) => {
@@ -144,7 +163,10 @@ export class Services {
             let positives = 0, negatives = 0, falsePositives = 0, truePositives = 0;
             if (rule.type !== 'any_image') {
                 assert(referencesFor(rule, images).length > 0, 'no_active_references');
-                const trials = (await tx.all<Calibration>('calibrations', guild)).filter(t => t.ruleId === ruleId && t.fingerprint === fp && t.model === settings.model);
+                const currentTrials = (await tx.all<Calibration>('calibrations', guild)).filter(t => t.ruleId === ruleId && t.fingerprint === fp);
+                // Deterministic false positives must not disappear from approval review.
+                assert(!currentTrials.some(t => t.provenance === 'exact_hash' && !t.expected && t.predicted), 'calibration_failed');
+                const trials = currentTrials.filter(t => t.model === settings.model && t.provenance !== 'exact_hash');
                 const bySample = new Map<string, Calibration>();
                 for (const t of trials) {
                     const old = bySample.get(t.sampleSha256);

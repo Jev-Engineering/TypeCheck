@@ -25,15 +25,26 @@ jobs:
       - run: npm ci --omit=dev --no-audit --no-fund
       - run: npm run check
       - run: npm run build
-      - run: npm run test:mysql > evidence/mysql-ci.txt 2>&1
+      - run: |
+          npm run test:mysql > evidence/mysql-ci.txt 2>&1
+          node scripts/test-hash-databases.mjs >> evidence/mysql-ci.txt 2>&1
         env:
           TEST_DATABASE_URL: mysql://guard:test-only-password@127.0.0.1:3306/guard_test
+          ALLOW_DATABASE_TESTS: 'true'
+      - name: Verify cost-ledger upgrade on disposable MySQL database
+        run: |
+          docker exec ${{ job.services.mysql.id }} mysql -uroot -ptest-only-root -e "CREATE DATABASE cost_test; GRANT ALL ON cost_test.* TO 'guard'@'%';"
+          node scripts/test-cost-databases.mjs > evidence/cost-mysql-ci.txt 2>&1
+        env:
+          TEST_DATABASE_URL: mysql://guard:test-only-password@127.0.0.1:3306/cost_test
           ALLOW_DATABASE_TESTS: 'true'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: mysql-validation
-          path: evidence/mysql-ci.txt
+          path: |
+            evidence/mysql-ci.txt
+            evidence/cost-mysql-ci.txt
   tests:
     runs-on: ubuntu-latest
     services:
@@ -61,9 +72,18 @@ jobs:
       - run: node dist/server/migrate.js
         env:
           DATABASE_URL: postgresql://guard:test-only-password@localhost:5432/guard_test
-      - run: npm run test:postgres
+      - run: |
+          npm run test:postgres
+          node scripts/test-hash-databases.mjs
         env:
           TEST_DATABASE_URL: postgresql://guard:test-only-password@localhost:5432/guard_test
+          ALLOW_DATABASE_TESTS: 'true'
+      - name: Verify cost-ledger upgrade on disposable PostgreSQL database
+        run: |
+          docker exec ${{ job.services.postgres.id }} createdb -U guard cost_test
+          node scripts/test-cost-databases.mjs > evidence/cost-postgres-ci.txt 2>&1
+        env:
+          TEST_DATABASE_URL: postgresql://guard:test-only-password@127.0.0.1:5432/cost_test
           ALLOW_DATABASE_TESTS: 'true'
       - run: npm run test:compose
       - name: Scan final runtime image (unresolved high findings block release)
@@ -81,3 +101,4 @@ jobs:
             evidence/postgres-validation.txt
             evidence/container-vulnerabilities.json
             evidence/dependency-licenses.json
+            evidence/cost-postgres-ci.txt

@@ -45,3 +45,18 @@ test('deployment acceptance blocks persisted approved enforcement settings', asy
     assert.equal((await f.store.actions(G)).length, 0);
     assert.equal((await f.store.all<ModerationEvent>('events', G))[0]?.reason, 'deployment_acceptance_required');
 });
+
+test('below-default-review and ignore results retain evaluations without opening review or actions', async t => {
+    const f = await fixture(t); await enable(f, rule(f.ref));
+    for (const [n, probability, uncertain] of [[30, 0.699999, 'review'], [31, 0.8, 'ignore']] as const) {
+        const s = await f.store.getSettings(G); s.value.uncertain = uncertain;
+        await f.store.putSettings(G, s.value, s.revision);
+        f.control.probability = probability;
+        const m = message(n); f.discord.messages.set(m.messageId, m);
+        await workerFor(f).process(m);
+    }
+    assert.equal((await f.store.all('evaluations', G)).length, 2);
+    assert.deepEqual(await f.store.all('events', G), []);
+    assert.deepEqual(await f.store.actions(G), []);
+    assert.equal(f.discord.performed.length, 0);
+});
