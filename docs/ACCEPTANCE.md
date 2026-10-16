@@ -42,3 +42,5 @@ Until those gates pass, completion of the original end-to-end acceptance checkli
 Local: 147 passing tests; compiled official SDK; fresh audit and license inventory. Container: isolated PostgreSQL, offline identity startup, health/outage, project restart and separate-volume/database restore passed. Live Discord and Jev: no passing receipt yet. Do not count Claude browser setup progress, synthetic image fixtures, or mocked responses as live acceptance. Historical offline browser screenshots are unchanged.
 
 Keep `ACCEPTANCE_APPROVED=0`. A production process refuses enforcement without this operator attestation, even if an old database contains enabled settings. Only an authorized operator may change it after reviewing completed acceptance evidence; rule approvals, thresholds, second verification and high-impact settings still apply. Development test actions require explicit test-guild/account authorization.
+
+Runtime-image security is also OPEN: the final scan has 43 high package findings across 8 unique CVEs. The clean application npm audit does not close this gate. See DEPENDENCIES.md for retained results and vendor references.

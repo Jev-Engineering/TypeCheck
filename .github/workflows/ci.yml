@@ -35,6 +35,11 @@ jobs:
           TEST_DATABASE_URL: postgresql://guard:test-only-password@localhost:5432/guard_test
           ALLOW_DATABASE_TESTS: 'true'
       - run: npm run test:compose
+      - name: Scan final runtime image (unresolved high findings block release)
+        run: |
+          IMAGE="$(node -e "console.log(JSON.parse(require('fs').readFileSync('evidence/container-result.json')).project + '-app:latest')")"
+          docker save "$IMAGE" -o /tmp/jev-image.tar
+          docker run --rm -v /tmp/jev-image.tar:/scan/image.tar:ro -v "$PWD/evidence:/report" aquasec/trivy@sha256:2416d1f74045b57274df1a340eee6b510cacd73c66a6ccb8da092b117eb7d222 image --input /scan/image.tar --scanners vuln --severity HIGH,CRITICAL --exit-code 1 --format json --output /report/container-vulnerabilities.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -43,3 +48,5 @@ jobs:
             evidence/container-validation.json
             evidence/container-result.json
             evidence/postgres-validation.txt
+            evidence/container-vulnerabilities.json
+            evidence/dependency-licenses.json
