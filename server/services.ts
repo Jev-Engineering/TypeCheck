@@ -1,3 +1,4 @@
+import type { Purpose, Attempt } from '../shared/analytics.js';
 import { randomUUID } from 'node:crypto';
 import { assert, AppError, baseRecord, effectiveAuthority, isSevere, type Authority, type Audit, type Calibration, type Credential, type ImageMessage, type Match, type ReferenceImage, type RoleGrant, type Rule, type Settings } from '../shared/domain.js';
 import type { Store } from './store.js';
@@ -15,19 +16,33 @@ export class Services {
     async authority(guild: string, user: string): Promise<Authority> { return effectiveAuthority(await this.discord.memberInfo(guild, user), await this.store.all<RoleGrant>('grants', guild)); }
     async credential(guild: string, store: Store = this.store): Promise<Credential | null> { return (await store.all<Credential>('credentials', guild))[0] ?? null; }
     async credentialStatus(guild: string) { const c = await this.credential(guild); return { configured: !!c, status: c?.status ?? 'missing', validatedAt: c?.validatedAt ?? null, lastError: c?.lastError ?? null, revision: c?.revision ?? 0 }; }
-    async call(guild: string, submitted: Buffer, reference: Buffer, mode: Rule['mode'], model: string, verification = false, keyOverride?: string): Promise<JevResult> {
+    async call(guild: string, submitted: Buffer, reference: Buffer, mode: Rule['mode'], model: string, verification = false, keyOverride?: string, purpose: Purpose = 'moderation', correlationId = randomUUID()): Promise<JevResult> {
         const c = keyOverride ? null : await this.credential(guild);
         const key = keyOverride ?? (c ? this.vault.decrypt(guild, c.encrypted) : null);
         assert(key, 'jev_credential_missing', 503);
         try {
-            const result = await this.jev.compare(submitted, reference, { key, model, mode, verification, onAttempt: async () => { const settings = (await this.store.getSettings(guild)).value; await this.store.reserveCall(guild, settings.dailyCallLimit); } });
-            await this.store.addTokens(guild, result.inputTokens);
+            const persist = async (work: () => Promise<void>) => {
+                // Retry only the same idempotent database write, never the provider request.
+                for (let i = 0; i < 3; i++) try { await work(); return; } catch (e) {
+                    if (e instanceof AppError && e.code === 'daily_jev_call_budget_exhausted') throw e;
+                    if (i === 2) throw new AppError('usage_accounting_unavailable', 503);
+                }
+            };
+            const result = await this.jev.compare(submitted, reference, { key, model, mode, verification,
+                onAttempt: async info => {
+                    assert(info, 'usage_attempt_missing', 503);
+                    const a: Attempt = { ...info, guildId:guild, correlationId, model, purpose, mode, verification, completedAt:null, outcome:'reserved', error:null, inputTokens:null, rate:null, costMicros:null };
+                    await persist(async () => { const settings = (await this.store.getSettings(guild)).value; await this.store.analytics.reserve(a, settings.dailyCallLimit); });
+                },
+                onDispatch: id => persist(() => this.store.analytics.dispatch(guild,id)),
+                onComplete: (id, completion) => persist(() => this.store.analytics.finalize(guild,id,completion))
+            });
             if (c?.status === 'error')
                 await this.store.put('credentials', { ...c, status: 'valid', lastError: null, revision: c.revision + 1, updatedAt: new Date().toISOString() }, c.revision).catch(() => { });
             return result;
         }
         catch (e) {
-            if (c && c.status !== 'error') {
+            if (c && c.status !== 'error' && safeError(e).startsWith('jev_')) {
                 const code = safeError(e);
                 await this.store.put('credentials', { ...c, status: 'error', lastError: code, revision: c.revision + 1, updatedAt: new Date().toISOString() }, c.revision).catch(() => { });
                 await this.audit(guild, 'system', 'jev.unhealthy', 'credential', { code }).catch(() => { });
@@ -43,7 +58,7 @@ export class Services {
         const before = await this.credential(guild);
         const settings = (await this.store.getSettings(guild)).value;
         const sample = await normalize(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADElEQVQImWP4//8/AAX+Av5Y8msOAAAAAElFTkSuQmCC', 'base64'));
-        await this.call(guild, sample.bytes, sample.bytes, 'exact', settings.model, false, key);
+        await this.call(guild, sample.bytes, sample.bytes, 'exact', settings.model, false, key, 'credential_validation');
         await this.store.withGuild(guild, async (tx) => {
             const current = await this.credential(guild, tx);
             assert((current?.revision ?? 0) === (before?.revision ?? 0), 'credential_changed_retry', 409);
@@ -56,10 +71,11 @@ export class Services {
         return this.credentialStatus(guild);
     }
     async testCredential(guild: string) { const c = await this.credential(guild); assert(c, 'jev_credential_missing', 404); const key = this.vault.decrypt(guild, c.encrypted); await this.setCredential(guild, 'system-connection-check', key); return this.credentialStatus(guild); }
-    async evaluate(guild: string, attachmentId: string, image: NormalizedImage, rules: Rule[], images: ReferenceImage[], settings: Settings): Promise<{
+    async evaluate(guild: string, attachmentId: string, image: NormalizedImage, rules: Rule[], images: ReferenceImage[], settings: Settings, purpose: Purpose = 'moderation'): Promise<{
         matches: Match[];
         inputTokens: number;
     }> {
+        const correlationId = randomUUID();
         const matches: Match[] = [];
         let inputTokens = 0;
         const cache = new Map<string, JevResult>();
@@ -80,7 +96,7 @@ export class Services {
                     const k = `${ref.sha256}:${rule.mode}:${verification}`;
                     let r = cache.get(k);
                     if (!r) {
-                        r = await this.call(guild, image.bytes, await this.objects.get(guild, ref.objectKey), rule.mode, settings.model, verification);
+                        r = await this.call(guild, image.bytes, await this.objects.get(guild, ref.objectKey), rule.mode, settings.model, verification, undefined, purpose, correlationId);
                         cache.set(k, r);
                         inputTokens += r.inputTokens;
                     }
@@ -106,7 +122,7 @@ export class Services {
         const settings = (await this.store.getSettings(guild)).value;
         assert(rule.type !== 'any_image' || settings.anyImageEnabled, 'any_image_mode_disabled');
         assert(rule.mode !== 'semantic' || settings.semanticEnabled, 'semantic_mode_disabled');
-        const result = await this.evaluate(guild, 'test', image, [{ ...rule, enabled: true }], images, settings);
+        const result = await this.evaluate(guild, 'test', image, [{ ...rule, enabled: true }], images, settings, 'rule_test');
         const probability = Math.max(0, ...result.matches.map(m => m.probability));
         const predicted = probability >= Math.max(rule.threshold, settings.thresholds[rule.action]);
         const fp = fingerprint(rule, images, settings);

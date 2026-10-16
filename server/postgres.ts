@@ -1,3 +1,4 @@
+import { SqlAnalytics } from './usage-sql.js';
 import { randomUUID } from 'node:crypto';
 import { DEFAULT_SETTINGS, AppError, assert, type RecordBase, type Kind, type Settings, type ImageMessage, type Job, type Session } from '../shared/domain.js';
 import { digest } from './security.js';
@@ -24,6 +25,7 @@ export async function openPool(connectionString: string): Promise<SqlPool> {
 }
 export class PostgresStore implements Store {
     constructor(readonly pool: SqlPool, private connection?: SqlClient, private defaultModel = DEFAULT_SETTINGS.model) { }
+    get analytics(): SqlAnalytics { return new SqlAnalytics(this, (sql, values) => this.query(sql, values), 'postgres'); }
     private query(sql: string, values?: unknown[]) { return (this.connection ?? this.pool).query(sql, values); }
     async getSettings(guild: string): Promise<SettingsVersion> {
         await this.query('INSERT INTO guilds(id,settings) VALUES($1,$2) ON CONFLICT DO NOTHING', [guild, { ...DEFAULT_SETTINGS, model: this.defaultModel }]);
@@ -126,8 +128,8 @@ export class PostgresStore implements Store {
     async beginAction(r: ActionRecord) { const q = await this.query('INSERT INTO action_ledger(guild_id,message_id,slot,action,status,detail) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING', [r.guildId, r.messageId, r.slot, r.action, r.status, r.detail]); return q.rowCount === 1; }
     async finishAction(guild: string, message: string, slot: string, status: string, detail: string) { await this.query('UPDATE action_ledger SET status=$4,detail=$5 WHERE guild_id=$1 AND message_id=$2 AND slot=$3', [guild, message, slot, status, detail]); }
     async actions(guild: string): Promise<ActionRecord[]> { return (await this.query('SELECT * FROM action_ledger WHERE guild_id=$1 ORDER BY created_at DESC', [guild])).rows.map(r => ({ guildId: r.guild_id, messageId: r.message_id, slot: r.slot, action: r.action, status: r.status, detail: r.detail, createdAt: r.created_at.toISOString() })); }
-    async reserveCall(guild: string, limit: number) { const r = await this.query("INSERT INTO usage_daily(guild_id,day,calls) VALUES($1,(now() AT TIME ZONE 'UTC')::date,1) ON CONFLICT(guild_id,day) DO UPDATE SET calls=usage_daily.calls+1 WHERE usage_daily.calls<$2 RETURNING calls", [guild, limit]); assert(r.rowCount === 1, 'daily_jev_call_budget_exhausted', 429); }
-    async addTokens(guild: string, n: number) { await this.query("UPDATE usage_daily SET input_tokens=input_tokens+$2 WHERE guild_id=$1 AND day=(now() AT TIME ZONE 'UTC')::date", [guild, n]); }
+    async reserveCall(guild: string, limit: number, day = new Date().toISOString().slice(0,10)) { const r = await this.query("INSERT INTO usage_daily(guild_id,day,calls) VALUES($1,$3::date,1) ON CONFLICT(guild_id,day) DO UPDATE SET calls=usage_daily.calls+1 WHERE usage_daily.calls<$2 RETURNING calls", [guild, limit, day]); assert(r.rowCount === 1, 'daily_jev_call_budget_exhausted', 429); }
+    async addTokens(guild: string, n: number, day = new Date().toISOString().slice(0,10)) { await this.query("UPDATE usage_daily SET input_tokens=input_tokens+$2 WHERE guild_id=$1 AND day=$3::date", [guild, n, day]); }
     async usage(guild: string): Promise<Usage> { const r = (await this.query("SELECT day::text,calls,input_tokens::text FROM usage_daily WHERE guild_id=$1 AND day=(now() AT TIME ZONE 'UTC')::date", [guild])).rows[0]; return r ? { day: r.day, calls: r.calls, inputTokens: Number(r.input_tokens) } : { day: new Date().toISOString().slice(0, 10), calls: 0, inputTokens: 0 }; }
     async createNonce(hash: string, origin: string) { await this.query("INSERT INTO auth_nonces VALUES($1,$2,now()+interval '5 minutes')", [hash, origin]); }
     async consumeNonce(hash: string, origin: string) { return (await this.query('DELETE FROM auth_nonces WHERE hash=$1 AND origin=$2 AND expires_at>now() RETURNING hash', [hash, origin])).rowCount === 1; }
@@ -135,6 +137,7 @@ export class PostgresStore implements Store {
     async session(hash: string): Promise<Session | null> { const r = (await this.query('SELECT * FROM sessions WHERE hash=$1 AND expires_at>now()', [hash])).rows[0]; return r ? { userId: r.user_id, guildId: r.guild_id, expiresAt: r.expires_at.getTime() } : null; }
     async deleteSession(hash: string) { await this.query('DELETE FROM sessions WHERE hash=$1', [hash]); }
     async maintenance() {
+        await this.analytics.cleanup();
         await this.query('DELETE FROM auth_nonces WHERE expires_at<now()');
         await this.query('DELETE FROM sessions WHERE expires_at<now()');
         await this.query("DELETE FROM jobs WHERE status IN ('done','failed') AND updated_at<now()-interval '7 days'");
