@@ -1,0 +1,9 @@
+{
+  "internalMarkdownLinks": "passed",
+  "jsonSyntax": "passed",
+  "yamlSyntax": "passed",
+  "envFileAbsent": true,
+  "lockfile": "not supplied; no install was possible",
+  "testsPassed": 142,
+  "offlineBrowserChecks": 14
+}

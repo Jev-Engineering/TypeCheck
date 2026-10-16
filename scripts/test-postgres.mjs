@@ -1,0 +1,31 @@
+/** Destructive only to newly generated test guilds. Use a disposable database. */
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { PostgresStore,openPool } from '../dist/server/postgres.js';
+import { baseRecord } from '../dist/shared/domain.js';
+assert.equal(process.env.ALLOW_DATABASE_TESTS,'true','Set ALLOW_DATABASE_TESTS=true for an isolated, migrated test database.');
+assert.ok(process.env.TEST_DATABASE_URL,'TEST_DATABASE_URL is required; DATABASE_URL is deliberately not used.');
+const pool=await openPool(process.env.TEST_DATABASE_URL),store=new PostgresStore(pool);
+const g=String(Date.now())+'01',g2=String(Date.now())+'02';
+try{
+  const s=await store.getSettings(g);await store.getSettings(g2);assert.equal(s.value.enforcement,false);
+  await store.putSettings(g,{...s.value,channels:['123456789']},s.revision);
+  await assert.rejects(store.putSettings(g,s.value,s.revision),/revision_conflict/);
+  const group={...baseRecord(g,randomUUID()),name:'Database test'};await store.put('groups',group,0);
+  assert.equal((await store.get('groups',g,group.id)).name,'Database test');assert.equal(await store.get('groups',g2,group.id),null);
+  await assert.rejects(store.put('images',{...baseRecord(g2,randomUUID()),groupId:group.id},0),/reference_in_use_or_wrong_guild/);
+  await assert.rejects(store.withGuild(g,async tx=>{await tx.remove('groups',g,group.id,1);throw new Error('rollback_requested');}),/rollback_requested/);
+  assert.ok(await store.get('groups',g,group.id));
+  const message={guildId:g,channelId:'123456789',messageId:'234567891',userId:'345678912',bot:false,webhook:false,attachments:[{id:'456789123',url:'https://cdn.discordapp.com/attachments/123456789/456789123/test.png',size:100,contentType:'image/png',filename:'test.png'}]};
+  assert.equal(await store.enqueue(message),true);assert.equal(await store.enqueue(message),false);
+  const job=await store.claim();assert.equal(job.guildId,g);await store.finish(job.id,null);
+  await store.markSeen(g,message.messageId,message.attachments[0].id);assert.equal(await store.seen(g,message.messageId,message.attachments[0].id),true);
+  const action={guildId:g,messageId:message.messageId,slot:'user',action:'timeout',status:'attempting',detail:'',createdAt:new Date().toISOString()};
+  assert.equal(await store.beginAction(action),true);assert.equal(await store.beginAction(action),false);
+  await store.finishAction(g,message.messageId,'user','unknown','test_unknown');assert.equal((await store.actions(g))[0].status,'unknown');
+  const reservations=await Promise.allSettled(Array.from({length:10},()=>store.reserveCall(g,3)));
+  assert.equal(reservations.filter(r=>r.status==='fulfilled').length,3);assert.equal((await store.usage(g)).calls,3);
+  const nonce=randomUUID();await store.createNonce(nonce,'https://example.invalid');assert.equal(await store.consumeNonce(nonce,'https://wrong.invalid'),false);assert.equal(await store.consumeNonce(nonce,'https://example.invalid'),true);assert.equal(await store.consumeNonce(nonce,'https://example.invalid'),false);
+  const release=await store.acquireLeader();assert.ok(release);assert.equal(await store.acquireLeader(),null);await release();
+  console.log('PostgreSQL integration assertions passed against the configured disposable database.');
+} finally {await pool.query('DELETE FROM guilds WHERE id = ANY($1::text[])',[[g,g2]]);await pool.end();}

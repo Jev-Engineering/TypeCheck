@@ -1,0 +1,11 @@
+node_modules
+dist
+.env
+.env.*
+!.env.example
+objects
+evidence
+.git
+*.zip
+*.log
+__pycache__

@@ -1,0 +1,20 @@
+{
+  "date": "2026-10-15",
+  "node": "v22.16.0",
+  "platform": "linux",
+  "architecture": "x64",
+  "typescript": "5.8.3",
+  "localSharp": "0.34.1",
+  "localNodeTypes": "25.1.0",
+  "declaredDependencies": {
+    "@discord/embedded-app-sdk": "^2.0.0",
+    "pg": "^8.16.3",
+    "sharp": "^0.34.4"
+  },
+  "dependencyInstall": false,
+  "officialSdkBundle": false,
+  "postgresExecution": false,
+  "dockerExecution": false,
+  "liveDiscord": false,
+  "liveJev": false
+}

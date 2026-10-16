@@ -1,0 +1,89 @@
+{
+  "scope": "Offline compiled UI, synthetic SDK/fetch; no network or live Discord authentication",
+  "checks": [
+    {
+      "viewport": "desktop",
+      "screen": "Image library",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "desktop",
+      "screen": "Rules & tests",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "desktop",
+      "screen": "Activity log",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "desktop",
+      "screen": "Permissions",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "desktop",
+      "screen": "Settings",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "desktop",
+      "screen": "Overview",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "desktop",
+      "dialog": "Create rule",
+      "visible": true
+    },
+    {
+      "viewport": "mobile",
+      "screen": "Image library",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "screen": "Rules & tests",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "screen": "Activity log",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "screen": "Permissions",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "screen": "Settings",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "screen": "Overview",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "dialog": "Create rule",
+      "visible": true
+    }
+  ],
+  "pageErrors": [],
+  "passed": true
+}

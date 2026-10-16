@@ -1,0 +1,31 @@
+{
+  "name": "typecheck",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "compile": "tsc",
+    "build": "tsc && node scripts/bundle-sdk.mjs",
+    "test": "tsc && node --test --test-concurrency=1 dist/tests/*.test.js",
+    "start": "node --env-file=.env dist/server/main.js",
+    "migrate": "node --env-file=.env dist/server/migrate.js",
+    "preview": "node scripts/preview.mjs",
+    "evaluate": "node --env-file=.env dist/server/evaluate-cli.js",
+    "test:postgres": "node scripts/test-postgres.mjs"
+  },
+  "dependencies": {
+    "@discord/embedded-app-sdk": "^2.0.0",
+    "pg": "^8.16.3",
+    "sharp": "^0.35.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.8.3"
+  }
+}

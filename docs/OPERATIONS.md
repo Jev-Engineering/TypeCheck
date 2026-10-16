@@ -1,0 +1,50 @@
+# Operations and troubleshooting
+
+## Runtime model
+
+One Node process hosts HTTP, the Gateway connection and a serial worker. PostgreSQL holds queue/idempotency state. A dedicated session advisory lock selects the single active bot process; loss of that connection terminates the process. This is not a multi-shard/high-availability release. Do not scale replicas or run a separate worker against the same bot without redesigning and validating leadership, rate limiting and recovery.
+
+`API_ONLY=1` is development-only and still uses real Discord authentication/REST. It is not an anonymous admin mode. Production rejects it. The isolated preview is a different script and is not copied into the Docker runtime.
+
+## Health and monitoring
+
+`GET /api/health` is a basic liveness/status endpoint, not proof that Jev, database writes and moderation work. The dashboard shows bot connectivity, credential state, counts and daily usage. Collect structured operational codes from stdout/stderr, not raw bodies/tokens. Monitor queue backlog, database availability, gateway-offline duration, credential failures, unknown ledger outcomes and disk usage. Hosted metrics exporters, alerts and dashboards are not provisioned by this project.
+
+No channels selected means no monitoring. Excluded channels override selected channels. Only image attachments in exact selected text/announcement channels are in the supported UI scope; threads/forums/embeds are not expanded. Server owners/admins are protected. Other bots/webhooks are ignored unless enabled, and webhook identities never receive user-level sanctions.
+
+## Backups and recovery
+
+Back up PostgreSQL, the private object volume and the master-key recovery material as a consistent set. Keep keys separate. Test restoring into an isolated environment with enforcement paused and no active bot token. Restoring an old database may lose action tombstones; do not reconnect it to production and replay events without reconciling actions performed since the backup.
+
+On a normal restart, interrupted jobs become queued. Action claims left attempting become unknown and are not reissued. Jobs erase message payloads on completion. Already-seen attachments and action slots remain durable. This is intentionally at-most-once dispatch and can miss an action if the process dies between claim and send.
+
+## Unknown or failed moderation
+
+Read both moderation events and the Durable action ledger under Activity log. Compare message/user IDs with Discord's own audit history. Do not blindly retry unknown outcomes. A recorded failure can reflect missing permission, role hierarchy, a deleted message, a changed rule, disabled enforcement or network uncertainty. Corrections/undo are manual; the review UI only labels events and disables false-positive rules.
+
+Pausing prevents new eligible dispatch where observed, but cannot cancel an HTTP request already sent. For a major incident, pause, revoke the bot's destructive permissions, stop the worker and investigate before resuming.
+
+## Common codes
+
+| Symptom/code | Check |
+|---|---|
+| No image events | Message Content intent/access, selected exact channel IDs, bot channel permissions, supported still attachment format |
+| gateway_fatal_4004 | Bot token validity; rotate in Discord if compromised |
+| gateway_fatal_4013 / 4014 | Requested/approved intents in the Developer Portal |
+| calibration_approval_required | Test and approve current reference/rule/model configuration |
+| high_impact_disabled | Explicit admin high-impact setting; do not enable without validation |
+| protected_or_exempt_member | Owner/admin protection, exempt roles and current target membership |
+| enforcement_paused / policy_changed | A concurrent pause/settings/reference/rule edit; no automatic replay |
+| image_byte_limit / invalid_image | File size/format/animation/decoder validation |
+| image_decoder_busy | Reduce concurrent uploads and inspect host memory pressure |
+| jev_* / credential error | Key, pinned model, image schema, provider limits/status and daily request budget |
+| revision_conflict | Reload the current record before editing |
+| session expired / unauthorized | Reconnect the Activity; verify live roles |
+| internal_error / database_pool_error | Inspect safe host/database diagnostics without logging credentials |
+| another_active_worker_holds_lock | Stop the duplicate bot instance; do not forcibly erase leadership state |
+
+## Deployment gates and scaling
+
+Run the provided SQL integration helper against a disposable database. Build and launch containers. Verify non-root object writes, retention and orphan cleanup, TLS/proxy headers, OAuth launch, intent approval, rate limits, runtime restarts and the action ledger against real services. Pin reviewed dependency lockfiles and container digests. CI is supplied but not run in this delivery.
+
+Limits are deliberately modest: up to 250 references/rules per guild, 100 groups, 1000 queued/processing jobs per guild, one serial worker, bounded provider/Discord queues and per-guild request caps. At higher traffic, logs must move to database-backed pagination/search, queues need admission/tenant fairness review, and image candidate reduction must be evaluated for false negatives. Do not treat the current caps as capacity benchmarks.

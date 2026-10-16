@@ -1,0 +1,258 @@
+[
+  {
+    "id": "exact-copy",
+    "reference": "reference.png",
+    "sample": "exact.png",
+    "mode": "exact",
+    "expected": true,
+    "threshold": 0.99
+  },
+  {
+    "id": "resized.png",
+    "reference": "reference.png",
+    "sample": "resized.png",
+    "mode": "transformed",
+    "expected": true,
+    "threshold": 0.99
+  },
+  {
+    "id": "recompressed.jpg",
+    "reference": "reference.png",
+    "sample": "recompressed.jpg",
+    "mode": "transformed",
+    "expected": true,
+    "threshold": 0.99
+  },
+  {
+    "id": "cropped.png",
+    "reference": "reference.png",
+    "sample": "cropped.png",
+    "mode": "transformed",
+    "expected": true,
+    "threshold": 0.99
+  },
+  {
+    "id": "watermarked.png",
+    "reference": "reference.png",
+    "sample": "watermarked.png",
+    "mode": "transformed",
+    "expected": true,
+    "threshold": 0.99
+  },
+  {
+    "id": "border.png",
+    "reference": "reference.png",
+    "sample": "border.png",
+    "mode": "transformed",
+    "expected": true,
+    "threshold": 0.99
+  },
+  {
+    "id": "embedded-reference",
+    "reference": "reference.png",
+    "sample": "composition.png",
+    "mode": "partial",
+    "expected": true,
+    "threshold": 0.99
+  },
+  {
+    "id": "similar-but-distinct-01",
+    "reference": "reference.png",
+    "sample": "distinct-01.png",
+    "mode": "transformed",
+    "expected": false,
+    "threshold": 0.99
+  },
+  {
+    "id": "similar-but-distinct-02",
+    "reference": "reference.png",
+    "sample": "distinct-02.png",
+    "mode": "transformed",
+    "expected": false,
+    "threshold": 0.99
+  },
+  {
+    "id": "similar-but-distinct-03",
+    "reference": "reference.png",
+    "sample": "distinct-03.png",
+    "mode": "transformed",
+    "expected": false,
+    "threshold": 0.99
+  },
+  {
+    "id": "similar-but-distinct-04",
+    "reference": "reference.png",
+    "sample": "distinct-04.png",
+    "mode": "transformed",
+    "expected": false,
+    "threshold": 0.99
+  },
+  {
+    "id": "similar-but-distinct-05",
+    "reference": "reference.png",
+    "sample": "distinct-05.png",
+    "mode": "transformed",
+    "expected": false,
+    "threshold": 0.99
+  },
+  {
+    "id": "similar-but-distinct-06",
+    "reference": "reference.png",
+    "sample": "distinct-06.png",
+    "mode": "transformed",
+    "expected": false,
+    "threshold": 0.99
+  },
+  {
+    "id": "similar-but-distinct-07",
+    "reference": "reference.png",
+    "sample": "distinct-07.png",
+    "mode": "transformed",
+    "expected": false,
+    "threshold": 0.99
+  },
+  {
+    "id": "similar-but-distinct-08",
+    "reference": "reference.png",
+    "sample": "distinct-08.png",
+    "mode": "transformed",
+    "expected": false,
+    "threshold": 0.99
+  },
+  {
+    "id": "similar-but-distinct-09",
+    "reference": "reference.png",
+    "sample": "distinct-09.png",
+    "mode": "transformed",
+    "expected": false,
+    "threshold": 0.99
+  },
+  {
+    "id": "similar-but-distinct-10",
+    "reference": "reference.png",
+    "sample": "distinct-10.png",
+    "mode": "transformed",
+    "expected": false,
+    "threshold": 0.99
+  },
+  {
+    "id": "similar-but-distinct-11",
+    "reference": "reference.png",
+    "sample": "distinct-11.png",
+    "mode": "transformed",
+    "expected": false,
+    "threshold": 0.99
+  },
+  {
+    "id": "similar-but-distinct-12",
+    "reference": "reference.png",
+    "sample": "distinct-12.png",
+    "mode": "transformed",
+    "expected": false,
+    "threshold": 0.99
+  },
+  {
+    "id": "similar-but-distinct-13",
+    "reference": "reference.png",
+    "sample": "distinct-13.png",
+    "mode": "transformed",
+    "expected": false,
+    "threshold": 0.99
+  },
+  {
+    "id": "similar-but-distinct-14",
+    "reference": "reference.png",
+    "sample": "distinct-14.png",
+    "mode": "transformed",
+    "expected": false,
+    "threshold": 0.99
+  },
+  {
+    "id": "similar-but-distinct-15",
+    "reference": "reference.png",
+    "sample": "distinct-15.png",
+    "mode": "transformed",
+    "expected": false,
+    "threshold": 0.99
+  },
+  {
+    "id": "similar-but-distinct-16",
+    "reference": "reference.png",
+    "sample": "distinct-16.png",
+    "mode": "transformed",
+    "expected": false,
+    "threshold": 0.99
+  },
+  {
+    "id": "similar-but-distinct-17",
+    "reference": "reference.png",
+    "sample": "distinct-17.png",
+    "mode": "transformed",
+    "expected": false,
+    "threshold": 0.99
+  },
+  {
+    "id": "similar-but-distinct-18",
+    "reference": "reference.png",
+    "sample": "distinct-18.png",
+    "mode": "transformed",
+    "expected": false,
+    "threshold": 0.99
+  },
+  {
+    "id": "similar-but-distinct-19",
+    "reference": "reference.png",
+    "sample": "distinct-19.png",
+    "mode": "transformed",
+    "expected": false,
+    "threshold": 0.99
+  },
+  {
+    "id": "similar-but-distinct-20",
+    "reference": "reference.png",
+    "sample": "distinct-20.png",
+    "mode": "transformed",
+    "expected": false,
+    "threshold": 0.99
+  },
+  {
+    "id": "similar-but-distinct-21",
+    "reference": "reference.png",
+    "sample": "distinct-21.png",
+    "mode": "transformed",
+    "expected": false,
+    "threshold": 0.99
+  },
+  {
+    "id": "similar-but-distinct-22",
+    "reference": "reference.png",
+    "sample": "distinct-22.png",
+    "mode": "transformed",
+    "expected": false,
+    "threshold": 0.99
+  },
+  {
+    "id": "similar-but-distinct-23",
+    "reference": "reference.png",
+    "sample": "distinct-23.png",
+    "mode": "transformed",
+    "expected": false,
+    "threshold": 0.99
+  },
+  {
+    "id": "similar-but-distinct-24",
+    "reference": "reference.png",
+    "sample": "distinct-24.png",
+    "mode": "transformed",
+    "expected": false,
+    "threshold": 0.99
+  },
+  {
+    "id": "unrelated",
+    "reference": "reference.png",
+    "sample": "unrelated.png",
+    "mode": "transformed",
+    "expected": false,
+    "threshold": 0.99
+  }
+]
