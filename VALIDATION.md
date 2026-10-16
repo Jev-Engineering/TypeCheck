@@ -24,6 +24,12 @@ Still **not production ready**: the hosted GoDaddy MySQL version and app-specifi
 
 ## Earlier validation record
 
+### Pre-merge runtime-image follow-up
+
+Hosted run [38867408513](https://github.com/Jev-Engineering/TypeCheck/actions/runs/38867408513) passed the application checks, MySQL job and full PostgreSQL/Compose recovery drill. Its image scan found 25 additional high/critical Go standard-library findings because production-installed esbuild was retained in the Docker runtime. Docker now explicitly uninstalls TypeScript, esbuild and Node type declarations after building/testing, while GoDaddy can still install them for its build step.
+
+The corrected Docker image was built locally with 155 passing in-image tests. A runtime smoke check confirmed pg, mysql2 and sharp load and build tools are absent. A new Trivy scan returned **0 critical, 43 high Debian findings, and 0 Node-package findings**; all 25 additional Go findings were removed. Evidence: `evidence/mysql-runtime-build.txt`, `evidence/mysql-runtime-vulnerabilities.json`, `evidence/mysql-runtime-review.json`. The scan still exits 1 for the existing Debian release blocker; no scanner suppression or threshold change was made. Hosted GoDaddy build-tool retention/security remains unverified.
+
 Additional MySQL edge case: a direct whole-guild deletion with linked rules/images is rejected by InnoDB's immediate RESTRICT checks. Deleting the guild's rules, then images, then guild row in one transaction succeeds and cascades remaining records. The harness verifies both outcomes; docs/SECURITY.md records this operational difference without weakening foreign keys.
 
 

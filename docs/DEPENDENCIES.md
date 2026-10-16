@@ -8,6 +8,8 @@ Reviewed [driver documentation](https://sidorares.github.io/node-mysql2/docs/doc
 
 ## Application packages
 
+Pre-merge Docker follow-up: production-installed build tools are explicitly uninstalled after the Docker build/test stage so they are not copied into the final runtime. This removed 25 newly observed Go standard-library findings from esbuild. The corrected image scan has 0 critical / 43 high Debian findings and no Node-package findings, matching the existing OS release blocker. See `evidence/mysql-runtime-review.json`; the hosted GoDaddy environment is not covered by that Docker result.
+
 Resolved direct versions: Discord Embedded App SDK 2.5.0; pg 8.23.1; sharp 0.35.5; TypeScript 5.9.3; esbuild 0.25.12; Node declarations 22.20.5. The high-severity native-image advisory on sharp 0.34.5 was fixed by explicitly upgrading sharp and rerunning native-decoder tests on Windows and Linux. `evidence/dependency-audit.json` records zero npm advisories at the time of this run, not a future guarantee.
 
 The upgraded decoder rejected the previous 1-pixel PNG because its IDAT checksum was corrupt. Both the credential probe and test helper now use a valid encoded PNG. The corrupt input remains a rejection regression; strict decoding remains enabled.

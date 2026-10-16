@@ -8,7 +8,10 @@ COPY shared ./shared
 COPY activity ./activity
 COPY tests ./tests
 COPY scripts/bundle-sdk.mjs ./scripts/bundle-sdk.mjs
-RUN npm run build && npm test && npm prune --omit=dev
+# GoDaddy installs production dependencies before building, so build tools are
+# declared there. Strip them explicitly from the separate Docker runtime tree.
+RUN npm run build && npm test && npm prune --omit=dev \
+    && npm uninstall --no-save --ignore-scripts typescript esbuild @types/node
 
 FROM node:22-trixie-slim@sha256:154ba2f4d6fec323d28e4f4bb86bba4677f1223391a1979cf521304e03a98dfa AS runtime
 RUN apt-get update && apt-get upgrade -y --no-install-recommends \

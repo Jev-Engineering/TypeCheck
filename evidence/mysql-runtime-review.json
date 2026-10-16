@@ -1,0 +1,67 @@
+{
+  "triggerRun": "https://github.com/Jev-Engineering/TypeCheck/actions/runs/38867408513",
+  "beforeSha256": "b9e9264bd0f85cb5746dd260d3fcc06acddf6cd7010ebdf90957168dd4f53492",
+  "before": [
+    {
+      "type": "debian",
+      "critical": 0,
+      "high": 43
+    },
+    {
+      "type": "node-pkg",
+      "critical": 0,
+      "high": 0
+    },
+    {
+      "type": "gobinary",
+      "critical": 1,
+      "high": 24
+    }
+  ],
+  "after": [
+    {
+      "type": "debian",
+      "critical": 0,
+      "high": 43
+    },
+    {
+      "type": "node-pkg",
+      "critical": 0,
+      "high": 0
+    }
+  ],
+  "removedGoCVEs": [
+    "CVE-2025-68121",
+    "CVE-2025-61726",
+    "CVE-2025-61729",
+    "CVE-2026-25679",
+    "CVE-2026-27145",
+    "CVE-2026-32280",
+    "CVE-2026-32281",
+    "CVE-2026-32283",
+    "CVE-2026-33811",
+    "CVE-2026-33814",
+    "CVE-2026-33818",
+    "CVE-2026-39820",
+    "CVE-2026-39821",
+    "CVE-2026-39822",
+    "CVE-2026-39836",
+    "CVE-2026-42499",
+    "CVE-2026-42504",
+    "CVE-2026-56853",
+    "CVE-2026-56858",
+    "CVE-2026-56859",
+    "CVE-2026-56860",
+    "CVE-2026-56862",
+    "CVE-2026-78667",
+    "CVE-2026-78669",
+    "CVE-2026-97031"
+  ],
+  "fix": "Explicitly uninstall build-only packages in the Docker build stage after tests.",
+  "runtimeSmoke": "pg, mysql2/promise, sharp load; esbuild and TypeScript absent",
+  "imageTag": "jev-guard-mysql-merge-20261016",
+  "imageId": "sha256:78f8dc48815c139aef739e9f3cb52f116ea2de371b25de80d6007bfe763b3cf3",
+  "scanExitCode": 1,
+  "releaseBlocker": "43 existing Debian high findings remain; scan policy unchanged",
+  "hostedGoDaddyVerified": false
+}
