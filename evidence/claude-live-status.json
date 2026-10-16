@@ -1,0 +1,226 @@
+{
+  "status": "published_activity_live",
+  "phase": "Published to https://mxa13say2y.c24.airoapp.ai (standby); PREVIEW is Gateway leader. Discord Activities enabled + root URL mapping set. Real Activity launch + OAuth verified as guild owner. Remaining live tests need consenting alt accounts.",
+  "publicTestIds": {
+    "applicationId": "1560495911358955540",
+    "botUserId": "1560495911358955540",
+    "ownerTeam": "JevPlays.Games",
+    "testGuildId": "1560497774850736260",
+    "testGuildName": "TypeCheck Test (new, private, owned by user's account)",
+    "testChannelId": "1560497904135704658",
+    "testChannelName": "#image-test",
+    "oauthRedirect": "https://127.0.0.1 (Activity-guide placeholder)",
+    "guildRoles": {
+      "TypeCheck Test (bot, managed)": "position 3",
+      "Admin": "1560565923260272730 (Administrator), position 2",
+      "Moderator": "1560568149995429958 (View Audit Log, Manage Messages, Moderate Members), position 1"
+    },
+    "ownerUserId": "181971936467877898 (CompleteTech, guild owner; holds Admin + Moderator per user request)"
+  },
+  "completedLiveChecks": [
+    {
+      "check": "Bot token authenticates (GET /users/@me)",
+      "result": "HTTP 200, bot=true, username 'TypeCheck Test'",
+      "at": "2026-10-16"
+    },
+    {
+      "check": "Client secret valid (client_credentials grant, scope identify)",
+      "result": "HTTP 200 Bearer",
+      "at": "2026-10-16"
+    },
+    {
+      "check": "Bot installed into test guild only (guild-locked OAuth, user-approved)",
+      "result": "GET /users/@me/guilds -> exactly 1 guild 1560497774850736260; bot member HTTP 200 with managed role (non-admin); GET test channel -> #image-test in test guild",
+      "at": "2026-10-16T04:40:18.182Z"
+    },
+    {
+      "check": "GoDaddy preview boot of feat/mysql-store with platform MySQL + MIGRATE_ON_START=1",
+      "result": "logs: .env not found (continued), http_listening; GET /api/health 200 {status:leader}; GET /api/ready 200 {status:ready,controller:leader} (per docs: DB connected, migration receipt present, Gateway online)",
+      "at": "2026-10-16T07:55:50.188Z"
+    },
+    {
+      "check": "Production mode indicator",
+      "result": "Strict-Transport-Security header present (app sets it only when NODE_ENV=production; could also be proxy-added - not conclusive)",
+      "at": "2026-10-16T07:55:50.188Z"
+    },
+    {
+      "check": "Publish to live",
+      "result": "deployment R8LibNXRD6 COMPLETED; PUBLISH /api/health 200 {status:standby}, /api/ready 200 {status:ready,controller:standby}; PREVIEW remains leader -> exactly one Gateway controller",
+      "at": "2026-10-16T08:08:40.895Z"
+    },
+    {
+      "check": "Discord Activity configuration",
+      "result": "Activities enabled (Entry Point command auto-created); root URL mapping / -> mxa13say2y.c24.airoapp.ai",
+      "at": "2026-10-16T08:08:40.895Z"
+    },
+    {
+      "check": "Real Activity launch + SDK OAuth (owner account) in #image-test",
+      "result": "App Launcher -> TypeCheck Test -> Launch; first-run test-app notice accepted; identify-only consent authorized; backend code exchange succeeded; Overview rendered for guild 1560497774850736260 with MONITOR ONLY, 0 references/rules, JEV MISSING",
+      "at": "2026-10-16T08:08:40.895Z"
+    }
+  ],
+  "blockers": [
+    "Consenting alt accounts (TEST_USER_IDS) for unauthorized-user rejection, role revocation/delegation, guild isolation and moderation-target tests",
+    "Decide leader placement (PUBLISH vs PREVIEW) - see finding standby-bot-status",
+    "OBJECT_DIR persistence on GoDaddy unverified",
+    "TYPESAFE_EVAL_KEY (user) and representative labeled corpus",
+    "CI image-scan gate red (parent)"
+  ],
+  "notes": [
+    "Secret values are never written here; presence booleans only.",
+    "Will not start backend containers; awaiting parent coordination.",
+    "Moderator role intended for TypeCheck delegated-capability tests; assign it to a consenting alt to test delegation/revocation (owner is always admin in TypeCheck, so owner cannot test revocation)."
+  ],
+  "credentialPresence": {
+    "DISCORD_CLIENT_ID": true,
+    "DISCORD_CLIENT_SECRET": true,
+    "DISCORD_BOT_TOKEN": true,
+    "PUBLIC_ORIGIN": false,
+    "TEST_GUILD_ID": true,
+    "TEST_CHANNEL_ID": true,
+    "TEST_USER_IDS": false,
+    "TEST_ALLOWED_ACTIONS": true,
+    "TYPESAFE_EVAL_KEY": true,
+    "EVAL_MANIFEST_PATH": false,
+    "CREDENTIAL_MASTER_KEY": true
+  },
+  "safety": {
+    "ACCEPTANCE_APPROVED": "0",
+    "enforcement": "off (not enabled by this agent)",
+    "highImpactActions": "off",
+    "databaseUrlModified": false,
+    "backendContainersStartedByThisAgent": false
+  },
+  "timestamp": "2026-10-16T08:25:49.797Z",
+  "writer": "claude-in-chrome live-setup agent (session dd0156bf)",
+  "decisions": {
+    "appOwner": "JevPlays.Games developer team (user choice)",
+    "testGuild": "new private server 'TypeCheck Test' to be created",
+    "testUsers": "user will provide consenting alt accounts later",
+    "publicOrigin": "user plans to host via GoDaddy in a separate Chrome window later"
+  },
+  "appConfig": {
+    "privilegedIntents": {
+      "messageContent": true,
+      "serverMembers": false,
+      "presence": false
+    },
+    "publicBot": false,
+    "installLink": "None",
+    "oauthRedirects": [
+      "https://127.0.0.1"
+    ],
+    "activities": "not yet enabled (needs PUBLIC_ORIGIN URL mapping)"
+  },
+  "secretTransfer": "Token/secret regenerated on the brand-new app only, moved via Discord Copy button -> clipboard -> local write into .env without display; clipboard cleared. No screenshots or page-text reads while visible.",
+  "testAllowedActions": "none,review,delete,warn,timeout (kick/ban excluded; high-impact off). Note: TEST_ALLOWED_ACTIONS is not read by source; it is a coordination guard for live tests.",
+  "proposedBotPermissions": "View Channels, Send Messages, Read Message History, Manage Messages, Moderate Members (integer 1099511704576); no Administrator/Kick/Ban/Manage Roles/Manage Channels",
+  "botInstall": {
+    "guildLocked": true,
+    "grantedPermissions": [
+      "View Channels",
+      "Send Messages",
+      "Read Message History",
+      "Manage Messages",
+      "Moderate Members"
+    ],
+    "notGranted": [
+      "Administrator",
+      "Kick Members",
+      "Ban Members",
+      "Manage Roles",
+      "Manage Channels"
+    ],
+    "guildRoles": [
+      "@everyone",
+      "TypeCheck Test (managed, position 1)"
+    ]
+  },
+  "notStartedByThisAgent": [
+    "Gateway connection / bot controller",
+    "backend containers",
+    "Activity launch (needs PUBLIC_ORIGIN + Activities URL mapping)"
+  ],
+  "godaddyFindings": {
+    "product": "GoDaddy Node.js Hosting (Airo PaaS), existing account with 15 apps; Node.js 22; deploy via folder/zip upload, GitHub, REST API or GoDaddy CLI; secrets as encrypted .env",
+    "previewReachability": "Preview URLs (*.preview.*.airoapp.ai) require GoDaddy login -> not reachable by Discord Activity proxy; only a Published URL can serve as PUBLIC_ORIGIN",
+    "billing": "GoDaddy states 'Payment required to publish'; creating an app accepts Universal Terms + AI Terms -> needs user decision (no billing commitments by agent)",
+    "database": "Only managed MySQL offered; TypeCheck requires PostgreSQL 16 (pg driver + PostgreSQL migration) -> needs external dedicated test PostgreSQL or code changes (parent scope)",
+    "singleController": "Preview and Published run as separate app instances (separate restart controls) -> risk of two Gateway bot controllers on one token/DB; platform instance count/sleep behavior unknown",
+    "objectStorage": "Persistence of local filesystem OBJECT_DIR across deploys/restarts unverified",
+    "secrets": "Agent may not type bot token/client secret/master key into GoDaddy fields; user must enter secrets there",
+    "coordination": "Deploying starts a bot controller and ships parent's in-progress source -> requires parent sign-off"
+  },
+  "recommendedAlternative": "For live validation: parent runs the single test backend locally (isolated test DB) and exposes it with an HTTPS tunnel (e.g. cloudflared); set PUBLIC_ORIGIN to that origin and map it in the Discord Activity settings. GoDaddy deployment deferred until PostgreSQL + single-instance questions are resolved.",
+  "requestToParent": "Image scan still blocks on unfixed Debian 13 base-OS HIGH CVEs after f3811ae. Options: smaller base (e.g. distroless nodejs22 or a minimal runtime without util-linux/ncurses/systemd libs), or a documented, time-boxed risk acceptance using --ignore-unfixed with the remaining CVE list. Your call.",
+  "godaddyHardBlockers": [
+    "DATABASE_URL must be PostgreSQL; GoDaddy only provides MySQL -> user must provide a dedicated, empty, non-production PostgreSQL 16 reachable from GoDaddy",
+    "Secrets (bot token, client secret, master key, DATABASE_URL) must be entered into GoDaddy Secrets by the user, not the agent",
+    "Only one of preview/published may run the bot; the other must stay stopped",
+    "Parent sign-off on source revision and single controller"
+  ],
+  "godaddyProjectObserved": {
+    "note": "Previous 'TypeWright' app (9w6ao1q943) was connected to the wrong repo; user deleted it."
+  },
+  "godaddyNewApp": {
+    "apiAppId": "NODEJS-mxa13say2y"
+  },
+  "databaseFinding": "Definitive: steamanddip cPanel psql page reports 'Postgres is not installed on this server'; cPanel Databases = phpMyAdmin, MySQL Databases, MySQL Database Wizard, Remote MySQL only. Node.js app Hosted Database = MySQL. TypeCheck requires PostgreSQL. Options: external PostgreSQL (e.g. Neon free), parent ports persistence to MySQL, or a GoDaddy VPS running PostgreSQL (paid; not pursued).",
+  "localContainersCheck": "docker ps: no TypeCheck/jev containers running (only mcp/playwright, untouched). Parent compose validation uses DISCORD_BOT_TOKEN=offline-fixture-only (not a real controller).",
+  "godaddyCli": "gddy v0.2.29 authenticated (user-approved OAuth)",
+  "mysqlPortPrompt": "Saved in this agent's scratchpad as mysql-port-prompt.md and given to the user to hand to an implementing agent (parent or new session).",
+  "keyFindingsForPort": [
+    "main.ts leader election uses pg_try_advisory_lock; second instance exits with another_active_worker_holds_lock. GoDaddy preview+published share one MySQL -> must port to GET_LOCK and prefer HTTP standby over crash loop",
+    "npm start uses --env-file=.env -> GoDaddy crash 'node: .env: not found'; use --env-file-if-exists"
+  ],
+  "ciObservation": {
+    "branch": "feat/mysql-store",
+    "runs": {
+      "38867408513": "e31df36 failure",
+      "38867588857": "e31df36 failure",
+      "38867895175": "f3811ae push failure",
+      "38867900285": "f3811ae pull_request failure"
+    },
+    "passing": [
+      "mysql job",
+      "tests job steps before image scan"
+    ],
+    "failingStep": "Scan final runtime image (unresolved high findings block release)",
+    "trivySummary": "43 findings, 8 unique HIGH CVEs (CVE-2025-69720 ncurses; CVE-2026-16742 systemd libs; CVE-2026-54369 libacl1; CVE-2026-76642/78408/78409 util-linux family), 0 CRITICAL, 0 with fixed versions, 0 in npm/app packages - all Debian 13.7 base OS packages",
+    "note": "GoDaddy Node.js Hosting builds from source on its own runtime and does not use this Docker image; gate is a release-policy issue for the container path."
+  },
+  "godaddyDeploy": {
+    "branch": "feat/mysql-store",
+    "importId": "github-UbWP0Nwt2TEycSWnsXycU",
+    "previewSecretNames": [
+      "DISCORD_CLIENT_ID",
+      "DISCORD_CLIENT_SECRET",
+      "DISCORD_BOT_TOKEN",
+      "CREDENTIAL_MASTER_KEY",
+      "JEV_MODEL",
+      "PUBLIC_ORIGIN",
+      "MIGRATE_ON_START",
+      "ACCEPTANCE_APPROVED"
+    ],
+    "publicOrigin": "https://mxa13say2y.c24.airoapp.ai",
+    "notes": [
+      "NODE_ENV rejected by GoDaddy secrets API (VALIDATION_FAILED) - presumed platform-managed; verify production mode in logs",
+      "DATABASE_URL intentionally NOT set; platform injects DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD (per GoDaddy database guide)",
+      "GoDaddy guide: uploaded files/assets persist across deploys and are shared preview/publish (directory not specified; verify OBJECT_DIR)",
+      "gddy auth via user-created PAT 'TypeCheck CLI hosting' (12 hosting scopes, expires 2026-11-15) stored as GDDY_PAT in local .env"
+    ],
+    "migrateOnStart": "removed from PREVIEW after successful boot",
+    "importStatus": "COMPLETED"
+  },
+  "credentialNote": "GDDY_PAT added to local .env by user request (value never displayed).",
+  "incidents": [
+    "GoDaddy preview share token (airoShareToken, preview-view only) was echoed once in this agent tool output; no Discord/DB/master-key secret exposed. Rotate by re-generating preview link if concerned."
+  ],
+  "findings": [
+    {
+      "id": "standby-bot-status",
+      "severity": "medium (UX/ops)",
+      "detail": "Activity served by PUBLISH standby shows BOT OFFLINE while PREVIEW leader has Gateway online. Standby reports local process status. Options: have standby report leader/Gateway state from DB heartbeat, or make PUBLISH the leader (e.g. remove bot token/stop PREVIEW). Owner: parent."
+    }
+  ]
+}
