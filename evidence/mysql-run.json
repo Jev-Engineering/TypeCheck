@@ -1,0 +1,75 @@
+{
+  "at": "2026-10-16T07:28:03.494Z",
+  "base": "1bf77cb",
+  "branch": "feat/mysql-store",
+  "node": "v24.18.0",
+  "mysql": "8.0.46",
+  "containers": [
+    {
+      "name": "jev-guard-validation-mysql-20261016-codex",
+      "id": "a1b8e151bd8654aa494c7c8ab509dfdb13330c38249e7123d634adc9dc89a3b2",
+      "image": "mysql:8.0",
+      "imageId": "sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b",
+      "ports": {
+        "3306/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "26673"
+          }
+        ]
+      }
+    },
+    {
+      "name": "jev-guard-validation-pg-20261016-codex",
+      "id": "3cfe4bee25e6871d8cf1a84ff8fd6b6bd39c509d462c04fcd4eaa9fa8cf67b20",
+      "image": "postgres:16",
+      "imageId": "sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d",
+      "ports": {
+        "5432/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "26391"
+          }
+        ]
+      }
+    }
+  ],
+  "removedOnlyOwnedContainers": true,
+  "goDaddy": {
+    "connected": false,
+    "versionObserved": false,
+    "privateGuideObserved": false
+  },
+  "checks": {
+    "unit": {
+      "pass": 155,
+      "fail": 0,
+      "skip": 0
+    },
+    "mysql": {
+      "assertions": 104
+    },
+    "postgres": "passed unchanged harness",
+    "typecheck": "passed",
+    "build": "passed",
+    "startup": "passed offline API-only",
+    "tls": "untrusted rejected; trusted matching-host accepted",
+    "productionOnlyInstallBuild": "passed"
+  },
+  "commands": [
+    "npm install --save-exact mysql2@3.24.6",
+    "npm install --save-prod --save-exact typescript@5.9.3 esbuild@0.25.12 @types/node@22.20.5",
+    "npm audit --json",
+    "node scripts/review-dependencies.mjs",
+    "npm run check",
+    "npm run build",
+    "npm test",
+    "node dist/server/migrate.js (PostgreSQL, twice)",
+    "npm run test:postgres",
+    "npm run test:mysql (loopback disposable schema; ALLOW_DATABASE_TESTS=true)",
+    "node scripts/test-mysql-startup.mjs (empty loopback schema)",
+    "node scripts/test-mysql-tls.mjs (loopback server with disposable matching-host certificate)",
+    "npm ci --omit=dev --prefix <temporary-source-copy>",
+    "npm run build --prefix <temporary-source-copy>"
+  ]
+}

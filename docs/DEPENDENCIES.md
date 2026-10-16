@@ -2,6 +2,10 @@
 
 Reviewed October 15-16, 2026. `package-lock.json` is generated from the real registry resolution; CI and Docker use `npm ci`. No automatic `npm audit fix --force` was used.
 
+MySQL port review (October 16): mysql2 3.24.6 is an exact pin, loaded lazily through its promise API. Added driver/transitive declarations are MIT or Apache-2.0. The regenerated inventory contains 96 entries: MIT 61, Apache-2.0 16, LGPL-3.0-or-later 10, Apache-2.0 AND LGPL-3.0-or-later 3, ISC 3, Apache-2.0 AND LGPL-3.0-or-later AND MIT 1, Unlicense 1, 0BSD 1. The license check passed and npm audit reported zero advisories.
+
+Reviewed [driver documentation](https://sidorares.github.io/node-mysql2/docs/documentation) and installed driver source for promise pools, JSON strings, affected-row flags and TLS. The adapter disables FOUND_ROWS and explicitly verifies TLS host identity. TypeScript 5.9.3, esbuild 0.25.12 and Node declarations 22.20.5 are now exact dependency pins because GoDaddy installs production packages before building. This increases the installed package surface; the earlier runtime image scan below does not cover the new graph. A fresh image scan is required before production acceptance. Earlier review details follow.
+
 ## Application packages
 
 Resolved direct versions: Discord Embedded App SDK 2.5.0; pg 8.23.1; sharp 0.35.5; TypeScript 5.9.3; esbuild 0.25.12; Node declarations 22.20.5. The high-severity native-image advisory on sharp 0.34.5 was fixed by explicitly upgrading sharp and rerunning native-decoder tests on Windows and Linux. `evidence/dependency-audit.json` records zero npm advisories at the time of this run, not a future guarantee.

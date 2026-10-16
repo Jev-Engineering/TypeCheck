@@ -2,6 +2,10 @@
 
 Current verdict: **NOT PRODUCTION READY**. Fresh local/container results are in ../VALIDATION.md; live provider, TLS and independent sign-off gates remain open.
 
+MySQL port update (October 16, 2026): 155 local tests passed, the unchanged PostgreSQL harness passed, and MySQL 8.0.46 passed 104 assertions on a fresh loopback-only disposable database. Startup without `.env`, opt-in startup migration, a production-only install/build, and trusted/untrusted TLS behavior passed locally. Standby/loss/takeover tests use fake controllers and HTTP identities; real MySQL lock-loss testing terminates only a connection inside the disposable test container. See ../VALIDATION.md for commands and evidence.
+
+The GoDaddy server version and private database guide remain unverified. No hosted migration/deployment, real Discord Activity/Gateway/moderation, shared/durable object storage, live provider accuracy, production fault/soak test, new runtime-image scan or independent security/operations sign-off is claimed. Enforcement and high-impact defaults remain disabled; `ACCEPTANCE_APPROVED=0` must stay in place. Earlier results below are historical.
+
 The attached specification is preserved in USER_SPECIFICATION.md. “Implemented” means source code exists and is exercised locally where noted; it does not mean a live Discord/Jev deployment has passed acceptance.
 
 | Specification area | Candidate implementation | Remaining acceptance |

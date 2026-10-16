@@ -1,5 +1,31 @@
 # Validation record
 
+## MySQL port validation — October 16, 2026
+
+Branch `feat/mysql-store`, based on `1bf77cb`. Local host: Windows, Node 24.18.0, npm 12.2.0. Only newly created `jev-guard-validation-mysql-20261046-codex` and `jev-guard-validation-pg-20261046-codex` containers were used; published ports were loopback only. MySQL reported **8.0.46**. No shared containers or WSL sessions were restarted.
+
+| Executed check | Result | Evidence |
+|---|---|---|
+| `npm run check` | Passed | `evidence/mysql-typecheck.txt` |
+| `npm run build` | Passed, official SDK bundled | `evidence/mysql-build.txt` |
+| `npm test` | 155 passed, 0 failed/skipped | `evidence/mysql-unit-tests.txt` |
+| `npm run test:postgres` after two migration calls | Passed unchanged harness | `evidence/mysql-postgres-regression.txt` |
+| `npm run test:mysql` against a fresh disposable schema | 104 assertions passed | `evidence/mysql-validation.txt` |
+| `node scripts/test-mysql-startup.mjs` against an empty disposable schema | Default-off refusal; opt-in migration and HTTP with no .env passed | `evidence/mysql-startup.txt` |
+| Clean `npm ci --omit=dev`, then `npm run build`, in a temporary checkout | Passed | `evidence/mysql-production-install.txt` |
+| TLS: untrusted certificate rejection; trusted matching-host encrypted connection | Both passed on disposable MySQL | `evidence/mysql-tls.txt` |
+| `npm audit --json`; `node scripts/review-dependencies.mjs` | 0 advisories; 96 license declarations accepted | `evidence/dependency-audit.json`, `evidence/dependency-licenses.json` |
+
+The MySQL harness includes every original PostgreSQL assertion and adds fresh/concurrent migrations, record revisions/deletion restrictions, duplicate role/credential constraints, malformed JSON/tenant CHECK failures, FK/truncation failures, millisecond UTC sessions/expiry, concurrent nonce consumption, token usage, all five pool sessions, 20 concurrent claims over 12 jobs, guild transaction serialization, two-pool election, real connection termination and keepalive, leader-only crash reset, per-kind retention, and tombstone persistence. Lifecycle tests exercise standby takeover, loss, overlapping attempts and shutdown races; HTTP tests exercise standby health and authenticated API access with fake Discord.
+
+Initial development attempts found TypeScript narrowing issues, string-valued MySQL lock results, rejection of a stored-generated CHECK workaround, host/container clock skew in a one-second expiry fixture, and Windows import URL handling in the startup fixture. These were corrected before the passing runs. Direct CHECK expressions worked; no CHECK or FK was dropped. The expired session fixture uses a 60-second past timestamp. TLS was tested with a disposable certificate, not provider credentials.
+
+Still **not production ready**: the hosted GoDaddy MySQL version and app-specific database guide/TLS requirements were not observed; no GoDaddy connection, migration, deployment or live Discord/Jev acceptance was performed. Local database results do not establish that the host permits Gateway operation or durable/shared object storage. A new Docker app image build/OS scan and live network-partition/soak tests were not run; the previous image scan remains historical and its release gate stays open. The minimum MySQL 8.0.16 boundary is unit-checked; the real tested server is 8.0.46, not every supported version. CI results are separate from these local results.
+
+## Earlier validation record
+
+Additional MySQL edge case: a direct whole-guild deletion with linked rules/images is rejected by InnoDB's immediate RESTRICT checks. Deleting the guild's rules, then images, then guild row in one transaction succeeds and cascades remaining records. The harness verifies both outcomes; docs/SECURITY.md records this operational difference without weakening foreign keys.
+
 
 
 Validation run: October 15–16, 2026 (local date October 15). **Not production ready.** Earlier authoring results are historical and preserved in `evidence/validation-authoring.txt`; old screenshots and browser-smoke results were not rerun.

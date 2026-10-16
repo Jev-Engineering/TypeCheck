@@ -2,11 +2,11 @@
 
 *Formerly Jev Image Guard.* Image moderation for Discord, powered by Jev.
 
-**Version 0.1.0 · implementation candidate · October 15, 2026**
+**Version 0.1.0 Â· implementation candidate Â· October 15, 2026**
 
 A Discord image-only moderation bot with an embedded management Activity. A member posts an attachment; Jev compares it to this server's reference library; the policy engine chooses an action; the continuously running backend executes eligible actions. Text-only messages are ignored.
 
-**Not production ready.** Fresh dependency installation, type checking, the official SDK bundle, 147 automated tests, isolated PostgreSQL integration, and an offline Compose recovery/restore drill passed. Real Discord/Activity acceptance, representative Jev accuracy, public TLS, and independent operational/security sign-off remain open. See [VALIDATION.md](VALIDATION.md) for scope and evidence.
+**Not production ready.** Fresh dependency installation, type checking, the official SDK bundle, 155 automated tests, isolated PostgreSQL and MySQL integration, and an offline Compose recovery/restore drill passed. Real Discord/Activity acceptance, representative Jev accuracy, public TLS, and independent operational/security sign-off remain open. See [VALIDATION.md](VALIDATION.md) for scope and evidence.
 
 ## Included implementation
 
@@ -18,16 +18,16 @@ A Discord image-only moderation bot with an embedded management Activity. A memb
 | Actions | Log only, review, delete, warn, timeout, kick, ban; optional delete alongside a user sanction |
 | Activity | Overview, private image previews/uploads/bulk changes, graphical rules and tests, logs, permissions, settings, credential rotation |
 | Security | Live Discord authority, delegated capabilities, guild isolation, encrypted write-only credentials, origin checks, bounded image decoding |
-| Persistence | PostgreSQL migrations, private filesystem object storage, audit/evaluation records, persistent action ledger |
+| Persistence | PostgreSQL/MySQL migrations, private filesystem object storage, audit/evaluation records, persistent action ledger |
 | Delivery | Docker/Compose, CI workflow, setup/security/API/operations guides, tests, synthetic evaluation fixtures |
 
 ### Deliberate stack choices
 
-Node.js 22 and strict TypeScript; native HTTP, WebSocket, and browser DOM APIs; PostgreSQL (`pg`); native image normalization (`sharp`); the official Discord Embedded App SDK bundled with esbuild. No separate Redis server is required because jobs and idempotency records live in PostgreSQL. The Activity is native TypeScript rather than React. Jev uses its documented HTTP protocol directly rather than an additional SDK layer. These choices reduce runtime components, but the custom HTTP/Gateway code still needs independent review and live soak testing.
+Node.js 22 and strict TypeScript; native HTTP, WebSocket, and browser DOM APIs; PostgreSQL (`pg`) or MySQL (`mysql2`); native image normalization (`sharp`); the official Discord Embedded App SDK bundled with esbuild. No separate Redis server is required because jobs and idempotency records live in the selected SQL database. The Activity is native TypeScript rather than React. Jev uses its documented HTTP protocol directly rather than an additional SDK layer. These choices reduce runtime components, but the custom HTTP/Gateway code still needs independent review and live soak testing.
 
 ## Install and run
 
-Requirements: Node.js 22.13 or later, npm, a PostgreSQL 16 database, a Discord application/bot, a TypeSafe account, and an HTTPS origin reachable by Discord's Activity proxy. Do not request the bot's Administrator permission.
+Requirements: Node.js 22.13 or later, npm, a PostgreSQL 16 or MySQL 8.0.16+ database, a Discord application/bot, a TypeSafe account, and an HTTPS origin reachable by Discord's Activity proxy. Do not request the bot's Administrator permission.
 
 ```bash
 cp .env.example .env
@@ -39,7 +39,7 @@ npm run migrate
 npm start
 ```
 
-The final two commands require a configured `.env` and a reachable database. Detailed application registration, Activity URL mapping, permissions, and onboarding are in [docs/SETUP.md](docs/SETUP.md).
+The final two commands require configured environment variables (optionally loaded from `.env`) and a reachable database. Detailed application registration, Activity URL mapping, permissions, and onboarding are in [docs/SETUP.md](docs/SETUP.md).
 
 **Dependency lock:** `package-lock.json` now freezes the resolved graph. Controlled builds and CI use `npm ci`. The vulnerable sharp 0.34 line was upgraded to 0.35.5; the fresh npm audit reports zero advisories. Native-library license notices and limits are recorded in [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md).
 
@@ -54,7 +54,7 @@ docker compose run --rm app node dist/server/migrate.js
 docker compose up -d app
 ```
 
-Compose publishes the app/database on loopback only. Put an HTTPS reverse proxy in front of the app and set `PUBLIC_ORIGIN` accordingly. Use `NODE_ENV=production` for hosted operation. The Compose image passed an isolated offline deployment drill; live Discord startup and public HTTPS are still unverified. Keep `ACCEPTANCE_APPROVED=0` until all acceptance gates pass. Run one active application process per database/bot.
+Compose publishes the app/database on loopback only. Put an HTTPS reverse proxy in front of the app and set `PUBLIC_ORIGIN` accordingly. Use `NODE_ENV=production` for hosted operation. The Compose image passed an isolated offline deployment drill; live Discord startup and public HTTPS are still unverified. Keep `ACCEPTANCE_APPROVED=0` until all acceptance gates pass. Only one elected process runs Gateway/worker per database/bot; other instances serve the API in standby.
 
 ## First-server workflow
 
@@ -83,7 +83,7 @@ TEST_DATABASE_URL=postgresql://... ALLOW_DATABASE_TESTS=true npm run test:postgr
 TYPESAFE_EVAL_KEY=... npm run evaluate -- fixtures/manifest.json
 ```
 
-The live evaluation command requires `.env`; set the evaluation key through your shell/secrets manager, not a committed file. The 32 synthetic cases are starting fixtures, not evidence of production accuracy. See [VALIDATION.md](VALIDATION.md), [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md), and [docs/MATCHING.md](docs/MATCHING.md).
+The live evaluation command loads `.env` only when present; set the evaluation key through your shell/secrets manager, not a committed file. The 32 synthetic cases are starting fixtures, not evidence of production accuracy. See [VALIDATION.md](VALIDATION.md), [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md), and [docs/MATCHING.md](docs/MATCHING.md).
 
 ## Project map
 
@@ -101,3 +101,11 @@ docs/           Setup, security, permissions, API, operations and acceptance
 ```
 
 No user credentials, dependencies, or private Discord data are included. The source lives in the private repository [Jev-Engineering/TypeCheck](https://github.com/Jev-Engineering/TypeCheck); nothing has been deployed. `UNLICENSED` marks this private delivery; no unsolicited open-source license or third-party ownership assignment is imposed.
+
+## MySQL and GoDaddy Node.js Hosting
+
+`DATABASE_URL=mysql://...` selects MySQL; `postgres://...` and `postgresql://...` retain PostgreSQL. Without `DATABASE_URL`, the server accepts GoDaddy's `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, and `DB_PASSWORD`. Remove a stale PostgreSQL URL when using those variables. Credentials belong in the hosting secret manager.
+
+Set `MIGRATE_ON_START=1` for an explicitly authorized first boot where there is no release step, then turn it off. Migration is serialized and repeatable. MySQL must be 8.0.16+; MariaDB is rejected. `DB_SSL=1` enables certificate and host verification; `DB_SSL_CA` optionally supplies a PEM CA. Non-leaders serve HTTP/API in standby while retrying election; only the winner runs Gateway/worker. See [setup](docs/SETUP.md) for storage and deployment requirements.
+
+The MySQL port passed 155 unit/HTTP tests, the unchanged PostgreSQL harness, and 104 integration assertions on local MySQL 8.0.46. `npm run test:mysql` requires `ALLOW_DATABASE_TESTS=true` and a loopback-only `TEST_DATABASE_URL`; it must never target GoDaddy. The hosted database version, app-specific database guide, deployment, Gateway operation and live acceptance remain unverified. See [validation](VALIDATION.md).
