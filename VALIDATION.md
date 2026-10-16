@@ -150,3 +150,21 @@ The application remains a single-worker candidate with private filesystem storag
 Final runtime scan: 0 critical and 43 high OS package findings (8 unique CVEs), with no Node-package findings. Fixable critical OS and unused npm-tool findings were removed by the runtime update; residual distro findings block production acceptance. See `evidence/security-summary.json` and `docs/DEPENDENCIES.md`. CI deliberately fails the image scan on these unresolved findings.
 
 Live setup checkpoint (2026-10-16 03:23:48 UTC): Claude session `dd0156bf-ea5b-4a54-b0c0-bd8240ba1a06`, launched in a new PowerShell tab with `--dangerously-skip-permissions --chrome`, reports Discord app creation blocked on a user hCaptcha. The planned dedicated test guild is not yet created. Remaining inputs: completed test application credentials, consenting test users/allowed actions, authorized HTTPS host (user plans GoDaddy), TypeSafe key, and representative labeled corpus. No live checks are recorded as passed. See the dynamic `evidence/claude-live-status.json` for later updates; this checkpoint is not a permanent status claim.
+
+## Configurable match thresholds (2026-10-16)
+
+Issue #9: shared Standard 0.70 / Strict 0.90 defaults, Activity presets/custom values and effective-threshold explanations, existing settings persistence, shared numeric validation and explicit rule-test diagnostics. These are practical starting points, not accuracy claims. No live provider or Discord calls were made for this change.
+
+Local validation: TypeScript check/build, 184 automated tests, npm audit (zero vulnerabilities), dependency review (96 license declarations), and 18 desktop/mobile offline browser checks passed. Evidence: `evidence/match-threshold-{check,build,tests}.txt`, `evidence/match-threshold-browser-smoke.json` and matching preview/editor screenshots. Browser checks use the existing synthetic SDK/transport and do not establish live Discord acceptance.
+
+Coverage includes new/missing defaults, exact 0.5/0.70/0.90/1.0 and custom boundaries, invalid types/ranges, severity ordering, API round trips and omitted-value preservation, floor overrides, rule/floor approval invalidation, SQL JSON key-order preservation for historical fingerprints, delegated permissions, second verification and any-image semantics. Both existing database integration runners now exercise new settings, legacy/custom persistence, missing stored fields and no rewrite-on-read against disposable guilds. Hosted execution results will be recorded on the PR.
+
+Author review checked API authorization, revision locks, read-only floor disclosure, enforcement acknowledgement, unchanged review routing, fingerprint compatibility and second verification. Existing runtime-image vulnerability and live acceptance gates remain intact. PR #8 independently changes uncertain-review routing; this change does not incorporate it. Historical evaluation fixtures and results retain their original thresholds.
+
+## Threshold PR integration with remediated main (2026-10-16)
+
+Merged main at 116df6f into the threshold branch, reusing PR #8's digest-pinned Alpine runtime fix. The unchanged high/critical scan policy passes on the same Alpine base; a local threshold-image scan also returned zero high/critical Alpine and Node-package findings. No scanner exclusions or severity changes were introduced.
+
+Resolved integration conflicts by retaining configured review-floor routing, the shared effective-threshold calculation, all HTTP regressions, and the Standard 0.70 defaults. Updated the inherited worker boundary test to assert review at 0.70 and no fallback below it at 0.699999. Updated matching/API/Activity explanations to distinguish new defaults from preserved saved values.
+
+Local integrated validation: check/build, 193 tests (zero failures), and all 18 desktop/mobile offline browser checks passed. Author review covered conflict resolutions, permissions, fingerprint preservation, exact boundaries, second verification and enforcement gates. No repository-required approval rule is configured; an optional review request to romgenie remains open. Hosted final-head CI is the remaining merge gate. Earlier counts and blockers above describe their historical commits.
