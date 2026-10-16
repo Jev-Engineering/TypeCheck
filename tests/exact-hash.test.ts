@@ -117,3 +117,11 @@ test('a labeled exact-hash false positive blocks approval instead of disappearin
     await assert.rejects(f.services.approveRule(G,USER,r.id,'Synthetic approval must reject known false positives'),/calibration_failed/);
     assert.equal(f.control.calls,0);
 });
+
+test('identical provider input reuses a comparison across distinct reference revisions',async t=>{
+    const f=await fixture(t),r=rule(f.ref,{type:'any_match',referenceId:null}),s=(await f.store.getSettings(G)).value;
+    const other={...f.ref,id:'same-content-different-revision',revision:7};
+    const result=await f.services.evaluate(G,'a',f.image,[r],[f.ref,other],s);
+    assert.equal(f.control.calls,1);assert.equal(result.matches.length,2);
+    assert.equal(result.matches[0]!.referenceRevision,1);assert.equal(result.matches[1]!.referenceRevision,7);
+});

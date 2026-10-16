@@ -123,7 +123,7 @@ index c9be7d9..fb775c1 100644
 +    return { rule, match, action: rule.action, deleteMessage: rule.deleteMessage || rule.action === 'delete', execute: reason === 'eligible', reason };
 +}
 diff --git a/server/services.ts b/server/services.ts
-index 79b7599..ebb1f90 100644
+index 79b7599..27ba6a8 100644
 --- a/server/services.ts
 +++ b/server/services.ts
 @@ -1,9 +1,10 @@
@@ -247,7 +247,7 @@ index 79b7599..ebb1f90 100644
          const deadline = Date.now() + 120000;
          try {
          for (const rule of rules.filter(r => r.guildId === guild && r.enabled)) {
-@@ -84,7 +137,7 @@ export class Services {
+@@ -84,16 +137,16 @@ export class Services {
              for (const ref of refs) {
                  assert(Date.now() < deadline, 'evaluation_deadline_exceeded', 503);
                  const binding = { referenceRevision: ref.revision, policyFingerprint: fingerprint(rule, images, settings) };
@@ -256,8 +256,10 @@ index 79b7599..ebb1f90 100644
                      matches.push({ ...binding, provenance: 'exact_hash', ruleId: rule.id, referenceId: ref.id, hashVersion: image.hashVersion, probability: null, model: null, verified: false, attachmentId });
                      hashComparisons++;
                      continue;
-@@ -93,7 +146,7 @@ export class Services {
-                     const k = `${guild}:${ref.sha256}:${ref.objectKey}:${ref.revision}:${ref.hashVersion ?? "legacy"}:${rule.mode}:${settings.model}:${verification}`;
+                 }
+                 const compare = async (verification: boolean) => {
+-                    const k = `${guild}:${ref.sha256}:${ref.objectKey}:${ref.revision}:${ref.hashVersion ?? "legacy"}:${rule.mode}:${settings.model}:${verification}`;
++                    const k = `${guild}:${ref.sha256}:${ref.objectKey}:${rule.mode}:${settings.model}:${verification}`;
                      let r = cache.get(k);
                      if (!r) {
 -                        r = await this.call(guild, image.bytes, await this.objects.get(guild, ref.objectKey), rule.mode, settings.model, verification);

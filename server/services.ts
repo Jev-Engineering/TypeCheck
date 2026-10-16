@@ -90,7 +90,7 @@ export class Services {
                     continue;
                 }
                 const compare = async (verification: boolean) => {
-                    const k = `${guild}:${ref.sha256}:${ref.objectKey}:${ref.revision}:${ref.hashVersion ?? "legacy"}:${rule.mode}:${settings.model}:${verification}`;
+                    const k = `${guild}:${ref.sha256}:${ref.objectKey}:${rule.mode}:${settings.model}:${verification}`;
                     let r = cache.get(k);
                     if (!r) {
                         r = await this.call(guild, image.bytes, await this.objects.get(guild, ref.objectKey), rule.mode, settings.model, verification);
