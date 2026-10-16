@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { isPunitive, isSevere, type Rule, type ReferenceImage, type Match, type Settings, type Action } from '../shared/domain.js';
-import { HASH_SCHEME } from './images.js';
+import { NORMALIZATION_HASH_VERSION } from './images.js';
 export const PROMPT_VERSION = 'image-identity-v1';
 const rank = { individual: 0, group: 1, any_match: 2, any_image: 3 };
 export function referencesFor(rule: Rule, images: ReferenceImage[]): ReferenceImage[] {
@@ -8,7 +8,7 @@ export function referencesFor(rule: Rule, images: ReferenceImage[]): ReferenceIm
 }
 export function fingerprint(rule: Rule, images: ReferenceImage[], settings: Settings): string {
     const { approval, revision, createdAt, updatedAt, ...policy } = rule;
-    return createHash('sha256').update(JSON.stringify({ policy, hashScheme: HASH_SCHEME, model: settings.model, prompt: PROMPT_VERSION, thresholds: settings.thresholds,
+    return createHash('sha256').update(JSON.stringify({ policy, hashScheme: NORMALIZATION_HASH_VERSION, model: settings.model, prompt: PROMPT_VERSION, thresholds: settings.thresholds,
         refs: referencesFor(rule, images).map(i => [i.id, i.sha256, i.revision, i.hashVersion ?? null, i.objectKey]).sort((a, b) => String(a[0]).localeCompare(String(b[0]))) })).digest('hex');
 }
 export interface Decision {
@@ -24,7 +24,7 @@ export function resolvePolicy(rules: Rule[], matches: Match[], settings: Setting
     const matched = eligible.flatMap(rule => {
         const floor = Math.max(rule.threshold, settings.thresholds[rule.action]);
         const candidates = matches.filter(m => m.ruleId === rule.id && (m.provenance === 'exact_hash'
-            ? m.probability === null && m.model === null && !m.verified && m.policyFingerprint === fingerprint(rule, images, settings) && referencesFor(rule, images).some(ref => ref.id === m.referenceId && ref.revision === m.referenceRevision && ref.hashVersion === m.hashVersion && ref.hashVersion?.startsWith(HASH_SCHEME + ':'))
+            ? m.probability === null && m.model === null && !m.verified && m.policyFingerprint === fingerprint(rule, images, settings) && referencesFor(rule, images).some(ref => ref.id === m.referenceId && ref.revision === m.referenceRevision && ref.hashVersion === m.hashVersion && ref.hashVersion === NORMALIZATION_HASH_VERSION)
             : (m.policyFingerprint === undefined || (m.policyFingerprint === fingerprint(rule, images, settings) && referencesFor(rule, images).some(ref => ref.id === m.referenceId && ref.revision === m.referenceRevision))) && m.probability !== null && Number.isFinite(m.probability) && m.probability >= floor && m.probability <= 1 && m.model === settings.model))
             .sort((a, b) => Number(b.provenance === 'exact_hash') - Number(a.provenance === 'exact_hash') || (b.probability ?? 0) - (a.probability ?? 0) || a.attachmentId.localeCompare(b.attachmentId) || (a.referenceId ?? '').localeCompare(b.referenceId ?? '') || Number(a.verified) - Number(b.verified));
         return candidates[0] ? [{ rule, match: candidates[0] }] : [];

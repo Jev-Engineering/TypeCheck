@@ -3,7 +3,7 @@ import { assert, AppError, baseRecord, effectiveAuthority, isSevere, type Author
 import type { Store } from './store.js';
 import { Vault, safeError } from './security.js';
 import { JevClient, type JevResult } from './jev.js';
-import { ObjectStore, normalize, HASH_SCHEME, type NormalizedImage } from './images.js';
+import { ObjectStore, normalize, NORMALIZATION_HASH_VERSION, type NormalizedImage } from './images.js';
 import { fingerprint, referencesFor } from './policy.js';
 import type { DiscordAdapter } from './discord.js';
 export class EvaluationFailure extends AppError {
@@ -84,7 +84,7 @@ export class Services {
             for (const ref of refs) {
                 assert(Date.now() < deadline, 'evaluation_deadline_exceeded', 503);
                 const binding = { referenceRevision: ref.revision, policyFingerprint: fingerprint(rule, images, settings) };
-                if (image.hashVersion?.startsWith(HASH_SCHEME + ':') && image.hashVersion === ref.hashVersion && /^[a-f0-9]{64}$/.test(image.sha256) && image.sha256 === ref.sha256) {
+                if (image.hashVersion === NORMALIZATION_HASH_VERSION && image.hashVersion === ref.hashVersion && /^[a-f0-9]{64}$/.test(image.sha256) && image.sha256 === ref.sha256) {
                     matches.push({ ...binding, provenance: 'exact_hash', ruleId: rule.id, referenceId: ref.id, hashVersion: image.hashVersion, probability: null, model: null, verified: false, attachmentId });
                     hashComparisons++;
                     continue;

@@ -1,3 +1,4 @@
+import sharpDecoder from 'sharp';
 import { mkdir, readFile, writeFile, unlink, readdir, stat, rename } from 'node:fs/promises';
 import { resolve, dirname, sep } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
@@ -5,6 +6,8 @@ import { assert, AppError, snowflake, type Attachment } from '../shared/domain.j
 export const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 export const MAX_PIXELS = 24000000;
 export const HASH_SCHEME = 'sha256-normalized-jpeg-768-contain-white-q90-v1';
+// Bind approvals as well as comparisons to the installed native codec build.
+export const NORMALIZATION_HASH_VERSION = `${HASH_SCHEME}:${createHash('sha256').update(JSON.stringify(Object.entries(sharpDecoder.versions).sort())).digest('hex')}`;
 export interface NormalizedImage {
     bytes: Buffer;
     sha256: string;
@@ -52,9 +55,7 @@ async function normalizeInternal(input: Buffer): Promise<NormalizedImage> {
         // Orientation applied before resize; metadata stripped; no text/EXIF sent to the model.
         const bytes: Buffer = await factory(input, { limitInputPixels: MAX_PIXELS, failOn: 'error' }).rotate().resize(768, 768, { fit: 'contain', background: '#ffffff' }).flatten({ background: '#ffffff' }).jpeg({ quality: 90, progressive: false }).toBuffer();
         // Native codec changes can change output bytes; never compare across builds.
-        const versions = (factory as SharpFactory & { versions: Record<string, string> }).versions;
-        const build = createHash('sha256').update(JSON.stringify(Object.entries(versions).sort())).digest('hex');
-        return { bytes, width: 768, height: 768, sha256: createHash('sha256').update(bytes).digest('hex'), hashVersion: `${HASH_SCHEME}:${build}` };
+        return { bytes, width: 768, height: 768, sha256: createHash('sha256').update(bytes).digest('hex'), hashVersion: NORMALIZATION_HASH_VERSION };
     }
     catch (e) {
         if (e instanceof AppError)
