@@ -1,0 +1,2 @@
+postgres final report partial coverage and separate legacy totals passed
+mysql final report partial coverage and separate legacy totals passed

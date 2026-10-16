@@ -1,4 +1,5 @@
 import { test } from 'node:test';
+import { analyticsQuery } from '../shared/analytics.js';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
 import { fixture, rule, enable, G, G2, message, USER } from './helpers.js';
@@ -21,6 +22,7 @@ test('exact normalized content bypasses credentials, quota, provider and tokens 
     s.dailyCallLimit = 0;
     const result = await f.services.evaluate(G, 'a', f.image, [r], [f.ref], s);
     assert.equal(result.hashComparisons, 1); assert.equal(result.inputTokens, 0); assert.equal(f.control.calls, 0);
+    assert.deepEqual((await f.store.analytics.attempts(G, analyticsQuery(new URLSearchParams()))).items, []);
     assert.deepEqual(await f.store.usage(G), {day: new Date().toISOString().slice(0,10), calls: 0, inputTokens: 0});
     assert.equal(result.matches[0]!.provenance, 'exact_hash'); assert.equal(result.matches[0]!.probability, null);
     assert.equal(result.matches[0]!.model, null); assert.equal(result.matches[0]!.verified, false);

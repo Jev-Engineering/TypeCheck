@@ -1,3 +1,4 @@
+import type { AnalyticsStore } from '../shared/analytics.js';
 import type { RecordBase, Kind, Settings, Job, ImageMessage, Session } from '../shared/domain.js';
 export interface SettingsVersion {
     value: Settings;
@@ -18,6 +19,7 @@ export interface ActionRecord {
     createdAt: string;
 }
 export interface Store {
+    readonly analytics: AnalyticsStore;
     getSettings(guild: string): Promise<SettingsVersion>;
     putSettings(guild: string, value: Settings, revision: number): Promise<void>;
     guilds(): Promise<string[]>;
@@ -34,8 +36,8 @@ export interface Store {
     beginAction(row: ActionRecord): Promise<boolean>;
     finishAction(guild: string, message: string, slot: string, status: string, detail: string): Promise<void>;
     actions(guild: string): Promise<ActionRecord[]>;
-    reserveCall(guild: string, limit: number): Promise<void>;
-    addTokens(guild: string, tokens: number): Promise<void>;
+    reserveCall(guild: string, limit: number, day?: string): Promise<void>;
+    addTokens(guild: string, tokens: number, day?: string): Promise<void>;
     usage(guild: string): Promise<Usage>;
     createNonce(hash: string, origin: string): Promise<void>;
     consumeNonce(hash: string, origin: string): Promise<boolean>;

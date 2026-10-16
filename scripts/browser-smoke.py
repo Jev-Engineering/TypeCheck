@@ -12,7 +12,10 @@ async def main():
     domain=(root/'dist/shared/domain.js').read_text(encoding='utf-8')
     domain=re.sub(r'^export ', '', domain, flags=re.M)
     frontend=(root/'dist/activity/src/main.js').read_text(encoding='utf-8')
-    frontend=re.sub(r'^import .*?;\n','',frontend,count=1)
+    frontend=re.sub(r'^import .*?;\n','',frontend,flags=re.M)
+    analytics=(root/'dist/shared/analytics.js').read_text(encoding='utf-8')
+    analytics=re.sub(r'^import .*?;\n|^export ', '', analytics, flags=re.M)
+    preview_costs=re.sub(r'^export ', '', (root/'scripts/preview-cost-data.mjs').read_text(encoding='utf-8'),flags=re.M)
     frontend=frontend.replace('await import(modulePath)','({ DiscordSDK: globalThis.__PreviewSDK })')
     frontend=frontend.replace("const first = links()", "const first = links()")
     mock='''(() => {const d=DATA;
@@ -24,6 +27,7 @@ async def main():
         if(path==='/api/auth/exchange')return response({sessionToken:'offline',accessToken:'offline',authority:d.authority});
         if(options.method&&options.method!=='GET')return response({error:'offline_preview_is_read_only'},403);
         const r=path.split('/').slice(4).join('/');
+        if(r.startsWith('analytics/'))return response(previewCosts(r,new URL(String(input),'https://preview.invalid').searchParams));
         const map={'match-thresholds':d.settings.value.thresholds,me:d.authority,meta:d.metadata,settings:d.settings,images:d.images,groups:d.groups,rules:d.rules,grants:[],credentials:d.credential,
           dashboard:{settings:d.settings,botOnline:false,credential:d.credential,usage:{calls:0,inputTokens:0},counts:{images:3,rules:3,evaluations:0,events:2,successful:0,suppressedOrFailed:2},recent:d.events}};
         if(r in map)return response(map[r]);
@@ -32,24 +36,34 @@ async def main():
         if(['events','evaluations','audit','actions'].includes(r))return response({items:r==='events'?d.events:[],nextBefore:null,totalRetained:r==='events'?2:0});
         return response({error:'preview_route_not_found'},404);
       };
-    })();'''.replace('DATA',json.dumps(data))
+    })();'''.replace('DATA',json.dumps(data)).replace('const d=',preview_costs+'\nconst d=',1)
     async with async_playwright() as p:
         browser=await p.chromium.launch(executable_path=os.environ.get('CHROMIUM_EXECUTABLE','/usr/bin/chromium'),headless=True,args=['--no-sandbox'])
         for label,w,h in [('desktop',1440,1000),('mobile',390,844)]:
             page=await browser.new_page(viewport={'width':w,'height':h},device_scale_factor=1)
             page.on('pageerror',lambda e:errors.append(str(e)))
             await page.set_content('<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+(root/'activity/style.css').read_text(encoding='utf-8')+'</style></head><body><div id="app"></div></body></html>')
-            await page.add_script_tag(content=domain+'\n'+mock+'\n'+frontend,type='module')
+            await page.add_script_tag(content=domain+'\n'+analytics+'\n'+mock+'\n'+frontend,type='module')
             await page.get_by_role('button',name='Open read-only preview').click()
             await page.get_by_role('heading',name='Recent moderation events').wait_for()
             await page.screenshot(path=str(root/'evidence'/f'{prefix}preview-{label}.png'),full_page=True)
-            for title in ['Image library','Rules & tests','Activity log','Permissions','Settings','Overview']:
+            for title in ['Image library','Rules & tests','Cost & Usage','Activity log','Permissions','Settings','Overview']:
                 await page.get_by_role('navigation').get_by_role('button',name=title,exact=True).click()
                 await page.get_by_role('heading',name=title,exact=True).wait_for()
                 await page.wait_for_timeout(100)
                 overflow=await page.evaluate('document.documentElement.scrollWidth > window.innerWidth + 1')
                 notices=await page.locator('.notice.error').all_text_contents()
                 findings.append({'viewport':label,'screen':title,'horizontalOverflow':overflow,'errors':notices})
+                if title=='Cost & Usage':
+                    body=await page.locator('main').inner_text()
+                    assert 'Estimated USD' in body and 'Estimated EUR' in body
+                    assert 'Legacy' in body or 'legacy' in body
+                    await page.get_by_role('button',name='Next page',exact=True).click()
+                    await page.get_by_role('button',name='First page',exact=True).wait_for()
+                    await page.get_by_role('button',name='First page',exact=True).click()
+                    await page.get_by_role('button',name='Next page',exact=True).wait_for()
+                    await page.screenshot(path=str(root/'evidence'/f'{prefix}cost-{label}.png'),full_page=True)
+                    findings.append({'viewport':label,'costs':'mixed currencies, legacy coverage and pagination passed'})
                 if title=='Image library' and label=='desktop':await page.screenshot(path=str(root/'evidence'/(prefix+'preview-library.png')),full_page=True)
             await page.get_by_role('navigation').get_by_role('button',name='Rules & tests',exact=True).click()
             await page.get_by_role('button',name='Create rule',exact=True).click();await page.get_by_role('dialog').wait_for()

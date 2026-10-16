@@ -1,3 +1,4 @@
+import { SqlAnalytics } from './usage-sql.js';
 import { randomUUID } from 'node:crypto';
 import { storedSettings, storedRecord, DEFAULT_SETTINGS, AppError, assert, type RecordBase, type Kind, type Settings, type ImageMessage, type Job, type Session } from '../shared/domain.js';
 import { digest } from './security.js';
@@ -8,6 +9,7 @@ export { openMySqlPool } from './mysql-pool.js';
 const TABLES: Record<Kind, string> = { groups: 'image_groups', images: 'reference_images', rules: 'moderation_rules', grants: 'role_grants', credentials: 'guild_credentials', calibrations: 'calibration_trials', evaluations: 'image_evaluations', events: 'moderation_events', audit: 'audit_events' };
 export class MySqlStore implements Store {
     constructor(readonly pool: MySqlPool, private connection?: SqlClient, private defaultModel = DEFAULT_SETTINGS.model) { }
+    get analytics(): SqlAnalytics { return new SqlAnalytics(this, (sql, values) => this.query(sql, values), 'mysql'); }
     private query(sql: string, values?: unknown[]) { return (this.connection ?? this.pool).query(sql, values); }
     async getSettings(guild: string): Promise<SettingsVersion> {
         await this.query('INSERT INTO guilds(id,settings) VALUES(?,?) ON DUPLICATE KEY UPDATE id=id', [guild, JSON.stringify({ ...DEFAULT_SETTINGS, model: this.defaultModel })]);
@@ -121,8 +123,8 @@ export class MySqlStore implements Store {
     async beginAction(r: ActionRecord) { const q = await this.query('INSERT INTO action_ledger(guild_id,message_id,slot,action,status,detail) VALUES(?,?,?,?,?,?) ON DUPLICATE KEY UPDATE guild_id=guild_id', [r.guildId, r.messageId, r.slot, r.action, r.status, r.detail]); return q.rowCount === 1; }
     async finishAction(guild: string, message: string, slot: string, status: string, detail: string) { await this.query('UPDATE action_ledger SET status=?,detail=? WHERE guild_id=? AND message_id=? AND slot=?', [status, detail, guild, message, slot]); }
     async actions(guild: string): Promise<ActionRecord[]> { return (await this.query('SELECT * FROM action_ledger WHERE guild_id=? ORDER BY created_at DESC', [guild])).rows.map(r => ({ guildId: r.guild_id, messageId: r.message_id, slot: r.slot, action: r.action, status: r.status, detail: r.detail, createdAt: r.created_at.toISOString() })); }
-    async reserveCall(guild: string, limit: number) { const r = await this.query("INSERT INTO usage_daily(guild_id,day,calls) VALUES(?,UTC_DATE(),1) ON DUPLICATE KEY UPDATE calls=IF(calls<?,calls+1,calls)", [guild, limit]); assert(r.rowCount === 1 || r.rowCount === 2, 'daily_jev_call_budget_exhausted', 429); }
-    async addTokens(guild: string, n: number) { await this.query("UPDATE usage_daily SET input_tokens=input_tokens+? WHERE guild_id=? AND day=UTC_DATE()", [n, guild]); }
+    async reserveCall(guild: string, limit: number, day = new Date().toISOString().slice(0,10)) { const r = await this.query("INSERT INTO usage_daily(guild_id,day,calls) VALUES(?,?,1) ON DUPLICATE KEY UPDATE calls=IF(calls<?,calls+1,calls)", [guild, day, limit]); assert(r.rowCount === 1 || r.rowCount === 2, 'daily_jev_call_budget_exhausted', 429); }
+    async addTokens(guild: string, n: number, day = new Date().toISOString().slice(0,10)) { await this.query("UPDATE usage_daily SET input_tokens=input_tokens+? WHERE guild_id=? AND day=?", [n, guild, day]); }
     async usage(guild: string): Promise<Usage> { const r = (await this.query("SELECT CAST(day AS CHAR) AS day,calls,CAST(input_tokens AS CHAR) AS input_tokens FROM usage_daily WHERE guild_id=? AND day=UTC_DATE()", [guild])).rows[0]; return r ? { day: r.day, calls: r.calls, inputTokens: Number(r.input_tokens) } : { day: new Date().toISOString().slice(0, 10), calls: 0, inputTokens: 0 }; }
     async createNonce(hash: string, origin: string) { await this.query("INSERT INTO auth_nonces VALUES(?,?,NOW(3)+INTERVAL 5 MINUTE)", [hash, origin]); }
     async consumeNonce(hash: string, origin: string) { return (await this.query('DELETE FROM auth_nonces WHERE hash=? AND origin=? AND expires_at>NOW(3)', [hash, origin])).rowCount === 1; }
@@ -130,6 +132,7 @@ export class MySqlStore implements Store {
     async session(hash: string): Promise<Session | null> { const r = (await this.query('SELECT * FROM sessions WHERE hash=? AND expires_at>NOW(3)', [hash])).rows[0]; return r ? { userId: r.user_id, guildId: r.guild_id, expiresAt: r.expires_at.getTime() } : null; }
     async deleteSession(hash: string) { await this.query('DELETE FROM sessions WHERE hash=?', [hash]); }
     async maintenance() {
+        await this.analytics.cleanup();
         await this.query('DELETE FROM auth_nonces WHERE expires_at<NOW(3)');
         await this.query('DELETE FROM sessions WHERE expires_at<NOW(3)');
         await this.query("DELETE FROM jobs WHERE status IN ('done','failed') AND updated_at<NOW(3)-INTERVAL 7 DAY");

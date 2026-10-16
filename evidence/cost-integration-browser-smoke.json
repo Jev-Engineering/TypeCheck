@@ -1,0 +1,125 @@
+{
+  "scope": "Offline compiled UI, synthetic SDK/fetch; no network or live Discord authentication",
+  "checks": [
+    {
+      "viewport": "desktop",
+      "screen": "Image library",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "desktop",
+      "screen": "Rules & tests",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "desktop",
+      "screen": "Cost & Usage",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "desktop",
+      "costs": "mixed currencies, legacy coverage and pagination passed"
+    },
+    {
+      "viewport": "desktop",
+      "screen": "Activity log",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "desktop",
+      "screen": "Permissions",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "desktop",
+      "screen": "Settings",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "desktop",
+      "screen": "Overview",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "desktop",
+      "dialog": "Create rule",
+      "visible": true
+    },
+    {
+      "viewport": "desktop",
+      "thresholdControls": "defaults, presets, custom precision, override, validation, any-image passed"
+    },
+    {
+      "viewport": "desktop",
+      "existingCustomRule": "saved 0.82 preserved and displayed as Custom"
+    },
+    {
+      "viewport": "mobile",
+      "screen": "Image library",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "screen": "Rules & tests",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "screen": "Cost & Usage",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "costs": "mixed currencies, legacy coverage and pagination passed"
+    },
+    {
+      "viewport": "mobile",
+      "screen": "Activity log",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "screen": "Permissions",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "screen": "Settings",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "screen": "Overview",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "dialog": "Create rule",
+      "visible": true
+    },
+    {
+      "viewport": "mobile",
+      "thresholdControls": "defaults, presets, custom precision, override, validation, any-image passed"
+    },
+    {
+      "viewport": "mobile",
+      "existingCustomRule": "saved 0.82 preserved and displayed as Custom"
+    }
+  ],
+  "pageErrors": [],
+  "passed": true
+}

@@ -1,0 +1,2 @@
+postgres PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+Cost analytics: 30 assertions passed; populated 001 upgrade, repeated/concurrent migration, idempotency, concurrency, tenant isolation, exact money, effective rates, pagination, UTC month boundary, retention.

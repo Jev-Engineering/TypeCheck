@@ -1,0 +1,2 @@
+mysql 8.0.46
+Cost analytics: 30 assertions passed; populated 001 upgrade, repeated/concurrent migration, interrupted DDL recovery, idempotency, concurrency, tenant isolation, exact money, effective rates, pagination, UTC month boundary, retention.

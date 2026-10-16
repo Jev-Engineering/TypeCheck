@@ -1,5 +1,27 @@
 # Management API
 
+## Cost analytics
+
+All paths below are under `/api/g/{guildId}` and require live `dashboard.view` authority, except pricing PUT which requires owner/administrator authority. Cross-guild sessions are rejected. Pricing writes require exact Origin validation and create `pricing.updated` audit records in the same transaction.
+
+| Method/path | Result |
+|---|---|
+| GET `/analytics/summary` | Currency-separated totals, coverage, tracking start and separate legacy subtotal |
+| GET `/analytics/daily` | Daily buckets, each separated by currency |
+| GET `/analytics/breakdown?group=model` | `model`, `purpose`, `verification` or `outcome` buckets; `summary` and `day` also accepted |
+| GET `/analytics/attempts` | `{items,next}` with up to 100 attempts; `next` contains both `before` and `beforeId` |
+| GET `/analytics/export` | One bounded CSV page; continue with `X-Next-Before` and `X-Next-Before-Id` headers |
+| GET `/analytics/pricing` | Latest configured revision per model, including future-effective entries |
+| PUT `/analytics/pricing` | Administrator-only revision-checked immutable pricing revision |
+
+Reporting parameters: `range=today` (default), `7d`, `30d`, `mtd`, or `custom`. Custom requires `start=YYYY-MM-DD&end=YYYY-MM-DD`: UTC inclusive start and exclusive end. Maximum span is 90 days and the entire range must fall within the last 90 UTC calendar days including today. Invalid dates, duplicate/unknown parameters, unsupported groups/filters and unbounded pagination return 400. `limit` defaults to 50, maximum 100. Cursor ordering is `(startedAt,id)` descending; send both cursor fields unchanged, preserving filters/range. This is not a frozen export snapshot.
+
+Optional filters: `model` (model identifier), `purpose=moderation|rule_test|credential_validation`, `verification=true|false`, `outcome=reserved|dispatching|success|failure|uncertain`. Summary and daily endpoints force their grouping after validating supplied parameters. Legacy totals are whole-range aggregates without model/purpose/outcome attribution and are never folded into detailed totals.
+
+Reports contain `{start,end,trackingStart,partial,legacy,buckets}`. `partial` is true if the range begins before tracking, includes legacy reservations or has incomplete price/usage coverage. Each bucket includes `key`, nullable `currency`, `attempts` (reservations), `dispatched` (dispatch markers, not proven receipt), `successes`, `failures`, `pending`, `uncertain`, `unknownUsage`, `priced`, `covered`, `inputTokens` and `costMicros`. Token and monetary subtotals are decimal integer strings; cost units are millionths of a currency unit. Missing attempt usage/cost is null. Clients must label money Estimated, partial coverage Partial estimate, null rates Rate not configured, and null usage Usage unknown. Never sum currencies.
+
+Pricing PUT example (illustrative operator input, **not an actual provider rate**): `{"model":"jev-1.14.0","revision":0,"currency":"USD","perMillion":"1.250000","effectiveAt":"2026-10-16T00:00:00.000Z","note":"Operator contract reference"}`. Revision 0 creates a model's first revision; later writes use the latest revision from GET. Conflict returns 409. Price is a decimal string with up to six decimal places. Effective timestamps require canonical millisecond UTC ISO format. Historical attempts retain their snapshots. See [COSTS.md](COSTS.md) for rounding, provenance, retention, effective dates, crash windows and exclusions.
+
 Base path: `/api`. JSON request bodies, JSON error shape `{"error":"stable_code"}`. Use TLS in production. Guild routes require `Authorization: Bearer <app-session-token>` and current Discord authority; writes also require an exact allowed `Origin`. The Discord SDK's guild ID is not proof of membership.
 
 ## Session and health routes

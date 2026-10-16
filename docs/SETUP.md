@@ -1,5 +1,11 @@
 # Setup and server onboarding
 
+## Cost analytics upgrade
+
+The current schema requires migrations **001 and 002**, applied by `npm run migrate` (or explicitly enabled `MIGRATE_ON_START=1`). Do not manually apply only 001. For an existing deployment, arrange an authorized drain of old application processes before migration, back up the database, apply 002, and start the new release. Mixed old/new writers leave gaps in detailed tracking. This task did not migrate a hosted database or restart shared services.
+
+002 preserves quotas and snapshots old usage as separate, unpriced legacy aggregates. PostgreSQL retains migration locking/transactions; MySQL retains named locking and resumable statements with its receipt last. Re-run an interrupted migration. Configure operator-sourced rates in **Cost & Usage / Administrator pricing**, using a currency, decimal input-token price per million and UTC effective timestamp. No default rates or account-price lookup are provided. Retain the source/date in the note without secrets. Review partial coverage and old pending attempts; estimates are not invoices. See [COSTS.md](COSTS.md) for retention, crash windows, historical coverage and optional `JEV_EVAL_PRICING` CLI scope.
+
 ## 1. Register the Discord application
 
 Use the official Developer Portal and current Activity guide [D1]. Create one application with a bot and an Activity. Record the application ID, OAuth client secret and bot token in the host's secret configuration. Do not put these values into the Activity code or a repository.

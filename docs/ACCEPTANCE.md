@@ -1,5 +1,7 @@
 # Acceptance matrix and remaining gates
 
+Cost analytics update: accounting/HTTP/CLI tests, PostgreSQL/MySQL migration checks and synthetic desktop/mobile browser evidence are recorded in [VALIDATION.md](../VALIDATION.md). The feature reports estimated Jev input-token costs with coverage, not provider invoices; see [COSTS.md](COSTS.md). No real billing reconciliation, charged Jev call, live Discord action, hosted database connection, merge or deployment is part of this change. Live Activity/proxy validation, real-account rate provenance, operational accounting-failure/crash drills and independent review remain acceptance work. The existing Debian high-severity image blocker is unchanged and has not been rescanned or suppressed by this feature. `ACCEPTANCE_APPROVED` and enforcement/high-impact safeguards remain unchanged.
+
 Current verdict: **NOT PRODUCTION READY**. Fresh local/container results are in ../VALIDATION.md; live provider, TLS and independent sign-off gates remain open.
 
 MySQL port update (October 16, 2026): 155 local tests passed, the unchanged PostgreSQL harness passed, and MySQL 8.0.46 passed 104 assertions on a fresh loopback-only disposable database. Startup without `.env`, opt-in startup migration, a production-only install/build, and trusted/untrusted TLS behavior passed locally. Standby/loss/takeover tests use fake controllers and HTTP identities; real MySQL lock-loss testing terminates only a connection inside the disposable test container. See ../VALIDATION.md for commands and evidence.

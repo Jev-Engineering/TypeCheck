@@ -1,3 +1,4 @@
+import { money, type AnalyticsReport, type Bucket, type Attempt, type Rate } from '../../shared/analytics.js';
 import { MATCH_THRESHOLDS, DEFAULT_RULE_THRESHOLD, matchThreshold, parseRule, parseSettings, effectiveThreshold, type Action, ACTIONS, MODES, RULE_TYPES, CAPABILITIES, ADMIN_ONLY, DEFAULT_SETTINGS, type Authority, type Capability, type Group, type ReferenceImage, type Rule, type Settings, type RoleGrant, type ModerationEvent, type Calibration } from '../../shared/domain.js';
 interface SDK {
     guildId: string | null;
@@ -127,7 +128,7 @@ function confirmAction(title: string, description: string): Promise<boolean> { r
     resolve(false); }); }); }
 function links() {
     return [
-        ['Overview', can('dashboard.view')], ['Image library', can('images.view') || can('images.add')], ['Rules & tests', can('rules.view') || can('rules.create')],
+        ['Overview', can('dashboard.view')], ['Cost & Usage', can('dashboard.view')], ['Image library', can('images.view') || can('images.add')], ['Rules & tests', can('rules.view') || can('rules.create')],
         ['Activity log', can('logs.view')], ['Permissions', admin() || can('moderators.delegate')], ['Settings', admin() || can('channels.configure')]
     ] as const;
 }
@@ -176,6 +177,8 @@ async function render() {
         authority = await api<Authority>('me');
         if (page === 'Overview')
             await overview(content);
+        else if (page === 'Cost & Usage')
+            await costsPage(content);
         else if (page === 'Image library')
             await library(content);
         else if (page === 'Rules & tests')
@@ -198,10 +201,11 @@ async function overview(parent: HTMLElement) {
     const data = await api('dashboard');
     settings = data.settings;
     parent.append(h('section', { class: 'hero' }, h('div', {}, badge('ONE WORKFLOW. NO TEXT MODERATION.'), h('h2', {}, 'Match an image.\nApply your policy.'), h('p', {}, 'Jev evaluates posted images against this server’s reference library. The bot keeps monitoring when this Activity closes.')), h('div', { class: 'health-stack' }, h('p', {}, badge(data.botOnline ? 'BOT CONNECTED' : 'BOT OFFLINE', data.botOnline ? 'green' : 'red')), h('p', {}, badge('JEV ' + data.credential.status.toUpperCase(), data.credential.status === 'valid' ? 'green' : 'amber')), h('small', {}, settings!.value.model))));
+    try { const report = await api<AnalyticsReport>('analytics/summary'); parent.append(panel('Estimated Jev input-token cost today', 'Operator-entered rates. This is not a provider invoice.', costSummary(report))); } catch { parent.append(panel('Estimated cost unavailable', 'Usage analytics could not be loaded. Refresh to retry.')); }
     const counts = data.counts;
     parent.append(h('div', { class: 'stats' }, ...[[counts.images, 'Active reference images'], [counts.rules, 'Active rules'], [counts.evaluations, 'Retained evaluations'], [counts.successful, 'Events with successful actions']].map(([n, label]) => h('section', { class: 'stat' }, h('strong', {}, n), h('span', {}, label)))));
     const setup = h('div', { class: 'checklist' }, ...[[data.credential.configured, 'Configure a Jev key'], [counts.images > 0, 'Upload reference images'], [counts.rules > 0, 'Create and test a rule'], [settings!.value.channels.length > 0, 'Choose monitored channels'], [settings!.value.enforcement, 'Enable enforcement after approval']].map(([done, label]) => h('div', { class: 'checklist-row' }, badge(done ? 'DONE' : 'NEXT', done ? 'green' : 'neutral'), h('span', {}, label))));
-    parent.append(h('div', { class: 'columns' }, panel('Setup checklist', 'New servers begin with no channels selected and enforcement off.', setup), panel('Usage & safeguards', 'A probability threshold is not an accuracy guarantee.', h('div', { class: 'usage' }, h('strong', {}, `${data.usage.calls} / ${settings!.value.dailyCallLimit}`), h('span', {}, 'Jev requests today (UTC)'), h('progress', { value: data.usage.calls, max: settings!.value.dailyCallLimit }), h('p', {}, `${Number(data.usage.inputTokens).toLocaleString()} reported input tokens`)), h('p', { class: 'muted' }, 'Kick and ban require representative labeled examples, administrator approval, and a second Jev check.'))));
+    parent.append(h('div', { class: 'columns' }, panel('Setup checklist', 'New servers begin with no channels selected and enforcement off.', setup), panel('Usage & safeguards', 'A probability threshold is not an accuracy guarantee.', h('div', { class: 'usage' }, h('strong', {}, `${data.usage.calls} / ${settings!.value.dailyCallLimit}`), h('span', {}, 'Quota reservations today (UTC)'), h('progress', { value: data.usage.calls, max: settings!.value.dailyCallLimit }), h('p', {}, `${Number(data.usage.inputTokens).toLocaleString()} reported input tokens`)), h('p', { class: 'muted' }, 'Kick and ban require representative labeled examples, administrator approval, and a second Jev check.'))));
     parent.append(panel('Recent moderation events', 'Outcomes are recorded separately from intended actions.', data.recent.length ? eventTable(data.recent) : empty('No moderation events', 'Upload and test a reference rule to begin. Text-only messages are ignored.')));
 }
 function eventTable(items: ModerationEvent[]) { return table(['Time', 'User / message', 'Intended', 'Actual result'], items.map(e => [date(e.createdAt), h('div', {}, h('code', {}, e.userId), h('small', {}, e.messageId)), badge(e.intended), h('span', { class: e.actual.includes('success') ? 'success-text' : 'muted' }, pretty(e.actual))])); }
@@ -399,7 +403,7 @@ async function logs(parent: HTMLElement) {
             return;
         }
         results.append(table(['Time', 'Summary', 'Outcome', 'Details'], r.items.map((row: any) => [date(row.createdAt), h('div', {}, row.userId ?? row.actor ?? '', h('small', {}, row.messageId ?? row.target ?? '')), pretty(row.actual ?? row.outcome ?? row.event ?? row.status ?? ''), button('View', () => {
-                const body = h('div', { class: 'form-stack' }, ...(row.matches ?? []).map((m: any) => h('p', {}, `${m.provenance === 'exact_hash' ? 'Exact normalized-image match' : m.provenance === 'any_image' ? 'Any-image policy' : 'Jev estimate ' + m.probability} � Reference ${m.referenceId ?? 'none'} � ${row.reason ?? row.outcome ?? ''}`)), h('pre', { class: 'code-block' }, JSON.stringify(row, null, 2)));
+                const body = h('div', { class: 'form-stack' }, ...(row.matches ?? []).map((m: any) => h('p', {}, `${m.provenance === 'exact_hash' ? 'Exact normalized-image match' : m.provenance === 'any_image' ? 'Any-image policy' : 'Jev estimate ' + m.probability} · Reference ${m.referenceId ?? 'none'} · ${row.reason ?? row.outcome ?? ''}`)), h('pre', { class: 'code-block' }, JSON.stringify(row, null, 2)));
                 const actions: HTMLElement[] = [];
                 let d: HTMLDialogElement;
                 if (category.value === 'events' && can('rules.edit'))
@@ -512,3 +516,49 @@ async function start() {
         await connect(config.clientId);
 }
 void start().catch(fail);
+
+function costSummary(report: AnalyticsReport) {
+    const b = report.buckets, attempts = b.reduce((n,v)=>n+v.attempts,0), covered = b.reduce((n,v)=>n+v.covered,0);
+    const currencies = new Map<string,bigint>();
+    for (const v of b) if(v.currency && v.covered) currencies.set(v.currency,(currencies.get(v.currency)??0n)+BigInt(v.costMicros));
+    return h('div', {},
+        ...[...currencies].map(([currency,n])=>h('p',{},h('strong',{},`Estimated ${currency} ${money(n.toString())}`))),
+        currencies.size>1 ? h('p',{},'Mixed currencies — totals are shown separately.') : null,
+        h('p',{},`${report.partial || covered < attempts ? 'Partial estimate' : 'Estimate coverage'}: ${covered} / ${attempts} reservations have reported usage and a configured rate.`),
+        b.some(v=>v.priced<v.attempts) ? h('p',{},'Rate not configured for some attempts.') : null,
+        b.some(v=>v.unknownUsage) ? h('p',{},`Usage unknown: ${b.reduce((n,v)=>n+v.unknownUsage,0)}. Failed or timed-out requests may incur charges.`) : null,
+        !attempts ? empty('No tracked attempts in this range','No monetary estimate is available.') : null,
+        h('p',{},`${b.reduce((n,v)=>n+v.dispatched,0)} attempted dispatches · ${b.reduce((n,v)=>n+BigInt(v.inputTokens),0n)} reported input tokens`),
+        h('p',{},`${b.reduce((n,v)=>n+v.successes,0)} successful · ${b.reduce((n,v)=>n+v.failures,0)} failed · ${b.reduce((n,v)=>n+v.pending,0)} pending · ${b.reduce((n,v)=>n+v.uncertain,0)} uncertain`),
+        h('small',{},`Detailed tracking begins ${report.trackingStart} (UTC). Legacy aggregate: ${report.legacy.calls} reservations, ${report.legacy.inputTokens} reported tokens. These are separate, unpriced totals and have no model attribution.`));
+}
+function bucketTable(b: Bucket[]) { return table(['Group / currency','Reservations','Success / failure','Pending / uncertain','Reported tokens','Estimated cost','Coverage'],b.map(v=>[`${v.key} / ${v.currency??'Rate not configured'}`,v.attempts,`${v.successes} / ${v.failures}`,`${v.pending} / ${v.uncertain}`,v.inputTokens,v.currency&&v.covered?`Estimated ${v.currency} ${money(v.costMicros)}${v.covered<v.attempts?' (partial)':''}`:'Estimate unavailable',`${v.covered}/${v.attempts} priced with usage; ${v.unknownUsage} usage unknown`])); }
+async function costsPage(parent: HTMLElement) {
+    const range=select([['today','Today'],['7d','Last 7 days'],['30d','Last 30 days'],['mtd','Month to date'],['custom','Custom (up to 90 days)']],'7d');
+    const start=input(new Date(Date.now()-6*86400000).toISOString().slice(0,10),'date'),end=input(new Date(Date.now()+86400000).toISOString().slice(0,10),'date');
+    const content=h('div'), details=h('div'); let query='',cursor='';
+    const loadDetails=async()=>{const page=await api<{items:Attempt[];next:{before:string;beforeId:string}|null}>('analytics/attempts?'+query+cursor);
+        details.replaceChildren(panel('Attempt details','Reservations do not prove provider receipt or billing. Old pending dispatches can have uncertain outcomes.',
+            page.items.length?table(['Started (UTC)','Model / purpose','Mode / retry / verification','Outcome','Tokens','Estimated cost','Correlation / attempt'],page.items.map(a=>[a.startedAt,`${a.model} / ${a.purpose}`,`${a.mode} / ${a.retry} / ${a.verification}`,`${a.outcome}${a.error?' / '+a.error:''}`,a.inputTokens??'Usage unknown',a.costMicros!==null?`Estimated ${a.rate!.currency} ${money(a.costMicros)}`:a.inputTokens===null?'Usage unknown':'Rate not configured',`${a.correlationId} / ${a.id}`])):empty('No attempts','Choose a different date range.'),
+            button('Export this page as CSV',async()=>download(await blobRequest('analytics/export?'+query+cursor),'estimated-jev-usage-page.csv'),'quiet'),
+            cursor?button('First page',async()=>{cursor='';await loadDetails();},'quiet'):null,
+            page.next?button('Next page',async()=>{cursor='&'+new URLSearchParams(page.next!).toString();await loadDetails();},'quiet'):null));};
+    const load=async()=>{content.replaceChildren(h('p',{role:'status'},'Loading cost and usage…'));details.replaceChildren();cursor='';const p=new URLSearchParams({range:range.value,limit:'50'});if(range.value==='custom'){p.set('start',start.value);p.set('end',end.value);}query=p.toString();
+        try {const [summary,daily,...groups]=await Promise.all([api<AnalyticsReport>('analytics/summary?'+query),api<AnalyticsReport>('analytics/daily?'+query),...['model','purpose','verification','outcome'].map(group=>api<AnalyticsReport>('analytics/breakdown?'+query+'&group='+group))]);
+            const peak=Math.max(1,...daily.buckets.map(v=>v.attempts));
+            content.replaceChildren(panel('Estimated spend & coverage','Jev input tokens only. Excludes hosting, storage, network, taxes, credits and other provider charges.',costSummary(summary)),
+                panel('Daily trends (UTC)','Inclusive start, exclusive end. The table provides the same daily counts and exact estimates.',
+                    h('div',{'aria-label':'Daily reservation trends'},...daily.buckets.map(v=>h('div',{class:'usage'},h('label',{},`${v.key} ${v.currency??'unpriced'}: ${v.attempts} reservations`,h('meter',{min:0,max:peak,value:v.attempts,'aria-label':`${v.key}: ${v.attempts} reservations`},String(v.attempts)))))),bucketTable(daily.buckets)),
+                ...groups.map((r,i)=>panel(['By model','By purpose','By verification','By outcome'][i]!,undefined,bucketTable(r.buckets))));await loadDetails();
+        } catch(e){content.replaceChildren(h('p',{role:'alert'},'Unable to load analytics. Check the UTC range and retry.'));throw e;}};
+    parent.append(panel('Reporting range','Choose dates within the last 90 UTC days. End date is exclusive.',h('div',{class:'form-row'},field('Range',range),field('Start (UTC)',start),field('End (exclusive UTC)',end),button('Apply range',load))),content,details);
+    await load();
+    if(admin()) {
+        const rates=await api<Rate[]>('analytics/pricing'),model=input(settings?.value.model??DEFAULT_SETTINGS.model),currency=input(''),price=input(''),effective=input(new Date().toISOString()),note=input('');
+        const editor=panel('Administrator pricing','Operator-entered estimates only. Changing this configuration does not change the provider’s price or historical attempt snapshots.',
+            rates.length?table(['Model','Revision','Currency','Input price per million','Effective (UTC)','Source / note'],rates.map(r=>[r.model,r.revision,r.currency,r.perMillion,r.effectiveAt,r.note])):h('p',{},'Rate not configured. No default prices are assumed.'),
+            field('Model',model),field('Currency (three uppercase letters)',currency),field('Price per million input tokens (up to 6 decimals)',price),field('Effective UTC timestamp',effective),field('Rate source / note (optional)',note),
+            button('Save estimated rate',async()=>{await api('analytics/pricing','PUT',{model:model.value,revision:rates.find(r=>r.model===model.value)?.revision??0,currency:currency.value,perMillion:price.value,effectiveAt:effective.value,note:note.value});await render();message('Pricing revision saved. Historical snapshots are unchanged.');}));
+        parent.append(editor);
+    }
+}
