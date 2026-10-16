@@ -20,9 +20,21 @@ Action-qualified rules take precedence over all fallback candidates. Within eith
 
 A review threshold equal to or above a rule's effective action threshold creates an empty fallback band for that rule; it does not raise the action floor or reject existing stored settings. This also applies when the review threshold exceeds an action floor but a higher rule threshold still leaves a review band. No migration or new cross-threshold validation is required.
 
-**Behavior change:** the existing default review threshold remains **0.8**, but older fallback routing used a hardcoded **0.5**. With defaults, comparisons in `[0.5, 0.8)` no longer create fallback review events. Existing events are retained. No default was lowered or empirically recalibrated.
+**Review routing:** fallback uses the saved review threshold, rather than the historical hardcoded 0.5. New servers default to 0.70; existing saved review thresholds (including 0.8) are preserved. Scores below the configured review threshold do not create fallback review events. Existing events are retained.
 
 Fallback review is nonpunitive (`execute=false`, no deletion). The worker persists an open moderation event, visible under Activity **Logs > Moderation events**; authorized moderators can confirm, dismiss or mark it false positive in Details. The last option disables the associated rule and clears approval. Raw image evaluations remain available even when no comparison is escalated. A failed second verification uses the conservative minimum probability and may enter the review band, but cannot authorize punishment. Provider errors never become positive results. An incomplete multi-image evaluation suppresses punitive dispatch for the whole message because rule precedence could otherwise be resolved incorrectly.
+
+## Configurable match thresholds
+
+Shared configuration in `shared/domain.ts` supplies **Standard (0.70)** for general matching and **Strict (0.90)** for cases requiring stronger confidence. These are practical starting points from experience; suitability depends on the domain, model and images. **0.90 is a stricter threshold, never a guarantee of accuracy or a claim of 90% accuracy.** Calibrate on representative examples.
+
+New rules start at 0.70. New server action floors are 0.70 for none, review, warn and delete, and 0.90 for timeout, kick and ban. The Activity rule editor offers Standard, Strict and Custom alongside an editable numeric value. Administrators can change each floor in Settings. Values must be finite numbers in the inclusive range 0.5–1.0, with timeout <= kick <= ban; other action floors are independent.
+
+For reference matching, `effective threshold = max(rule threshold, action floor)`, and a score qualifies when `score >= effective threshold`. For example, a Standard timeout rule uses max(0.70, 0.90) = 0.90: 0.90 qualifies and 0.899999 does not. A custom rule value of 0.93 with a 0.90 floor uses 0.93. Qualification still requires every enforcement safeguard. Tests show the returned score (the conservative combined score after second verification), configured rule value, action floor, effective value and inclusive comparison result; tests never execute sanctions.
+
+Existing saved values, including the older 0.95/0.97/0.99/0.999 floors, remain unchanged. Missing stored fields receive defaults on read without rewriting records. API updates preserve omitted existing thresholds; explicitly invalid values are rejected. No migration resets servers or rules. Threshold edits do not enable enforcement: rule saves clear approval, and floor changes make prior fingerprints stale.
+
+Any-image rules do not use match thresholds or Jev similarity scores. Their test score is a synthetic presence marker, and effective threshold / meets-threshold fields are null. Explicit any-image enablement, approval and enforcement gates still apply. Uncertain-review routing retains the configured-floor behavior from #6 / #8.
 
 ## Approval gates
 

@@ -123,6 +123,10 @@ export function createHttp(services: Services, config: Config, root = process.cw
             const [settings, images, rules, events, evaluations, usage, credential] = await Promise.all([store.getSettings(guild), store.all<ReferenceImage>('images', guild), store.all<Rule>('rules', guild), store.all<ModerationEvent>('events', guild), store.all<Evaluation>('evaluations', guild), store.usage(guild), services.credentialStatus(guild)]);
             return { body: { settings, botOnline: discord.online, credential, usage, counts: { images: images.filter(i => i.enabled).length, rules: rules.filter(r => r.enabled).length, evaluations: evaluations.length, events: events.length, successful: events.filter(e => e.actual.includes(':success')).length, suppressedOrFailed: events.filter(e => !e.actual.includes(':success')).length }, recent: events.slice(0, 10) } };
         }
+        if (route === 'match-thresholds' && method === 'GET') {
+            assert(['rules.create', 'rules.edit', 'rules.view'].some(c => a.capabilities.includes(c as typeof a.capabilities[number])), 'forbidden', 403);
+            return { body: (await store.getSettings(guild)).value.thresholds };
+        }
         if (route === 'settings' && method === 'GET') {
             assert(a.capabilities.includes('dashboard.view') || a.capabilities.includes('channels.configure') || a.owner || a.administrator, 'forbidden', 403);
             return { body: await store.getSettings(guild) };
@@ -131,11 +135,11 @@ export function createHttp(services: Services, config: Config, root = process.cw
             requireAdmin(a);
             const b = await jsonBody(req);
             onlyKeys(b, ['value', 'revision', 'acknowledgement']);
-            const value = parseSettings(b.value);
             const revision = number(b.revision, 1, 1e9, true);
             await store.withGuild(guild, async (tx) => {
                 const old = await tx.getSettings(guild);
                 assert(old.revision === revision, 'revision_conflict', 409);
+                const value = parseSettings(b.value, old.value);
                 if (value.enforcement && !old.value.enforcement) {
                     assert(!config.production || config.enforcementApproved === true, 'deployment_acceptance_required', 403);
                     assert(b.acknowledgement === 'ENABLE_AUTOMATIC_ENFORCEMENT', 'enforcement_acknowledgement_required');
@@ -278,11 +282,11 @@ export function createHttp(services: Services, config: Config, root = process.cw
             requireCapability(a, creating ? 'rules.create' : 'rules.edit');
             const b = await jsonBody(req);
             onlyKeys(b, ['rule', ...(creating ? [] : ['revision'])]);
-            const next = parseRule(b.rule);
             const id = creating ? randomUUID() : p[4]!;
             return store.withGuild(guild, async (tx) => {
                 const old = creating ? null : await tx.get<Rule>('rules', guild, id);
                 assert(creating || old, 'rule_not_found', 404);
+                const next = parseRule(b.rule, old?.threshold);
                 if (old)
                     assert(old.revision === number(b.revision, 1, 1e9, true), 'revision_conflict', 409);
                 if (creating)

@@ -113,6 +113,56 @@ test('standby serves health and authenticated API without requiring a Gateway', 
     assert.equal((await f.request(`/api/g/${G}/me`, 'GET', undefined, login.data.sessionToken)).status, 200);
 });
 
+test('threshold API round trips custom/legacy values and preserves omitted values', async t => {
+    const f = await setup(t), login = await f.login(), token = login.data.sessionToken;
+    const s = await f.store.getSettings(G);
+    const thresholds = { none: .95, review: .8, warn: .97, delete: .97, timeout: .99, kick: .999, ban: .999 };
+    assert.equal((await f.request(`/api/g/${G}/settings`, 'PUT', { value: { thresholds }, revision: s.revision }, token)).status, 200);
+    const saved = await f.request(`/api/g/${G}/settings`, 'GET', undefined, token);
+    assert.deepEqual(saved.data.value.thresholds, thresholds);
+    const changed = await f.request(`/api/g/${G}/settings`, 'PUT', { value: { thresholds: { review: .812345 } }, revision: saved.data.revision }, token);
+    assert.equal(changed.status, 200);
+    assert.deepEqual(changed.data.value.thresholds, { ...thresholds, review: .812345 });
+    assert.equal(changed.data.value.enforcement, false);
+    const { id, guildId, revision, createdAt, updatedAt, approval, threshold, ...input } = rule(f.ref);
+    const created = await f.request(`/api/g/${G}/rules`, 'POST', { rule: input }, token);
+    assert.equal(created.status, 201); assert.equal(created.data.threshold, .7);
+    const edit = await f.request(`/api/g/${G}/rules/${created.data.id}`, 'PUT', { rule: { ...input, threshold: .98765 }, revision: 1 }, token);
+    assert.equal(edit.status, 200); assert.equal(edit.data.threshold, .98765);
+    const omit = await f.request(`/api/g/${G}/rules/${created.data.id}`, 'PUT', { rule: input, revision: 2 }, token);
+    assert.equal(omit.status, 200); assert.equal(omit.data.threshold, .98765);
+    const loaded = await f.request(`/api/g/${G}/rules`, 'GET', undefined, token);
+    assert.equal(loaded.data.find((r: Rule) => r.id === created.data.id).threshold, .98765);
+});
+test('threshold edits clear approval; floor-only reads do not expand settings permissions', async t => {
+    const f = await setup(t), login = await f.login(), token = login.data.sessionToken;
+    const r = rule(f.ref, { approval: { actor: ADMIN, at: 'test', note: 'test', fingerprint: 'test' } });
+    await f.store.put('rules', r, 0);
+    const { id, guildId, revision, createdAt, updatedAt, approval, ...input } = r;
+    const edit = await f.request(`/api/g/${G}/rules/${id}`, 'PUT', { rule: { ...input, threshold: .75 }, revision }, token);
+    assert.equal(edit.status, 200); assert.equal(edit.data.approval, null);
+    await f.grant(['rules.create']);
+    const mod = (await f.login('moderator-code')).data.sessionToken;
+    const floors = await f.request(`/api/g/${G}/match-thresholds`, 'GET', undefined, mod);
+    assert.equal(floors.status, 200); assert.equal(floors.data.timeout, .9);
+    assert.equal(floors.data.enforcement, undefined);
+    assert.equal((await f.request(`/api/g/${G}/settings`, 'GET', undefined, mod)).status, 403);
+    assert.equal((await f.request(`/api/g/${G}/settings`, 'PUT', { value: { thresholds: { review: .6 } }, revision: 1 }, mod)).status, 403);
+    await f.grant([]);
+    assert.equal((await f.request(`/api/g/${G}/match-thresholds`, 'GET', undefined, mod)).status, 403);
+});
+test('API rejects invalid thresholds and reversed severity floors without saving', async t => {
+    const f = await setup(t), token = (await f.login()).data.sessionToken;
+    const s = await f.store.getSettings(G);
+    for (const value of [null, '0.7', .49, 1.01]) {
+        const response = await f.request(`/api/g/${G}/settings`, 'PUT', { value: { thresholds: { review: value } }, revision: s.revision }, token);
+        assert.equal(response.status, 400); assert.match(response.data.error, /match_threshold_must_be_a_finite_number/);
+    }
+    const reversed = await f.request(`/api/g/${G}/settings`, 'PUT', { value: { thresholds: { timeout: .95 } }, revision: s.revision }, token);
+    assert.equal(reversed.status, 400); assert.equal(reversed.data.error, 'severe_threshold_must_not_be_lower');
+    assert.deepEqual(await f.store.getSettings(G), s);
+});
+
 test('review-band worker result reaches moderator HTTP workflow without a punitive action', async t => {
     const f = await setup(t);
     await enable(f, rule(f.ref, { secondVerification: true, deleteMessage: true }));

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { assert, AppError, baseRecord, effectiveAuthority, isSevere, type Authority, type Audit, type Calibration, type Credential, type ImageMessage, type Match, type ReferenceImage, type RoleGrant, type Rule, type Settings } from '../shared/domain.js';
+import { effectiveThreshold } from '../shared/domain.js';
 import type { Store } from './store.js';
 import { Vault, safeError } from './security.js';
 import { JevClient, type JevResult } from './jev.js';
@@ -100,7 +101,7 @@ export class Services {
                     return r;
                 };
                 const result = await compare(false);
-                const floor = Math.max(rule.threshold, settings.thresholds[rule.action]);
+                const floor = effectiveThreshold(rule, settings);
                 let p = result.probability, verified = false;
                 if (p >= floor && (rule.secondVerification || isSevere(rule.action))) {
                     const second = await compare(true);
@@ -123,14 +124,17 @@ export class Services {
         const result = await this.evaluate(guild, 'test', image, [{ ...rule, enabled: true }], images, settings);
         const exact = result.matches.some(m => m.provenance === 'exact_hash');
         const probability = exact ? null : Math.max(0, ...result.matches.map(m => m.probability ?? 0));
-        const predicted = exact || probability! >= Math.max(rule.threshold, settings.thresholds[rule.action]);
+        const thresholdApplies = !exact && rule.type !== 'any_image';
+        const actionFloor = settings.thresholds[rule.action];
+        const effective = thresholdApplies ? effectiveThreshold(rule, settings) : null;
+        const predicted = exact || (thresholdApplies ? probability! >= effective! : result.matches.length > 0);
         const fp = fingerprint(rule, images, settings);
         if (expected !== undefined) {
             const trial: Calibration = { ...baseRecord(guild, randomUUID()), ruleId, fingerprint: fp, provenance: exact ? 'exact_hash' : 'jev', model: exact ? null : settings.model, expected, predicted, probability, sampleSha256: image.sha256, actor };
             await this.store.put('calibrations', trial, 0);
         }
         await this.audit(guild, actor, 'rule.tested', ruleId, { expected: expected ?? null, predicted, probability });
-        return { ...result, probability, predicted, fingerprint: fp, executed: false };
+        return { ...result, probability, predicted, ruleThreshold: rule.threshold, actionFloor, effectiveThreshold: effective, thresholdApplies, meetsThreshold: thresholdApplies ? predicted : null, fingerprint: fp, executed: false };
     }
     async approveRule(guild: string, actor: string, ruleId: string, note: string) {
         return this.store.withGuild(guild, async (tx) => {

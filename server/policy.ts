@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { isPunitive, isSevere, type Rule, type ReferenceImage, type Match, type Settings, type Action } from '../shared/domain.js';
 import { NORMALIZATION_HASH_VERSION } from './images.js';
+import { effectiveThreshold } from '../shared/domain.js';
 export const PROMPT_VERSION = 'image-identity-v1';
 const rank = { individual: 0, group: 1, any_match: 2, any_image: 3 };
 export function referencesFor(rule: Rule, images: ReferenceImage[]): ReferenceImage[] {
@@ -23,7 +24,7 @@ export function resolvePolicy(rules: Rule[], matches: Match[], settings: Setting
     const eligible = rules.filter(r => r.enabled && (r.type !== 'any_image' || settings.anyImageEnabled) && (r.mode !== 'semantic' || settings.semanticEnabled));
     // Use the same validity checks and precedence for action and review candidates.
     const candidates = eligible.flatMap(rule => {
-        const floor = Math.max(rule.threshold, settings.thresholds[rule.action]);
+        const floor = effectiveThreshold(rule, settings);
         const valid = matches.filter(m => m.ruleId === rule.id && (m.provenance === 'exact_hash'
             ? m.probability === null && m.model === null && !m.verified && m.policyFingerprint === fingerprint(rule, images, settings) && referencesFor(rule, images).some(ref => ref.id === m.referenceId && ref.revision === m.referenceRevision && ref.hashVersion === m.hashVersion && ref.hashVersion === NORMALIZATION_HASH_VERSION)
             : (m.policyFingerprint === undefined || (m.policyFingerprint === fingerprint(rule, images, settings) && referencesFor(rule, images).some(ref => ref.id === m.referenceId && ref.revision === m.referenceRevision))) && m.probability !== null && Number.isFinite(m.probability) && m.probability >= 0 && m.probability <= 1 && m.model === settings.model))

@@ -28,11 +28,14 @@ export interface Settings {
     highImpactEnabled: boolean;
     model: string;
 }
+// Practical starting points; scores depend on the domain, model and images.
+export const MATCH_THRESHOLDS = { standard: 0.70, strict: 0.90, min: 0.5, max: 1.0 } as const;
+export const DEFAULT_RULE_THRESHOLD = MATCH_THRESHOLDS.standard;
 export const DEFAULT_SETTINGS: Settings = {
     monitoring: true, enforcement: false, anyImageEnabled: false, semanticEnabled: false,
     channels: [], excludedChannels: [], exemptRoles: [], processBots: false, processWebhooks: false,
     logChannel: null, dmNotify: false,
-    thresholds: { none: 0.95, delete: 0.97, warn: 0.97, timeout: 0.99, kick: 0.999, ban: 0.999, review: 0.8 },
+    thresholds: { none: MATCH_THRESHOLDS.standard, delete: MATCH_THRESHOLDS.standard, warn: MATCH_THRESHOLDS.standard, timeout: MATCH_THRESHOLDS.strict, kick: MATCH_THRESHOLDS.strict, ban: MATCH_THRESHOLDS.strict, review: MATCH_THRESHOLDS.standard },
     dailyCallLimit: 500, logRetentionDays: 30, uncertain: 'review', highImpactEnabled: false, model: 'jev-1.14.0'
 };
 export interface RecordBase {
@@ -220,10 +223,21 @@ export function number(v: unknown, min: number, max: number, integer = false): n
     return v;
 }
 export function ids(v: unknown): string[] { assert(Array.isArray(v) && v.length <= 250 && v.every(snowflake), 'invalid_ids'); return [...new Set(v)]; }
-export function parseSettings(value: unknown): Settings {
+export function matchThreshold(value: unknown): number {
+    assert(typeof value === 'number' && Number.isFinite(value) && value >= MATCH_THRESHOLDS.min && value <= MATCH_THRESHOLDS.max, 'match_threshold_must_be_a_finite_number_from_0.5_to_1.0');
+    return value;
+}
+export function effectiveThreshold(rule: Pick<Rule, 'threshold' | 'action'>, settings: Settings): number {
+    return Math.max(rule.threshold, settings.thresholds[rule.action]);
+}
+// Fill only absent fields; never reinterpret a saved threshold as a preset.
+export function storedRecord<T extends RecordBase>(kind: Kind, record: T): T {
+    return kind === 'rules' && !Object.hasOwn(record, 'threshold') ? { ...record, threshold: DEFAULT_RULE_THRESHOLD } : record;
+}
+export function parseSettings(value: unknown, defaults: Settings = DEFAULT_SETTINGS): Settings {
     const v = object(value);
     onlyKeys(v, Object.keys(DEFAULT_SETTINGS));
-    const s = structuredClone(DEFAULT_SETTINGS);
+    const s = structuredClone(defaults);
     for (const k of ['monitoring', 'enforcement', 'anyImageEnabled', 'semanticEnabled', 'processBots', 'processWebhooks', 'dmNotify', 'highImpactEnabled'] as const)
         if (k in v)
             s[k] = bool(v[k]);
@@ -239,7 +253,7 @@ export function parseSettings(value: unknown): Settings {
         onlyKeys(t, ACTIONS);
         for (const a of ACTIONS)
             if (a in t)
-                s.thresholds[a] = number(t[a], 0.5, 1);
+                s.thresholds[a] = matchThreshold(t[a]);
     }
     assert(s.thresholds.kick >= s.thresholds.timeout && s.thresholds.ban >= s.thresholds.kick, 'severe_threshold_must_not_be_lower');
     if ('dailyCallLimit' in v)
@@ -256,8 +270,17 @@ export function parseSettings(value: unknown): Settings {
     }
     return s;
 }
+// SQL JSON objects may have database-defined key order. Preserve existing floor
+// ordering because historical approval fingerprints hash its JSON representation.
+export function storedSettings(value: unknown): Settings {
+    const v = object(value), parsed = parseSettings(v);
+    const thresholds = Object.hasOwn(v, 'thresholds') ? { ...object(v.thresholds) } : {};
+    for (const action of ACTIONS)
+        if (!Object.hasOwn(thresholds, action)) thresholds[action] = parsed.thresholds[action];
+    return { ...parsed, thresholds: thresholds as Record<Action, number> };
+}
 export type RuleInput = Omit<Rule, keyof RecordBase | 'approval'>;
-export function parseRule(value: unknown): RuleInput {
+export function parseRule(value: unknown, defaultThreshold: number = DEFAULT_RULE_THRESHOLD): RuleInput {
     const v = object(value);
     onlyKeys(v, ['name', 'type', 'referenceId', 'groupId', 'mode', 'threshold', 'action', 'timeoutSeconds', 'deleteMessage', 'priority', 'enabled', 'automatic', 'secondVerification', 'reason']);
     assert(RULE_TYPES.includes(v.type as RuleType), 'invalid_rule_type');
@@ -269,7 +292,7 @@ export function parseRule(value: unknown): RuleInput {
     assert((type === 'individual') === (v.referenceId !== null), 'individual_reference_required');
     assert((type === 'group') === (v.groupId !== null), 'group_reference_required');
     const r: RuleInput = { name: text(v.name), type, referenceId: v.referenceId, groupId: v.groupId, mode: v.mode as Mode,
-        threshold: number(v.threshold, 0.5, 1), action: v.action as Action, timeoutSeconds: number(v.timeoutSeconds, 1, 2419200, true),
+        threshold: matchThreshold(Object.hasOwn(v, 'threshold') ? v.threshold : defaultThreshold), action: v.action as Action, timeoutSeconds: number(v.timeoutSeconds, 1, 2419200, true),
         deleteMessage: bool(v.deleteMessage), priority: number(v.priority, -1000, 1000, true), enabled: bool(v.enabled), automatic: bool(v.automatic),
         secondVerification: bool(v.secondVerification), reason: text(v.reason, 300) };
     if (isSevere(r.action))

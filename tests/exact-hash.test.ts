@@ -107,6 +107,7 @@ test('partial provider failure retains exact evidence but suppresses whole-messa
 test('hash calibration is deterministic evidence, never a fabricated Jev calibration sample',async t=>{
     const f=await versioned(t),r=rule(f.ref);await f.store.put('rules',r,0);
     const result=await f.services.testRule(G,USER,r.id,f.image,true);assert.equal(result.predicted,true);assert.equal(result.probability,null);
+    assert.equal(result.thresholdApplies,false);assert.equal(result.effectiveThreshold,null);assert.equal(result.meetsThreshold,null);
     await assert.rejects(f.services.approveRule(G,USER,r.id,'Synthetic approval must not bypass calibration'),/more_labeled_examples_required/);
     assert.equal(f.control.calls,0);
 });
