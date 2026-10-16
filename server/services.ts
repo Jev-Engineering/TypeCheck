@@ -143,7 +143,10 @@ export class Services {
             let positives = 0, negatives = 0, falsePositives = 0, truePositives = 0;
             if (rule.type !== 'any_image') {
                 assert(referencesFor(rule, images).length > 0, 'no_active_references');
-                const trials = (await tx.all<Calibration>('calibrations', guild)).filter(t => t.ruleId === ruleId && t.fingerprint === fp && t.model === settings.model && t.provenance !== 'exact_hash');
+                const currentTrials = (await tx.all<Calibration>('calibrations', guild)).filter(t => t.ruleId === ruleId && t.fingerprint === fp);
+                // Deterministic false positives must not disappear from approval review.
+                assert(!currentTrials.some(t => t.provenance === 'exact_hash' && !t.expected && t.predicted), 'calibration_failed');
+                const trials = currentTrials.filter(t => t.model === settings.model && t.provenance !== 'exact_hash');
                 const bySample = new Map<string, Calibration>();
                 for (const t of trials) {
                     const old = bySample.get(t.sampleSha256);

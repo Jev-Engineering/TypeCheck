@@ -110,3 +110,10 @@ test('hash calibration is deterministic evidence, never a fabricated Jev calibra
     await assert.rejects(f.services.approveRule(G,USER,r.id,'Synthetic approval must not bypass calibration'),/more_labeled_examples_required/);
     assert.equal(f.control.calls,0);
 });
+
+test('a labeled exact-hash false positive blocks approval instead of disappearing from calibration',async t=>{
+    const f=await versioned(t),r=rule(f.ref);await f.store.put('rules',r,0);
+    await f.services.testRule(G,USER,r.id,f.image,false);
+    await assert.rejects(f.services.approveRule(G,USER,r.id,'Synthetic approval must reject known false positives'),/calibration_failed/);
+    assert.equal(f.control.calls,0);
+});
