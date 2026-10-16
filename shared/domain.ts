@@ -51,6 +51,7 @@ export interface ReferenceImage extends RecordBase {
     enabled: boolean;
     objectKey: string;
     sha256: string;
+    hashVersion?: string;
     bytes: number;
     width: number;
     height: number;
@@ -98,19 +99,24 @@ export interface Credential extends RecordBase {
 export interface Calibration extends RecordBase {
     ruleId: string;
     fingerprint: string;
-    model: string;
+    model: string | null;
     expected: boolean;
     predicted: boolean;
-    probability: number;
+    probability: number | null;
+    provenance?: 'exact_hash' | 'jev';
     sampleSha256: string;
     actor: string;
 }
 export interface Match {
     ruleId: string;
     referenceId: string | null;
-    probability: number;
+    provenance?: 'exact_hash' | 'jev' | 'any_image';
+    probability: number | null;
     verified: boolean;
-    model: string;
+    model: string | null;
+    referenceRevision?: number;
+    policyFingerprint?: string;
+    hashVersion?: string;
     attachmentId: string;
 }
 export interface Evaluation extends RecordBase {
@@ -122,7 +128,8 @@ export interface Evaluation extends RecordBase {
     outcome: string;
     error: string | null;
     inputTokens: number;
-    model: string;
+    model: string | null;
+    hashComparisons?: number;
     test: boolean;
 }
 export interface Audit extends RecordBase {

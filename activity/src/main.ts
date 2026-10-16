@@ -349,7 +349,7 @@ async function testRule(rule: Rule) {
     const files = h('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp,image/gif', multiple: true }), expected = select([['unlabeled', 'Do not label'], ['match', 'Should match'], ['nonmatch', 'Should not match']], 'unlabeled');
     const results = h('div');
     const trials = await api<Calibration[]>(`rules/${rule.id}/calibration`);
-    const history = table(['Sample', 'Expected', 'Predicted', 'Probability', 'Model'], trials.slice(0, 15).map(t => [t.sampleSha256.slice(0, 10), String(t.expected), String(t.predicted), String(t.probability), t.model]));
+    const history = table(['Sample', 'Expected', 'Predicted', 'Probability', 'Model'], trials.slice(0, 15).map(t => [t.sampleSha256.slice(0, 10), String(t.expected), String(t.predicted), t.provenance === 'exact_hash' ? 'Exact normalized-image match' : String(t.probability), t.model ?? 'Not applicable']));
     modal('Test: ' + rule.name, 'Tests never moderate a Discord user. Use distinct representative positive and negative examples; synthetic examples alone do not establish real-world accuracy.', h('div', { class: 'form-stack' }, field('Sample images', files), field('Expected result for these images', expected), results, h('h3', {}, 'Recent calibration samples'), history), [button('Run tests', async () => {
             if (!files.files?.length)
                 throw new Error('Select sample images');
@@ -382,7 +382,7 @@ async function logs(parent: HTMLElement) {
             return;
         }
         results.append(table(['Time', 'Summary', 'Outcome', 'Details'], r.items.map((row: any) => [date(row.createdAt), h('div', {}, row.userId ?? row.actor ?? '', h('small', {}, row.messageId ?? row.target ?? '')), pretty(row.actual ?? row.outcome ?? row.event ?? row.status ?? ''), button('View', () => {
-                const body = h('div', { class: 'form-stack' }, h('pre', { class: 'code-block' }, JSON.stringify(row, null, 2)));
+                const body = h('div', { class: 'form-stack' }, ...(row.matches ?? []).map((m: any) => h('p', {}, `${m.provenance === 'exact_hash' ? 'Exact normalized-image match' : m.provenance === 'any_image' ? 'Any-image policy' : 'Jev estimate ' + m.probability} · Reference ${m.referenceId ?? 'none'} · ${row.reason ?? row.outcome ?? ''}`)), h('pre', { class: 'code-block' }, JSON.stringify(row, null, 2)));
                 const actions: HTMLElement[] = [];
                 let d: HTMLDialogElement;
                 if (category.value === 'events' && can('rules.edit'))

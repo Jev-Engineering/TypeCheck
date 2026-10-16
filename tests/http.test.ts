@@ -110,3 +110,18 @@ test('standby serves health and authenticated API without requiring a Gateway', 
     const login = await f.login(); assert.equal(login.status, 200);
     assert.equal((await f.request(`/api/g/${G}/me`, 'GET', undefined, login.data.sessionToken)).status, 200);
 });
+
+test('hash upload provenance is server-derived and preserved by metadata edits; test API reports no model or usage', async t => {
+    const f = await setup(t), token = (await f.login()).data.sessionToken;
+    const body = {name:'Synthetic hash reference',groupId:null,enabled:true,base64:PNG.toString('base64')};
+    assert.equal((await f.request(`/api/g/${G}/images`,'POST',{...body,hashVersion:'forged'},token)).status,400);
+    const created=await f.request(`/api/g/${G}/images`,'POST',body,token);
+    assert.equal(created.status,201);assert.equal(created.data.hashVersion,f.image.hashVersion);
+    const edited=await f.request(`/api/g/${G}/images/${created.data.id}`,'PUT',{name:'Renamed',groupId:null,enabled:true,revision:1},token);
+    assert.equal(edited.status,200);assert.equal(edited.data.hashVersion,created.data.hashVersion);
+    const r=rule(edited.data);await f.store.put('rules',r,0);
+    const result=await f.request(`/api/g/${G}/rules/${r.id}/test`,'POST',{base64:PNG.toString('base64'),expected:true},token);
+    assert.equal(result.status,200);assert.equal(result.data.probability,null);assert.equal(result.data.hashComparisons,1);
+    assert.equal(result.data.matches[0].model,null);assert.equal(result.data.matches[0].provenance,'exact_hash');assert.equal(f.control.calls,0);
+    assert.equal((await f.store.usage(G)).calls,0);assert.equal(f.discord.performed.length,0);
+});
