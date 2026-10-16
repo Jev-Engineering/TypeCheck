@@ -110,3 +110,33 @@ test('standby serves health and authenticated API without requiring a Gateway', 
     const login = await f.login(); assert.equal(login.status, 200);
     assert.equal((await f.request(`/api/g/${G}/me`, 'GET', undefined, login.data.sessionToken)).status, 200);
 });
+
+
+test('analytics permission, tenant, range, pricing revision and audit boundaries', async t => {
+    const f=await setup(t);await f.grant(['dashboard.view']);const mod=(await f.login('moderator-code')).data.sessionToken;
+    const path=`/api/g/${G}/analytics`;
+    assert.equal((await f.request(path+'/summary','GET',undefined,mod)).status,200);
+    assert.equal((await f.request(`/api/g/${G2}/analytics/summary`,'GET',undefined,mod)).status,403);
+    const rate={model:'jev-1.14.0',revision:0,currency:'USD',perMillion:'2.500000',effectiveAt:'2020-01-01T00:00:00.000Z',note:'Synthetic operator rate'};
+    assert.equal((await f.request(path+'/pricing','PUT',rate,mod)).status,403);
+    const admin=(await f.login()).data.sessionToken;
+    assert.equal((await f.request(path+'/pricing','PUT',rate,admin,'')).status,403);
+    assert.equal((await f.request(path+'/pricing','PUT',rate,admin,'https://evil.invalid')).status,403);
+    assert.equal((await f.request(path+'/pricing','PUT',rate,admin)).status,200);
+    assert.equal((await f.request(path+'/pricing','PUT',rate,admin)).status,409);
+    assert.equal((await f.store.all<any>('audit',G)).filter(r=>r.event==='pricing.updated').length,1);
+    for(const params of ['limit=101','group=invalid','purpose=invalid','verification=bad','range=custom&start=2026-01-01&end=2026-12-01','before=bad']) assert.equal((await f.request(path+'/attempts?'+params,'GET',undefined,mod)).status,400);
+    assert.equal((await f.request(path+'/export','GET',undefined,mod)).status,200);
+    await f.grant(['images.view']);assert.equal((await f.request(path+'/summary','GET',undefined,mod)).status,403);
+});
+
+test('analytics CSV export is bounded, cursor paginated and formula safe',async t=>{
+    const f=await setup(t),session=(await f.login()).data.sessionToken;
+    await f.services.testCredential(G);await f.services.testCredential(G);
+    const row=[...f.store.analytics.records.values()][0]!;row.model='=HYPERLINK("bad")';
+    const p=`/api/g/${G}/analytics/export?limit=1`;
+    const first=await f.request(p,'GET',undefined,session);assert.equal(first.status,200);assert.equal(first.raw.split('\r\n').length,2);assert.ok(first.headers.get('x-next-before'));
+    const cursor=new URLSearchParams({before:first.headers.get('x-next-before')!,beforeId:first.headers.get('x-next-before-id')!});
+    const second=await f.request(p+'&'+cursor,'GET',undefined,session);assert.equal(second.status,200);assert.equal(second.headers.get('x-next-before'),null);
+    assert.ok((first.raw+second.raw).includes("'="));assert.ok(!(first.raw+second.raw).includes(API_KEY));
+});

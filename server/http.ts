@@ -1,3 +1,4 @@
+import { analyticsQuery, parseRate } from '../shared/analytics.js';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -117,6 +118,31 @@ export function createHttp(services: Services, config: Config, root = process.cw
         if (route === 'meta' && method === 'GET') {
             assert(a.capabilities.length > 0, 'forbidden', 403);
             return { body: await discord.metadata(guild) };
+        }
+        if (route === 'analytics/pricing' && method === 'GET') {
+            requireCapability(a, 'dashboard.view'); return { body: await store.analytics.rates(guild) };
+        }
+        if (route === 'analytics/pricing' && method === 'PUT') {
+            requireAdmin(a); const rate = parseRate(await jsonBody(req));
+            await store.withGuild(guild, async tx => {
+                await tx.analytics.putRate(guild, rate);
+                await services.audit(guild, a.userId, 'pricing.updated', rate.model, { ...rate, revision: rate.revision + 1 }, tx);
+            });
+            return { body: await store.analytics.rates(guild) };
+        }
+        if (['analytics/summary','analytics/daily','analytics/breakdown','analytics/attempts','analytics/export'].includes(route) && method === 'GET') {
+            requireCapability(a, 'dashboard.view');
+            const query = analyticsQuery(url.searchParams);
+            if (route === 'analytics/attempts' || route === 'analytics/export') {
+                const page = await store.analytics.attempts(guild, query);
+                if (route === 'analytics/attempts') return { body: page };
+                const fields = ['id','correlationId','model','purpose','mode','verification','retry','startedAt','completedAt','outcome','error','inputTokens','currency','estimatedCostMicros','pricingRevision'];
+                const lines = page.items.map(v => [v.id,v.correlationId,v.model,v.purpose,v.mode,v.verification,v.retry,v.startedAt,v.completedAt,v.outcome,v.error,v.inputTokens ?? 'Usage unknown',v.rate?.currency ?? 'Rate not configured',v.costMicros ?? 'Partial estimate: unavailable',v.rate?.revision ?? '']);
+                return { bytes: Buffer.from([fields,...lines].map(row=>row.map(csvCell).join(',')).join('\r\n')), type:'text/csv; charset=utf-8', headers:{'Content-Disposition':'attachment; filename="estimated-jev-usage-page.csv"', ...(page.next ? {'X-Next-Before':page.next.before,'X-Next-Before-Id':page.next.beforeId} : {})} };
+            }
+            if (route === 'analytics/summary') query.group = 'summary';
+            if (route === 'analytics/daily') query.group = 'day';
+            return { body: await store.analytics.report(guild, query) };
         }
         if (route === 'dashboard' && method === 'GET') {
             requireCapability(a, 'dashboard.view');
@@ -404,7 +430,7 @@ export function createHttp(services: Services, config: Config, root = process.cw
         throw new AppError('route_not_found', 404);
     }
     async function staticFile(pathname: string): Promise<Reply> {
-        const fixed: Record<string, string> = { '/': 'activity/index.html', '/style.css': 'activity/style.css', '/vendor/discord-sdk.js': 'dist/activity/vendor/discord-sdk.js', '/vendor/THIRD_PARTY_NOTICES.txt': 'dist/activity/vendor/THIRD_PARTY_NOTICES.txt', '/shared/domain.js': 'dist/shared/domain.js' };
+        const fixed: Record<string, string> = { '/': 'activity/index.html', '/style.css': 'activity/style.css', '/vendor/discord-sdk.js': 'dist/activity/vendor/discord-sdk.js', '/vendor/THIRD_PARTY_NOTICES.txt': 'dist/activity/vendor/THIRD_PARTY_NOTICES.txt', '/shared/analytics.js':'dist/shared/analytics.js','/shared/domain.js': 'dist/shared/domain.js' };
         const fonts: Record<string, string> = { '/fonts/schibsted-grotesk-400.woff2': 'activity/fonts/schibsted-grotesk-400.woff2', '/fonts/schibsted-grotesk-500.woff2': 'activity/fonts/schibsted-grotesk-500.woff2', '/fonts/vt323-400.woff2': 'activity/fonts/vt323-400.woff2', '/fonts/jetbrains-mono-400.woff2': 'activity/fonts/jetbrains-mono-400.woff2' };
         if (fonts[pathname]) {
             let bytes: Buffer;
