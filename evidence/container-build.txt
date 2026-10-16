@@ -1,0 +1,2206 @@
+ Image jev-guard-validation-20261015-app Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 593B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 982B 0.0s done
+#2 DONE 0.1s
+
+#3 [internal] load metadata for docker.io/library/node:22-bookworm-slim
+#3 DONE 1.1s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 130B done
+#4 DONE 0.1s
+
+#5 [build  1/11] FROM docker.io/library/node:22-bookworm-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392
+#5 resolve docker.io/library/node:22-bookworm-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392 0.1s done
+#5 ...
+
+#6 [internal] load build context
+#6 transferring context: 413.27kB 0.1s done
+#6 DONE 0.3s
+
+#5 [build  1/11] FROM docker.io/library/node:22-bookworm-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392
+#5 DONE 0.5s
+
+#5 [build  1/11] FROM docker.io/library/node:22-bookworm-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392
+#5 sha256:d22c69a95cf463f4cb74462bd2899597ce505d82bd4c01ceddf7845e12f13856 1.05MB / 49.84MB 0.2s
+#5 sha256:d22c69a95cf463f4cb74462bd2899597ce505d82bd4c01ceddf7845e12f13856 5.24MB / 49.84MB 0.3s
+#5 sha256:2cfab517365cfc6b4bd1f8c4cb01754884ef75bc38758b3c41e291c696f019f5 0B / 1.71MB 0.2s
+#5 sha256:f0400f4b55b0ad346bf6167a1b64a258e4d73db608c457798ce35e4ffeebfaaf 3.31kB / 3.31kB 0.1s done
+#5 extracting sha256:f0400f4b55b0ad346bf6167a1b64a258e4d73db608c457798ce35e4ffeebfaaf
+#5 sha256:d22c69a95cf463f4cb74462bd2899597ce505d82bd4c01ceddf7845e12f13856 8.39MB / 49.84MB 0.5s
+#5 sha256:2cfab517365cfc6b4bd1f8c4cb01754884ef75bc38758b3c41e291c696f019f5 1.71MB / 1.71MB 0.3s done
+#5 extracting sha256:f0400f4b55b0ad346bf6167a1b64a258e4d73db608c457798ce35e4ffeebfaaf 0.1s done
+#5 sha256:d22c69a95cf463f4cb74462bd2899597ce505d82bd4c01ceddf7845e12f13856 13.63MB / 49.84MB 0.6s
+#5 sha256:d22c69a95cf463f4cb74462bd2899597ce505d82bd4c01ceddf7845e12f13856 17.83MB / 49.84MB 0.8s
+#5 sha256:d22c69a95cf463f4cb74462bd2899597ce505d82bd4c01ceddf7845e12f13856 22.02MB / 49.84MB 0.9s
+#5 sha256:d22c69a95cf463f4cb74462bd2899597ce505d82bd4c01ceddf7845e12f13856 27.26MB / 49.84MB 1.1s
+#5 sha256:d22c69a95cf463f4cb74462bd2899597ce505d82bd4c01ceddf7845e12f13856 31.46MB / 49.84MB 1.2s
+#5 sha256:d22c69a95cf463f4cb74462bd2899597ce505d82bd4c01ceddf7845e12f13856 35.65MB / 49.84MB 1.4s
+#5 sha256:d22c69a95cf463f4cb74462bd2899597ce505d82bd4c01ceddf7845e12f13856 39.85MB / 49.84MB 1.5s
+#5 sha256:d22c69a95cf463f4cb74462bd2899597ce505d82bd4c01ceddf7845e12f13856 44.04MB / 49.84MB 1.7s
+#5 sha256:d22c69a95cf463f4cb74462bd2899597ce505d82bd4c01ceddf7845e12f13856 47.19MB / 49.84MB 1.8s
+#5 sha256:d22c69a95cf463f4cb74462bd2899597ce505d82bd4c01ceddf7845e12f13856 49.84MB / 49.84MB 2.1s done
+#5 extracting sha256:d22c69a95cf463f4cb74462bd2899597ce505d82bd4c01ceddf7845e12f13856
+#5 extracting sha256:d22c69a95cf463f4cb74462bd2899597ce505d82bd4c01ceddf7845e12f13856 1.4s done
+#5 extracting sha256:2cfab517365cfc6b4bd1f8c4cb01754884ef75bc38758b3c41e291c696f019f5
+#5 extracting sha256:2cfab517365cfc6b4bd1f8c4cb01754884ef75bc38758b3c41e291c696f019f5 0.1s done
+#5 extracting sha256:a8de9fa052209313d8e45435a8486e29b20eebaa820e2e7f63a7c3c94b4fa567 0.1s done
+#5 DONE 4.3s
+
+#7 [build  2/11] WORKDIR /app
+#7 DONE 1.1s
+
+#8 [build  3/11] COPY package.json package-lock.json ./
+#8 DONE 0.3s
+
+#9 [build  4/11] RUN npm ci --no-audit --no-fund
+#9 0.710 
+#9 0.710 added 38 packages in 23ms
+#9 0.711 npm notice
+#9 0.711 npm notice New major version of npm available! 10.9.9 -> 12.2.0
+#9 0.711 npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+#9 0.711 npm notice To update run: npm install -g npm@12.2.0
+#9 0.711 npm notice
+#9 DONE 1.1s
+
+#10 [build  5/11] COPY tsconfig.json ./
+#10 DONE 0.3s
+
+#11 [build  6/11] COPY server ./server
+#11 DONE 0.2s
+
+#12 [build  7/11] COPY shared ./shared
+#12 DONE 0.2s
+
+#13 [build  8/11] COPY activity ./activity
+#13 DONE 0.2s
+
+#14 [build  9/11] COPY tests ./tests
+#14 DONE 0.3s
+
+#15 [build 10/11] COPY scripts/bundle-sdk.mjs ./scripts/bundle-sdk.mjs
+#15 DONE 0.2s
+
+#16 [build 11/11] RUN npm run build && npm test && npm prune --omit=dev
+#16 0.497 
+#16 0.497 > typecheck@0.1.0 build
+#16 0.497 > tsc && node scripts/bundle-sdk.mjs
+#16 0.497 
+#16 2.142 Official Discord Embedded App SDK bundled.
+#16 2.222 
+#16 2.222 > typecheck@0.1.0 test
+#16 2.222 > tsc && node --test --test-concurrency=1 dist/tests/*.test.js
+#16 2.222 
+#16 3.612 TAP version 13
+#16 3.654 # Subtest: defaults are monitoring-only, no channels, no semantic or any-image rules
+#16 3.655 ok 1 - defaults are monitoring-only, no channels, no semantic or any-image rules
+#16 3.655   ---
+#16 3.655   duration_ms: 0.984043
+#16 3.655   type: 'test'
+#16 3.655   ...
+#16 3.655 # Subtest: settings reject unversioned model alias
+#16 3.655 ok 2 - settings reject unversioned model alias
+#16 3.655   ---
+#16 3.655   duration_ms: 0.466578
+#16 3.655   type: 'test'
+#16 3.655   ...
+#16 3.655 # Subtest: settings reject unknown client authority claims
+#16 3.655 ok 3 - settings reject unknown client authority claims
+#16 3.656   ---
+#16 3.656   duration_ms: 0.080667
+#16 3.656   type: 'test'
+#16 3.656   ...
+#16 3.656 # Subtest: higher-severity threshold cannot be lower than timeout
+#16 3.656 ok 4 - higher-severity threshold cannot be lower than timeout
+#16 3.656   ---
+#16 3.656   duration_ms: 0.150326
+#16 3.656   type: 'test'
+#16 3.656   ...
+#16 3.656 # Subtest: settings reject string booleans and NaN budget
+#16 3.656 ok 5 - settings reject string booleans and NaN budget
+#16 3.657   ---
+#16 3.657   duration_ms: 0.181592
+#16 3.657   type: 'test'
+#16 3.657   ...
+#16 3.709 # Subtest: timeout bounds include 28 days, exclude longer duration
+#16 3.710 not ok 6 - timeout bounds include 28 days, exclude longer duration
+#16 3.710   ---
+#16 3.710   duration_ms: 60.966083
+#16 3.710   type: 'test'
+#16 3.710   location: '/app/dist/tests/core.test.js:17:1'
+#16 3.710   failureType: 'testCodeFailure'
+#16 3.710   error: 'invalid_image'
+#16 3.710   code: 'invalid_image'
+#16 3.710   name: 'AppError'
+#16 3.710   stack: |-
+#16 3.710     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 3.710     async normalize (file:///app/dist/server/images.js:36:16)
+#16 3.710     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 3.710     async TestContext.<anonymous> (file:///app/dist/tests/core.test.js:17:90)
+#16 3.710     async Test.run (node:internal/test_runner/test:1054:7)
+#16 3.710     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 3.710   ...
+#16 3.713 # Subtest: severe rule requires second check even if client asks to disable it
+#16 3.713 not ok 7 - severe rule requires second check even if client asks to disable it
+#16 3.713   ---
+#16 3.713   duration_ms: 4.748665
+#16 3.713   type: 'test'
+#16 3.713   location: '/app/dist/tests/core.test.js:18:1'
+#16 3.713   failureType: 'testCodeFailure'
+#16 3.713   error: 'invalid_image'
+#16 3.713   code: 'invalid_image'
+#16 3.713   name: 'AppError'
+#16 3.713   stack: |-
+#16 3.713     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 3.713     async normalize (file:///app/dist/server/images.js:36:16)
+#16 3.713     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 3.713     async TestContext.<anonymous> (file:///app/dist/tests/core.test.js:18:102)
+#16 3.713     async Test.run (node:internal/test_runner/test:1054:7)
+#16 3.713     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 3.713   ...
+#16 3.718 # Subtest: review/none cannot smuggle a delete side effect
+#16 3.718 not ok 8 - review/none cannot smuggle a delete side effect
+#16 3.718   ---
+#16 3.718   duration_ms: 4.571795
+#16 3.718   type: 'test'
+#16 3.718   location: '/app/dist/tests/core.test.js:19:1'
+#16 3.718   failureType: 'testCodeFailure'
+#16 3.718   error: 'invalid_image'
+#16 3.718   code: 'invalid_image'
+#16 3.718   name: 'AppError'
+#16 3.718   stack: |-
+#16 3.718     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 3.718     async normalize (file:///app/dist/server/images.js:36:16)
+#16 3.718     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 3.718     async TestContext.<anonymous> (file:///app/dist/tests/core.test.js:19:82)
+#16 3.718     async Test.run (node:internal/test_runner/test:1054:7)
+#16 3.718     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 3.718   ...
+#16 3.726 # Subtest: group/individual targets are mutually exclusive
+#16 3.726 not ok 9 - group/individual targets are mutually exclusive
+#16 3.726   ---
+#16 3.726   duration_ms: 4.584873
+#16 3.726   type: 'test'
+#16 3.726   location: '/app/dist/tests/core.test.js:20:1'
+#16 3.726   failureType: 'testCodeFailure'
+#16 3.726   error: 'invalid_image'
+#16 3.726   code: 'invalid_image'
+#16 3.726   name: 'AppError'
+#16 3.726   stack: |-
+#16 3.726     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 3.726     async normalize (file:///app/dist/server/images.js:36:16)
+#16 3.726     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 3.726     async TestContext.<anonymous> (file:///app/dist/tests/core.test.js:20:82)
+#16 3.726     async Test.run (node:internal/test_runner/test:1054:7)
+#16 3.726     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 3.726   ...
+#16 3.726 # Subtest: owner receives full capabilities without grants
+#16 3.726 ok 10 - owner receives full capabilities without grants
+#16 3.726   ---
+#16 3.726   duration_ms: 0.414231
+#16 3.726   type: 'test'
+#16 3.726   ...
+#16 3.726 # Subtest: administrator receives full capabilities without grants
+#16 3.726 ok 11 - administrator receives full capabilities without grants
+#16 3.726   ---
+#16 3.726   duration_ms: 0.069151
+#16 3.726   type: 'test'
+#16 3.726   ...
+#16 3.726 # Subtest: moderator without explicit grant has no capabilities
+#16 3.726 ok 12 - moderator without explicit grant has no capabilities
+#16 3.727   ---
+#16 3.727   duration_ms: 0.063192
+#16 3.727   type: 'test'
+#16 3.727   ...
+#16 3.727 # Subtest: role grants do not leak administrator-only capabilities
+#16 3.727 ok 13 - role grants do not leak administrator-only capabilities
+#16 3.727   ---
+#16 3.727   duration_ms: 0.530508
+#16 3.727   type: 'test'
+#16 3.727   ...
+#16 3.727 # Subtest: cross-guild role grants do not apply
+#16 3.727 ok 14 - cross-guild role grants do not apply
+#16 3.727   ---
+#16 3.727   duration_ms: 0.087556
+#16 3.727   type: 'test'
+#16 3.727   ...
+#16 3.728 # Subtest: role revocation changes effective permissions immediately
+#16 3.728 ok 15 - role revocation changes effective permissions immediately
+#16 3.728   ---
+#16 3.728   duration_ms: 0.066594
+#16 3.728   type: 'test'
+#16 3.728   ...
+#16 3.728 # Subtest: vault uses randomized authenticated encryption and supports roundtrip
+#16 3.728 ok 16 - vault uses randomized authenticated encryption and supports roundtrip
+#16 3.728   ---
+#16 3.728   duration_ms: 0.782409
+#16 3.728   type: 'test'
+#16 3.728   ...
+#16 3.728 # Subtest: ciphertext cannot be transplanted to another guild
+#16 3.729 ok 17 - ciphertext cannot be transplanted to another guild
+#16 3.729   ---
+#16 3.729   duration_ms: 0.289407
+#16 3.729   type: 'test'
+#16 3.729   ...
+#16 3.729 # Subtest: tampered ciphertext is rejected
+#16 3.729 ok 18 - tampered ciphertext is rejected
+#16 3.730   ---
+#16 3.730   duration_ms: 0.323554
+#16 3.730   type: 'test'
+#16 3.730   ...
+#16 3.730 # Subtest: vault rejects short master key
+#16 3.730 ok 19 - vault rejects short master key
+#16 3.730   ---
+#16 3.730   duration_ms: 0.092973
+#16 3.730   type: 'test'
+#16 3.730   ...
+#16 3.730 # Subtest: CSV formula cells are escaped, including whitespace prefix
+#16 3.730 ok 20 - CSV formula cells are escaped, including whitespace prefix
+#16 3.730   ---
+#16 3.730   duration_ms: 0.166143
+#16 3.730   type: 'test'
+#16 3.730   ...
+#16 3.733 # Subtest: eligible approved match produces intended timeout
+#16 3.733 not ok 21 - eligible approved match produces intended timeout
+#16 3.734   ---
+#16 3.734   duration_ms: 7.817859
+#16 3.734   type: 'test'
+#16 3.734   location: '/app/dist/tests/core.test.js:33:1'
+#16 3.734   failureType: 'testCodeFailure'
+#16 3.734   error: 'invalid_image'
+#16 3.734   code: 'invalid_image'
+#16 3.734   name: 'AppError'
+#16 3.734   stack: |-
+#16 3.734     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 3.734     async normalize (file:///app/dist/server/images.js:36:16)
+#16 3.734     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 3.734     async TestContext.<anonymous> (file:///app/dist/tests/core.test.js:33:84)
+#16 3.734     async Test.run (node:internal/test_runner/test:1054:7)
+#16 3.734     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 3.734   ...
+#16 3.738 # Subtest: monitoring-only suppresses a valid match
+#16 3.738 not ok 22 - monitoring-only suppresses a valid match
+#16 3.738   ---
+#16 3.738   duration_ms: 4.340727
+#16 3.738   type: 'test'
+#16 3.738   location: '/app/dist/tests/core.test.js:34:1'
+#16 3.738   failureType: 'testCodeFailure'
+#16 3.738   error: 'invalid_image'
+#16 3.738   code: 'invalid_image'
+#16 3.738   name: 'AppError'
+#16 3.738   stack: |-
+#16 3.738     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 3.738     async normalize (file:///app/dist/server/images.js:36:16)
+#16 3.738     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 3.738     async TestContext.<anonymous> (file:///app/dist/tests/core.test.js:34:75)
+#16 3.738     async Test.run (node:internal/test_runner/test:1054:7)
+#16 3.738     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 3.738   ...
+#16 3.744 # Subtest: missing approval suppresses action
+#16 3.744 not ok 23 - missing approval suppresses action
+#16 3.744   ---
+#16 3.744   duration_ms: 5.600613
+#16 3.744   type: 'test'
+#16 3.744   location: '/app/dist/tests/core.test.js:35:1'
+#16 3.744   failureType: 'testCodeFailure'
+#16 3.744   error: 'invalid_image'
+#16 3.744   code: 'invalid_image'
+#16 3.744   name: 'AppError'
+#16 3.744   stack: |-
+#16 3.744     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 3.744     async normalize (file:///app/dist/server/images.js:36:16)
+#16 3.744     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 3.744     async TestContext.<anonymous> (file:///app/dist/tests/core.test.js:35:69)
+#16 3.744     async Test.run (node:internal/test_runner/test:1054:7)
+#16 3.744     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 3.744   ...
+#16 3.748 # Subtest: reference replacement invalidates approval
+#16 3.748 not ok 24 - reference replacement invalidates approval
+#16 3.748   ---
+#16 3.748   duration_ms: 4.19103
+#16 3.748   type: 'test'
+#16 3.748   location: '/app/dist/tests/core.test.js:36:1'
+#16 3.748   failureType: 'testCodeFailure'
+#16 3.748   error: 'invalid_image'
+#16 3.748   code: 'invalid_image'
+#16 3.748   name: 'AppError'
+#16 3.748   stack: |-
+#16 3.748     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 3.748     async normalize (file:///app/dist/server/images.js:36:16)
+#16 3.748     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 3.748     async TestContext.<anonymous> (file:///app/dist/tests/core.test.js:36:77)
+#16 3.748     async Test.run (node:internal/test_runner/test:1054:7)
+#16 3.748     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 3.748   ...
+#16 3.752 # Subtest: action-specific floor overrides lower rule threshold
+#16 3.752 not ok 25 - action-specific floor overrides lower rule threshold
+#16 3.752   ---
+#16 3.752   duration_ms: 4.156752
+#16 3.752   type: 'test'
+#16 3.752   location: '/app/dist/tests/core.test.js:37:1'
+#16 3.752   failureType: 'testCodeFailure'
+#16 3.752   error: 'invalid_image'
+#16 3.752   code: 'invalid_image'
+#16 3.752   name: 'AppError'
+#16 3.752   stack: |-
+#16 3.752     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 3.752     async normalize (file:///app/dist/server/images.js:36:16)
+#16 3.752     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 3.752     async TestContext.<anonymous> (file:///app/dist/tests/core.test.js:37:87)
+#16 3.752     async Test.run (node:internal/test_runner/test:1054:7)
+#16 3.752     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 3.752   ...
+#16 3.757 # Subtest: confident negative produces no match
+#16 3.757 not ok 26 - confident negative produces no match
+#16 3.757   ---
+#16 3.757   duration_ms: 4.51129
+#16 3.757   type: 'test'
+#16 3.757   location: '/app/dist/tests/core.test.js:38:1'
+#16 3.757   failureType: 'testCodeFailure'
+#16 3.757   error: 'invalid_image'
+#16 3.757   code: 'invalid_image'
+#16 3.757   name: 'AppError'
+#16 3.757   stack: |-
+#16 3.757     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 3.757     async normalize (file:///app/dist/server/images.js:36:16)
+#16 3.757     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 3.757     async TestContext.<anonymous> (file:///app/dist/tests/core.test.js:38:71)
+#16 3.757     async Test.run (node:internal/test_runner/test:1054:7)
+#16 3.757     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 3.757   ...
+#16 3.761 # Subtest: uncertain result can be explicitly ignored
+#16 3.761 not ok 27 - uncertain result can be explicitly ignored
+#16 3.761   ---
+#16 3.761   duration_ms: 4.057409
+#16 3.761   type: 'test'
+#16 3.761   location: '/app/dist/tests/core.test.js:39:1'
+#16 3.761   failureType: 'testCodeFailure'
+#16 3.761   error: 'invalid_image'
+#16 3.761   code: 'invalid_image'
+#16 3.761   name: 'AppError'
+#16 3.761   stack: |-
+#16 3.761     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 3.761     async normalize (file:///app/dist/server/images.js:36:16)
+#16 3.761     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 3.761     async TestContext.<anonymous> (file:///app/dist/tests/core.test.js:39:77)
+#16 3.761     async Test.run (node:internal/test_runner/test:1054:7)
+#16 3.761     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 3.761   ...
+#16 3.765 # Subtest: kick/ban require a completed second check
+#16 3.765 not ok 28 - kick/ban require a completed second check
+#16 3.765   ---
+#16 3.765   duration_ms: 3.992104
+#16 3.765   type: 'test'
+#16 3.765   location: '/app/dist/tests/core.test.js:40:1'
+#16 3.765   failureType: 'testCodeFailure'
+#16 3.765   error: 'invalid_image'
+#16 3.765   code: 'invalid_image'
+#16 3.765   name: 'AppError'
+#16 3.765   stack: |-
+#16 3.765     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 3.765     async normalize (file:///app/dist/server/images.js:36:16)
+#16 3.765     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 3.765     async TestContext.<anonymous> (file:///app/dist/tests/core.test.js:40:76)
+#16 3.765     async Test.run (node:internal/test_runner/test:1054:7)
+#16 3.765     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 3.765   ...
+#16 3.769 # Subtest: high impact setting blocks kick/ban independently
+#16 3.770 not ok 29 - high impact setting blocks kick/ban independently
+#16 3.770   ---
+#16 3.770   duration_ms: 4.704202
+#16 3.770   type: 'test'
+#16 3.770   location: '/app/dist/tests/core.test.js:41:1'
+#16 3.770   failureType: 'testCodeFailure'
+#16 3.770   error: 'invalid_image'
+#16 3.770   code: 'invalid_image'
+#16 3.770   name: 'AppError'
+#16 3.770   stack: |-
+#16 3.770     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 3.770     async normalize (file:///app/dist/server/images.js:36:16)
+#16 3.770     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 3.770     async TestContext.<anonymous> (file:///app/dist/tests/core.test.js:41:84)
+#16 3.770     async Test.run (node:internal/test_runner/test:1054:7)
+#16 3.770     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 3.770   ...
+#16 3.774 # Subtest: semantic mode stays review-only even with approval
+#16 3.774 not ok 30 - semantic mode stays review-only even with approval
+#16 3.774   ---
+#16 3.774   duration_ms: 4.769822
+#16 3.774   type: 'test'
+#16 3.774   location: '/app/dist/tests/core.test.js:42:1'
+#16 3.774   failureType: 'testCodeFailure'
+#16 3.774   error: 'invalid_image'
+#16 3.774   code: 'invalid_image'
+#16 3.774   name: 'AppError'
+#16 3.774   stack: |-
+#16 3.774     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 3.774     async normalize (file:///app/dist/server/images.js:36:16)
+#16 3.774     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 3.774     async TestContext.<anonymous> (file:///app/dist/tests/core.test.js:42:85)
+#16 3.774     async Test.run (node:internal/test_runner/test:1054:7)
+#16 3.774     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 3.774   ...
+#16 3.778 # Subtest: any-image mode remains disabled by default
+#16 3.778 not ok 31 - any-image mode remains disabled by default
+#16 3.778   ---
+#16 3.778   duration_ms: 3.695016
+#16 3.778   type: 'test'
+#16 3.778   location: '/app/dist/tests/core.test.js:43:1'
+#16 3.778   failureType: 'testCodeFailure'
+#16 3.778   error: 'invalid_image'
+#16 3.778   code: 'invalid_image'
+#16 3.778   name: 'AppError'
+#16 3.778   stack: |-
+#16 3.778     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 3.778     async normalize (file:///app/dist/server/images.js:36:16)
+#16 3.778     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 3.778     async TestContext.<anonymous> (file:///app/dist/tests/core.test.js:43:77)
+#16 3.778     async Test.run (node:internal/test_runner/test:1054:7)
+#16 3.778     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 3.778   ...
+#16 3.783 # Subtest: individual rule precedes global rule at equal priority
+#16 3.783 not ok 32 - individual rule precedes global rule at equal priority
+#16 3.783   ---
+#16 3.783   duration_ms: 4.53338
+#16 3.783   type: 'test'
+#16 3.783   location: '/app/dist/tests/core.test.js:44:1'
+#16 3.783   failureType: 'testCodeFailure'
+#16 3.783   error: 'invalid_image'
+#16 3.783   code: 'invalid_image'
+#16 3.783   name: 'AppError'
+#16 3.783   stack: |-
+#16 3.783     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 3.783     async normalize (file:///app/dist/server/images.js:36:16)
+#16 3.783     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 3.783     async TestContext.<anonymous> (file:///app/dist/tests/core.test.js:44:89)
+#16 3.783     async Test.run (node:internal/test_runner/test:1054:7)
+#16 3.783     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 3.783   ...
+#16 3.787 # Subtest: explicit numeric priority overrides default precedence
+#16 3.787 not ok 33 - explicit numeric priority overrides default precedence
+#16 3.787   ---
+#16 3.787   duration_ms: 4.490947
+#16 3.787   type: 'test'
+#16 3.787   location: '/app/dist/tests/core.test.js:45:1'
+#16 3.787   failureType: 'testCodeFailure'
+#16 3.787   error: 'invalid_image'
+#16 3.787   code: 'invalid_image'
+#16 3.787   name: 'AppError'
+#16 3.787   stack: |-
+#16 3.787     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 3.787     async normalize (file:///app/dist/server/images.js:36:16)
+#16 3.787     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 3.787     async TestContext.<anonymous> (file:///app/dist/tests/core.test.js:45:89)
+#16 3.787     async Test.run (node:internal/test_runner/test:1054:7)
+#16 3.787     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 3.787   ...
+#16 3.792 # Subtest: several images still resolve a single effective rule
+#16 3.792 not ok 34 - several images still resolve a single effective rule
+#16 3.792   ---
+#16 3.792   duration_ms: 4.83087
+#16 3.792   type: 'test'
+#16 3.792   location: '/app/dist/tests/core.test.js:46:1'
+#16 3.792   failureType: 'testCodeFailure'
+#16 3.792   error: 'invalid_image'
+#16 3.792   code: 'invalid_image'
+#16 3.792   name: 'AppError'
+#16 3.792   stack: |-
+#16 3.792     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 3.792     async normalize (file:///app/dist/server/images.js:36:16)
+#16 3.792     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 3.792     async TestContext.<anonymous> (file:///app/dist/tests/core.test.js:46:87)
+#16 3.792     async Test.run (node:internal/test_runner/test:1054:7)
+#16 3.792     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 3.792   ...
+#16 3.813 # Subtest: fingerprint is independent of stored approval and timestamps
+#16 3.813 not ok 35 - fingerprint is independent of stored approval and timestamps
+#16 3.813   ---
+#16 3.813   duration_ms: 4.689945
+#16 3.813   type: 'test'
+#16 3.813   location: '/app/dist/tests/core.test.js:47:1'
+#16 3.813   failureType: 'testCodeFailure'
+#16 3.813   error: 'invalid_image'
+#16 3.813   code: 'invalid_image'
+#16 3.813   name: 'AppError'
+#16 3.813   stack: |-
+#16 3.813     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 3.813     async normalize (file:///app/dist/server/images.js:36:16)
+#16 3.813     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 3.813     async TestContext.<anonymous> (file:///app/dist/tests/core.test.js:47:95)
+#16 3.813     async Test.run (node:internal/test_runner/test:1054:7)
+#16 3.813     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 3.813   ...
+#16 3.815 # Subtest: Jev parser rejects invalid probability NaN
+#16 3.815 ok 36 - Jev parser rejects invalid probability NaN
+#16 3.815   ---
+#16 3.815   duration_ms: 0.424415
+#16 3.815   type: 'test'
+#16 3.815   ...
+#16 3.815 # Subtest: Jev parser rejects invalid probability Infinity
+#16 3.815 ok 37 - Jev parser rejects invalid probability Infinity
+#16 3.815   ---
+#16 3.815   duration_ms: 0.061556
+#16 3.815   type: 'test'
+#16 3.815   ...
+#16 3.815 # Subtest: Jev parser rejects invalid probability -1
+#16 3.816 ok 38 - Jev parser rejects invalid probability -1
+#16 3.816   ---
+#16 3.816   duration_ms: 0.040463
+#16 3.816   type: 'test'
+#16 3.816   ...
+#16 3.816 # Subtest: Jev parser rejects invalid probability 1.01
+#16 3.816 ok 39 - Jev parser rejects invalid probability 1.01
+#16 3.816   ---
+#16 3.816   duration_ms: 0.040831
+#16 3.816   type: 'test'
+#16 3.816   ...
+#16 3.816 # Subtest: Jev parser rejects invalid probability 0.99
+#16 3.816 ok 40 - Jev parser rejects invalid probability 0.99
+#16 3.816   ---
+#16 3.816   duration_ms: 0.033768
+#16 3.816   type: 'test'
+#16 3.816   ...
+#16 3.816 # Subtest: Jev parser rejects invalid probability null
+#16 3.816 ok 41 - Jev parser rejects invalid probability null
+#16 3.817   ---
+#16 3.817   duration_ms: 0.030345
+#16 3.817   type: 'test'
+#16 3.817   ...
+#16 3.817 # Subtest: Jev parser rejects model drift
+#16 3.817 ok 42 - Jev parser rejects model drift
+#16 3.817   ---
+#16 3.817   duration_ms: 0.063864
+#16 3.817   type: 'test'
+#16 3.817   ...
+#16 3.817 # Subtest: Jev parser reads official noul field, not free-form text
+#16 3.817 ok 43 - Jev parser reads official noul field, not free-form text
+#16 3.818   ---
+#16 3.818   duration_ms: 0.055024
+#16 3.818   type: 'test'
+#16 3.818   ...
+#16 3.818 # Subtest: multipart request references both images exactly once in state
+#16 3.818 ok 44 - multipart request references both images exactly once in state
+#16 3.818   ---
+#16 3.818   duration_ms: 11.74221
+#16 3.818   type: 'test'
+#16 3.818   ...
+#16 3.818 # Subtest: Jev calls include image header and honor Retry-After with a new budget reservation
+#16 3.818 ok 45 - Jev calls include image header and honor Retry-After with a new budget reservation
+#16 3.818   ---
+#16 3.818   duration_ms: 3.279235
+#16 3.818   type: 'test'
+#16 3.818   ...
+#16 3.818 # Subtest: Discord permission overwrite combines role allows after denies
+#16 3.819 ok 46 - Discord permission overwrite combines role allows after denies
+#16 3.819   ---
+#16 3.819   duration_ms: 0.315224
+#16 3.819   type: 'test'
+#16 3.819   ...
+#16 3.819 # Subtest: member-specific deny takes precedence over role allow
+#16 3.819 ok 47 - member-specific deny takes precedence over role allow
+#16 3.820   ---
+#16 3.820   duration_ms: 0.093125
+#16 3.820   type: 'test'
+#16 3.820   ...
+#16 3.820 # Subtest: message parser does not persist message text
+#16 3.820 ok 48 - message parser does not persist message text
+#16 3.820   ---
+#16 3.820   duration_ms: 0.148452
+#16 3.820   type: 'test'
+#16 3.820   ...
+#16 3.893 # Subtest: Discord 204 mutation is a successful empty response
+#16 3.893 ok 49 - Discord 204 mutation is a successful empty response
+#16 3.894   ---
+#16 3.894   duration_ms: 78.807292
+#16 3.894   type: 'test'
+#16 3.894   ...
+#16 3.894 # Subtest: production rejects HTTP origin
+#16 3.894 ok 50 - production rejects HTTP origin
+#16 3.894   ---
+#16 3.894   duration_ms: 0.343011
+#16 3.894   type: 'test'
+#16 3.894   ...
+#16 3.958 # Subtest: Gateway HELLO identifies with only image-message-relevant intents
+#16 3.958 ok 51 - Gateway HELLO identifies with only image-message-relevant intents
+#16 3.958   ---
+#16 3.958   duration_ms: 20.061229
+#16 3.958   type: 'test'
+#16 3.958   ...
+#16 3.970 # Subtest: Gateway READY reports online and server heartbeat carries last sequence
+#16 3.970 ok 52 - Gateway READY reports online and server heartbeat carries last sequence
+#16 3.970   ---
+#16 3.970   duration_ms: 11.627721
+#16 3.970   type: 'test'
+#16 3.970   ...
+#16 3.981 # Subtest: Gateway ignores text-only messages without passing content to ingestion
+#16 3.981 ok 53 - Gateway ignores text-only messages without passing content to ingestion
+#16 3.981   ---
+#16 3.981   duration_ms: 11.878225
+#16 3.981   type: 'test'
+#16 3.981   ...
+#16 3.992 # Subtest: Gateway retains image metadata but discards message text
+#16 3.992 ok 54 - Gateway retains image metadata but discards message text
+#16 3.992   ---
+#16 3.992   duration_ms: 10.990849
+#16 3.992   type: 'test'
+#16 3.992   ...
+#16 4.091 # Subtest: HTTP health is public but exposes no credentials
+#16 4.091 not ok 55 - HTTP health is public but exposes no credentials
+#16 4.091   ---
+#16 4.091   duration_ms: 47.051965
+#16 4.091   type: 'test'
+#16 4.091   location: '/app/dist/tests/http.test.js:34:1'
+#16 4.091   failureType: 'testCodeFailure'
+#16 4.091   error: 'invalid_image'
+#16 4.091   code: 'invalid_image'
+#16 4.091   name: 'AppError'
+#16 4.091   stack: |-
+#16 4.091     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.091     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.091     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.091     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.091     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:34:83)
+#16 4.091     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.091     async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+#16 4.091   ...
+#16 4.097 # Subtest: HTTP unauthenticated guild request is denied
+#16 4.097 not ok 56 - HTTP unauthenticated guild request is denied
+#16 4.097   ---
+#16 4.097   duration_ms: 4.986352
+#16 4.097   type: 'test'
+#16 4.097   location: '/app/dist/tests/http.test.js:35:1'
+#16 4.097   failureType: 'testCodeFailure'
+#16 4.097   error: 'invalid_image'
+#16 4.097   code: 'invalid_image'
+#16 4.097   name: 'AppError'
+#16 4.097   stack: |-
+#16 4.097     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.097     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.097     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.097     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.097     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:35:79)
+#16 4.097     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.097     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.097   ...
+#16 4.102 # Subtest: HTTP rejects a mutation from an untrusted origin
+#16 4.102 not ok 57 - HTTP rejects a mutation from an untrusted origin
+#16 4.102   ---
+#16 4.102   duration_ms: 5.191181
+#16 4.102   type: 'test'
+#16 4.102   location: '/app/dist/tests/http.test.js:36:1'
+#16 4.102   failureType: 'testCodeFailure'
+#16 4.102   error: 'invalid_image'
+#16 4.102   code: 'invalid_image'
+#16 4.102   name: 'AppError'
+#16 4.102   stack: |-
+#16 4.102     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.102     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.102     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.102     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.102     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:36:83)
+#16 4.102     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.102     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.102   ...
+#16 4.106 # Subtest: HTTP mutation without Origin is denied
+#16 4.106 not ok 58 - HTTP mutation without Origin is denied
+#16 4.107   ---
+#16 4.107   duration_ms: 4.739076
+#16 4.107   type: 'test'
+#16 4.107   location: '/app/dist/tests/http.test.js:37:1'
+#16 4.107   failureType: 'testCodeFailure'
+#16 4.107   error: 'invalid_image'
+#16 4.107   code: 'invalid_image'
+#16 4.107   name: 'AppError'
+#16 4.107   stack: |-
+#16 4.107     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.107     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.107     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.107     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.107     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:37:73)
+#16 4.107     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.107     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.107   ...
+#16 4.111 # Subtest: HTTP accepts the exact Discord proxy origin
+#16 4.111 not ok 59 - HTTP accepts the exact Discord proxy origin
+#16 4.111   ---
+#16 4.111   duration_ms: 4.64906
+#16 4.111   type: 'test'
+#16 4.111   location: '/app/dist/tests/http.test.js:38:1'
+#16 4.111   failureType: 'testCodeFailure'
+#16 4.111   error: 'invalid_image'
+#16 4.111   code: 'invalid_image'
+#16 4.111   name: 'AppError'
+#16 4.111   stack: |-
+#16 4.111     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.111     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.111     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.111     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.111     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:38:78)
+#16 4.111     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.111     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.111   ...
+#16 4.115 # Subtest: OAuth nonce is one-use
+#16 4.115 not ok 60 - OAuth nonce is one-use
+#16 4.115   ---
+#16 4.115   duration_ms: 4.115942
+#16 4.115   type: 'test'
+#16 4.115   location: '/app/dist/tests/http.test.js:39:1'
+#16 4.115   failureType: 'testCodeFailure'
+#16 4.115   error: 'invalid_image'
+#16 4.115   code: 'invalid_image'
+#16 4.115   name: 'AppError'
+#16 4.115   stack: |-
+#16 4.115     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.115     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.115     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.115     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.115     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:39:57)
+#16 4.115     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.115     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.115   ...
+#16 4.119 # Subtest: Discord administrator receives a usable management session
+#16 4.119 not ok 61 - Discord administrator receives a usable management session
+#16 4.119   ---
+#16 4.119   duration_ms: 3.670229
+#16 4.119   type: 'test'
+#16 4.119   location: '/app/dist/tests/http.test.js:40:1'
+#16 4.119   failureType: 'testCodeFailure'
+#16 4.119   error: 'invalid_image'
+#16 4.119   code: 'invalid_image'
+#16 4.119   name: 'AppError'
+#16 4.119   stack: |-
+#16 4.119     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.119     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.119     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.119     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.119     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:40:93)
+#16 4.119     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.119     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.119   ...
+#16 4.123 # Subtest: ungranted moderator cannot get a session
+#16 4.123 not ok 62 - ungranted moderator cannot get a session
+#16 4.123   ---
+#16 4.123   duration_ms: 4.048276
+#16 4.123   type: 'test'
+#16 4.123   location: '/app/dist/tests/http.test.js:41:1'
+#16 4.123   failureType: 'testCodeFailure'
+#16 4.123   error: 'invalid_image'
+#16 4.123   code: 'invalid_image'
+#16 4.123   name: 'AppError'
+#16 4.123   stack: |-
+#16 4.123     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.123     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.123     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.123     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.123     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:41:75)
+#16 4.123     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.123     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.123   ...
+#16 4.128 # Subtest: cross-server API access is denied for a valid session
+#16 4.128 not ok 63 - cross-server API access is denied for a valid session
+#16 4.128   ---
+#16 4.128   duration_ms: 4.52492
+#16 4.128   type: 'test'
+#16 4.128   location: '/app/dist/tests/http.test.js:42:1'
+#16 4.128   failureType: 'testCodeFailure'
+#16 4.128   error: 'invalid_image'
+#16 4.128   code: 'invalid_image'
+#16 4.128   name: 'AppError'
+#16 4.128   stack: |-
+#16 4.128     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.128     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.128     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.128     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.128     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:42:88)
+#16 4.128     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.128     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.128   ...
+#16 4.132 # Subtest: revoked role membership invalidates write authority on next request
+#16 4.132 not ok 64 - revoked role membership invalidates write authority on next request
+#16 4.132   ---
+#16 4.132   duration_ms: 4.168701
+#16 4.132   type: 'test'
+#16 4.132   location: '/app/dist/tests/http.test.js:43:1'
+#16 4.132   failureType: 'testCodeFailure'
+#16 4.132   error: 'invalid_image'
+#16 4.132   code: 'invalid_image'
+#16 4.132   name: 'AppError'
+#16 4.132   stack: |-
+#16 4.132     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.132     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.132     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.132     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.132     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:43:102)
+#16 4.132     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.132     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.132   ...
+#16 4.136 # Subtest: member removed from guild cannot reuse the old session
+#16 4.137 not ok 65 - member removed from guild cannot reuse the old session
+#16 4.137   ---
+#16 4.137   duration_ms: 4.230474
+#16 4.137   type: 'test'
+#16 4.137   location: '/app/dist/tests/http.test.js:44:1'
+#16 4.137   failureType: 'testCodeFailure'
+#16 4.137   error: 'invalid_image'
+#16 4.137   code: 'invalid_image'
+#16 4.137   name: 'AppError'
+#16 4.137   stack: |-
+#16 4.137     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.137     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.137     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.137     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.137     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:44:89)
+#16 4.137     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.137     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.137   ...
+#16 4.140 # Subtest: logout removes the opaque session
+#16 4.140 not ok 66 - logout removes the opaque session
+#16 4.141   ---
+#16 4.141   duration_ms: 4.022275
+#16 4.141   type: 'test'
+#16 4.141   location: '/app/dist/tests/http.test.js:45:1'
+#16 4.141   failureType: 'testCodeFailure'
+#16 4.141   error: 'invalid_image'
+#16 4.141   code: 'invalid_image'
+#16 4.141   name: 'AppError'
+#16 4.141   stack: |-
+#16 4.141     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.141     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.141     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.141     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.141     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:45:68)
+#16 4.141     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.141     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.141   ...
+#16 4.144 # Subtest: expired opaque session cannot authorize a request
+#16 4.144 not ok 67 - expired opaque session cannot authorize a request
+#16 4.144   ---
+#16 4.144   duration_ms: 3.88288
+#16 4.144   type: 'test'
+#16 4.144   location: '/app/dist/tests/http.test.js:46:1'
+#16 4.144   failureType: 'testCodeFailure'
+#16 4.144   error: 'invalid_image'
+#16 4.144   code: 'invalid_image'
+#16 4.144   name: 'AppError'
+#16 4.144   stack: |-
+#16 4.144     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.144     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.144     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.144     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.144     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:46:84)
+#16 4.144     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.144     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.144   ...
+#16 4.148 # Subtest: API credential status never contains plaintext or encrypted envelope
+#16 4.148 not ok 68 - API credential status never contains plaintext or encrypted envelope
+#16 4.148   ---
+#16 4.148   duration_ms: 3.677411
+#16 4.148   type: 'test'
+#16 4.148   location: '/app/dist/tests/http.test.js:47:1'
+#16 4.148   failureType: 'testCodeFailure'
+#16 4.148   error: 'invalid_image'
+#16 4.148   code: 'invalid_image'
+#16 4.148   name: 'AppError'
+#16 4.148   stack: |-
+#16 4.148     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.148     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.148     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.148     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.148     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:47:103)
+#16 4.148     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.148     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.148   ...
+#16 4.154 # Subtest: moderator cannot read credential management endpoint
+#16 4.154 not ok 69 - moderator cannot read credential management endpoint
+#16 4.154   ---
+#16 4.154   duration_ms: 5.630655
+#16 4.154   type: 'test'
+#16 4.154   location: '/app/dist/tests/http.test.js:48:1'
+#16 4.154   failureType: 'testCodeFailure'
+#16 4.154   error: 'invalid_image'
+#16 4.154   code: 'invalid_image'
+#16 4.154   name: 'AppError'
+#16 4.154   stack: |-
+#16 4.154     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.154     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.154     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.154     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.154     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:48:87)
+#16 4.154     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.154     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.154   ...
+#16 4.158 # Subtest: moderator cannot overwrite credentials through direct API call
+#16 4.158 not ok 70 - moderator cannot overwrite credentials through direct API call
+#16 4.158   ---
+#16 4.158   duration_ms: 4.148259
+#16 4.158   type: 'test'
+#16 4.158   location: '/app/dist/tests/http.test.js:49:1'
+#16 4.158   failureType: 'testCodeFailure'
+#16 4.158   error: 'invalid_image'
+#16 4.158   code: 'invalid_image'
+#16 4.158   name: 'AppError'
+#16 4.158   stack: |-
+#16 4.158     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.158     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.158     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.158     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.158     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:49:97)
+#16 4.158     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.158     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.158   ...
+#16 4.163 # Subtest: valid credential replacement rotates encrypted data without restart
+#16 4.163 not ok 71 - valid credential replacement rotates encrypted data without restart
+#16 4.163   ---
+#16 4.163   duration_ms: 4.5833
+#16 4.163   type: 'test'
+#16 4.163   location: '/app/dist/tests/http.test.js:50:1'
+#16 4.163   failureType: 'testCodeFailure'
+#16 4.163   error: 'invalid_image'
+#16 4.163   code: 'invalid_image'
+#16 4.163   name: 'AppError'
+#16 4.163   stack: |-
+#16 4.163     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.163     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.163     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.163     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.163     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:50:102)
+#16 4.163     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.163     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.163   ...
+#16 4.167 # Subtest: invalid replacement leaves the original working credential unchanged
+#16 4.167 not ok 72 - invalid replacement leaves the original working credential unchanged
+#16 4.167   ---
+#16 4.167   duration_ms: 4.165289
+#16 4.167   type: 'test'
+#16 4.167   location: '/app/dist/tests/http.test.js:51:1'
+#16 4.167   failureType: 'testCodeFailure'
+#16 4.167   error: 'invalid_image'
+#16 4.167   code: 'invalid_image'
+#16 4.167   name: 'AppError'
+#16 4.167   stack: |-
+#16 4.167     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.167     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.167     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.167     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.167     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:51:103)
+#16 4.167     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.167     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.167   ...
+#16 4.171 # Subtest: credential removal is revision-checked
+#16 4.171 not ok 73 - credential removal is revision-checked
+#16 4.171   ---
+#16 4.171   duration_ms: 4.363618
+#16 4.171   type: 'test'
+#16 4.171   location: '/app/dist/tests/http.test.js:52:1'
+#16 4.171   failureType: 'testCodeFailure'
+#16 4.171   error: 'invalid_image'
+#16 4.171   code: 'invalid_image'
+#16 4.171   name: 'AppError'
+#16 4.171   stack: |-
+#16 4.171     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.171     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.171     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.171     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.171     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:52:73)
+#16 4.171     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.171     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.171   ...
+#16 4.175 # Subtest: credential values are absent from audit records
+#16 4.175 not ok 74 - credential values are absent from audit records
+#16 4.175   ---
+#16 4.175   duration_ms: 3.924514
+#16 4.175   type: 'test'
+#16 4.175   location: '/app/dist/tests/http.test.js:53:1'
+#16 4.175   failureType: 'testCodeFailure'
+#16 4.175   error: 'invalid_image'
+#16 4.175   code: 'invalid_image'
+#16 4.175   name: 'AppError'
+#16 4.175   stack: |-
+#16 4.175     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.175     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.175     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.175     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.175     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:53:82)
+#16 4.175     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.175     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.175   ...
+#16 4.180 # Subtest: unknown frontend admin claim is rejected by settings schema
+#16 4.180 not ok 75 - unknown frontend admin claim is rejected by settings schema
+#16 4.180   ---
+#16 4.180   duration_ms: 4.865871
+#16 4.180   type: 'test'
+#16 4.180   location: '/app/dist/tests/http.test.js:54:1'
+#16 4.180   failureType: 'testCodeFailure'
+#16 4.180   error: 'invalid_image'
+#16 4.180   code: 'invalid_image'
+#16 4.180   name: 'AppError'
+#16 4.180   stack: |-
+#16 4.180     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.180     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.180     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.180     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.180     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:54:94)
+#16 4.180     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.180     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.180   ...
+#16 4.185 # Subtest: enabling enforcement requires explicit acknowledgement and selected channels
+#16 4.185 not ok 76 - enabling enforcement requires explicit acknowledgement and selected channels
+#16 4.185   ---
+#16 4.185   duration_ms: 4.445866
+#16 4.185   type: 'test'
+#16 4.185   location: '/app/dist/tests/http.test.js:55:1'
+#16 4.185   failureType: 'testCodeFailure'
+#16 4.185   error: 'invalid_image'
+#16 4.185   code: 'invalid_image'
+#16 4.185   name: 'AppError'
+#16 4.185   stack: |-
+#16 4.185     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.185     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.185     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.185     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.185     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:55:111)
+#16 4.185     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.185     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.185   ...
+#16 4.189 # Subtest: settings use optimistic revisions, preventing lost updates
+#16 4.189 not ok 77 - settings use optimistic revisions, preventing lost updates
+#16 4.189   ---
+#16 4.189   duration_ms: 3.983693
+#16 4.189   type: 'test'
+#16 4.189   location: '/app/dist/tests/http.test.js:56:1'
+#16 4.189   failureType: 'testCodeFailure'
+#16 4.189   error: 'invalid_image'
+#16 4.189   code: 'invalid_image'
+#16 4.189   name: 'AppError'
+#16 4.189   stack: |-
+#16 4.189     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.189     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.189     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.189     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.189     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:56:93)
+#16 4.189     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.189     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.189   ...
+#16 4.192 # Subtest: delegated pause cannot resume enforcement or modify security settings
+#16 4.192 not ok 78 - delegated pause cannot resume enforcement or modify security settings
+#16 4.192   ---
+#16 4.192   duration_ms: 3.627041
+#16 4.192   type: 'test'
+#16 4.192   location: '/app/dist/tests/http.test.js:57:1'
+#16 4.192   failureType: 'testCodeFailure'
+#16 4.192   error: 'invalid_image'
+#16 4.192   code: 'invalid_image'
+#16 4.192   name: 'AppError'
+#16 4.192   stack: |-
+#16 4.192     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.192     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.192     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.192     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.192     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:57:104)
+#16 4.192     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.192     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.192   ...
+#16 4.196 # Subtest: image upload persists only a normalized guild-owned object
+#16 4.196 not ok 79 - image upload persists only a normalized guild-owned object
+#16 4.196   ---
+#16 4.196   duration_ms: 3.826513
+#16 4.196   type: 'test'
+#16 4.196   location: '/app/dist/tests/http.test.js:58:1'
+#16 4.196   failureType: 'testCodeFailure'
+#16 4.196   error: 'invalid_image'
+#16 4.196   code: 'invalid_image'
+#16 4.196   name: 'AppError'
+#16 4.196   stack: |-
+#16 4.196     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.196     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.196     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.196     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.196     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:58:93)
+#16 4.196     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.196     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.196   ...
+#16 4.199 # Subtest: image library is isolated when a foreign image ID is requested
+#16 4.200 not ok 80 - image library is isolated when a foreign image ID is requested
+#16 4.200   ---
+#16 4.200   duration_ms: 3.422564
+#16 4.200   type: 'test'
+#16 4.200   location: '/app/dist/tests/http.test.js:59:1'
+#16 4.200   failureType: 'testCodeFailure'
+#16 4.200   error: 'invalid_image'
+#16 4.200   code: 'invalid_image'
+#16 4.200   name: 'AppError'
+#16 4.200   stack: |-
+#16 4.200     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.200     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.200     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.200     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.200     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:59:97)
+#16 4.200     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.200     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.200   ...
+#16 4.204 # Subtest: image metadata edits retain stable ID and increment revision
+#16 4.204 not ok 81 - image metadata edits retain stable ID and increment revision
+#16 4.204   ---
+#16 4.204   duration_ms: 3.973476
+#16 4.204   type: 'test'
+#16 4.204   location: '/app/dist/tests/http.test.js:60:1'
+#16 4.204   failureType: 'testCodeFailure'
+#16 4.204   error: 'invalid_image'
+#16 4.204   code: 'invalid_image'
+#16 4.204   name: 'AppError'
+#16 4.204   stack: |-
+#16 4.204     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.204     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.204     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.204     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.204     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:60:95)
+#16 4.204     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.204     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.204   ...
+#16 4.208 # Subtest: individual referenced image cannot be deleted until its rule is removed
+#16 4.208 not ok 82 - individual referenced image cannot be deleted until its rule is removed
+#16 4.208   ---
+#16 4.208   duration_ms: 3.978761
+#16 4.208   type: 'test'
+#16 4.208   location: '/app/dist/tests/http.test.js:61:1'
+#16 4.208   failureType: 'testCodeFailure'
+#16 4.208   error: 'invalid_image'
+#16 4.208   code: 'invalid_image'
+#16 4.208   name: 'AppError'
+#16 4.208   stack: |-
+#16 4.208     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.208     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.208     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.208     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.208     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:61:106)
+#16 4.208     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.208     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.208   ...
+#16 4.211 # Subtest: image-only moderator cannot change sanctions through the rule API
+#16 4.211 not ok 83 - image-only moderator cannot change sanctions through the rule API
+#16 4.211   ---
+#16 4.211   duration_ms: 3.844887
+#16 4.211   type: 'test'
+#16 4.211   location: '/app/dist/tests/http.test.js:62:1'
+#16 4.211   failureType: 'testCodeFailure'
+#16 4.211   error: 'invalid_image'
+#16 4.211   code: 'invalid_image'
+#16 4.211   name: 'AppError'
+#16 4.211   stack: |-
+#16 4.211     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.211     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.211     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.211     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.211     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:62:100)
+#16 4.211     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.211     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.211   ...
+#16 4.215 # Subtest: rule editor cannot select a ban without ban capability
+#16 4.215 not ok 84 - rule editor cannot select a ban without ban capability
+#16 4.215   ---
+#16 4.215   duration_ms: 3.738816
+#16 4.215   type: 'test'
+#16 4.215   location: '/app/dist/tests/http.test.js:63:1'
+#16 4.215   failureType: 'testCodeFailure'
+#16 4.215   error: 'invalid_image'
+#16 4.215   code: 'invalid_image'
+#16 4.215   name: 'AppError'
+#16 4.215   stack: |-
+#16 4.215     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.215     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.215     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.215     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.215     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:63:89)
+#16 4.215     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.215     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.215   ...
+#16 4.220 # Subtest: changing any rule content clears its old approval
+#16 4.220 not ok 85 - changing any rule content clears its old approval
+#16 4.220   ---
+#16 4.220   duration_ms: 4.609074
+#16 4.220   type: 'test'
+#16 4.220   location: '/app/dist/tests/http.test.js:64:1'
+#16 4.220   failureType: 'testCodeFailure'
+#16 4.220   error: 'invalid_image'
+#16 4.220   code: 'invalid_image'
+#16 4.220   name: 'AppError'
+#16 4.220   stack: |-
+#16 4.220     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.220     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.220     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.220     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.220     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:64:84)
+#16 4.220     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.220     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.220   ...
+#16 4.223 # Subtest: direct test API cannot execute moderation actions
+#16 4.223 not ok 86 - direct test API cannot execute moderation actions
+#16 4.223   ---
+#16 4.223   duration_ms: 3.370269
+#16 4.223   type: 'test'
+#16 4.223   location: '/app/dist/tests/http.test.js:65:1'
+#16 4.223   failureType: 'testCodeFailure'
+#16 4.223   error: 'invalid_image'
+#16 4.223   code: 'invalid_image'
+#16 4.223   name: 'AppError'
+#16 4.223   stack: |-
+#16 4.223     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.223     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.223     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.223     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.223     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:65:84)
+#16 4.223     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.223     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.223   ...
+#16 4.227 # Subtest: rule approval without labeled examples is rejected
+#16 4.227 not ok 87 - rule approval without labeled examples is rejected
+#16 4.227   ---
+#16 4.227   duration_ms: 3.575587
+#16 4.227   type: 'test'
+#16 4.227   location: '/app/dist/tests/http.test.js:66:1'
+#16 4.227   failureType: 'testCodeFailure'
+#16 4.227   error: 'invalid_image'
+#16 4.227   code: 'invalid_image'
+#16 4.227   name: 'AppError'
+#16 4.227   stack: |-
+#16 4.227     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.227     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.227     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.227     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.227     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:66:85)
+#16 4.227     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.227     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.227   ...
+#16 4.231 # Subtest: conflicting labels for the same sample cannot satisfy calibration
+#16 4.231 not ok 88 - conflicting labels for the same sample cannot satisfy calibration
+#16 4.231   ---
+#16 4.231   duration_ms: 3.607622
+#16 4.231   type: 'test'
+#16 4.231   location: '/app/dist/tests/http.test.js:67:1'
+#16 4.231   failureType: 'testCodeFailure'
+#16 4.231   error: 'invalid_image'
+#16 4.231   code: 'invalid_image'
+#16 4.231   name: 'AppError'
+#16 4.231   stack: |-
+#16 4.231     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.231     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.231     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.231     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.231     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:68:15)
+#16 4.231     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.231     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.231   ...
+#16 4.234 # Subtest: a false-positive calibration result blocks approval
+#16 4.234 not ok 89 - a false-positive calibration result blocks approval
+#16 4.234   ---
+#16 4.234   duration_ms: 3.563908
+#16 4.234   type: 'test'
+#16 4.234   location: '/app/dist/tests/http.test.js:78:1'
+#16 4.234   failureType: 'testCodeFailure'
+#16 4.234   error: 'invalid_image'
+#16 4.234   code: 'invalid_image'
+#16 4.234   name: 'AppError'
+#16 4.234   stack: |-
+#16 4.234     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.234     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.234     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.234     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.234     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:79:15)
+#16 4.234     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.234     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.234   ...
+#16 4.237 # Subtest: false positive annotation disables the associated rule and clears approval
+#16 4.237 not ok 90 - false positive annotation disables the associated rule and clears approval
+#16 4.237   ---
+#16 4.237   duration_ms: 3.278087
+#16 4.237   type: 'test'
+#16 4.237   location: '/app/dist/tests/http.test.js:89:1'
+#16 4.237   failureType: 'testCodeFailure'
+#16 4.237   error: 'invalid_image'
+#16 4.237   code: 'invalid_image'
+#16 4.237   name: 'AppError'
+#16 4.237   stack: |-
+#16 4.237     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.237     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.237     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.237     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.237     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:89:109)
+#16 4.237     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.237     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.237   ...
+#16 4.241 # Subtest: moderator cannot grant themselves more capabilities
+#16 4.241 not ok 91 - moderator cannot grant themselves more capabilities
+#16 4.241   ---
+#16 4.241   duration_ms: 3.552571
+#16 4.241   type: 'test'
+#16 4.241   location: '/app/dist/tests/http.test.js:90:1'
+#16 4.241   failureType: 'testCodeFailure'
+#16 4.241   error: 'invalid_image'
+#16 4.241   code: 'invalid_image'
+#16 4.241   name: 'AppError'
+#16 4.241   stack: |-
+#16 4.241     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.241     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.241     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.241     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.241     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:90:86)
+#16 4.241     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.241     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.241   ...
+#16 4.245 # Subtest: administrator-only capabilities cannot be inserted in a role grant
+#16 4.245 not ok 92 - administrator-only capabilities cannot be inserted in a role grant
+#16 4.245   ---
+#16 4.245   duration_ms: 3.508089
+#16 4.245   type: 'test'
+#16 4.245   location: '/app/dist/tests/http.test.js:91:1'
+#16 4.245   failureType: 'testCodeFailure'
+#16 4.245   error: 'invalid_image'
+#16 4.245   code: 'invalid_image'
+#16 4.245   name: 'AppError'
+#16 4.245   stack: |-
+#16 4.245     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.245     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.245     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.245     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.245     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:91:101)
+#16 4.245     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.245     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.245   ...
+#16 4.248 # Subtest: CSV export is a separate delegated capability
+#16 4.248 not ok 93 - CSV export is a separate delegated capability
+#16 4.248   ---
+#16 4.248   duration_ms: 3.465713
+#16 4.248   type: 'test'
+#16 4.248   location: '/app/dist/tests/http.test.js:92:1'
+#16 4.248   failureType: 'testCodeFailure'
+#16 4.248   error: 'invalid_image'
+#16 4.248   code: 'invalid_image'
+#16 4.248   name: 'AppError'
+#16 4.248   stack: |-
+#16 4.248     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.248     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.248     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.248     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.248     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:92:80)
+#16 4.248     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.248     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.248   ...
+#16 4.252 # Subtest: unexpected backend errors never echo secrets
+#16 4.252 not ok 94 - unexpected backend errors never echo secrets
+#16 4.252   ---
+#16 4.252   duration_ms: 3.707127
+#16 4.252   type: 'test'
+#16 4.252   location: '/app/dist/tests/http.test.js:93:1'
+#16 4.252   failureType: 'testCodeFailure'
+#16 4.252   error: 'invalid_image'
+#16 4.252   code: 'invalid_image'
+#16 4.252   name: 'AppError'
+#16 4.252   stack: |-
+#16 4.252     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.252     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.252     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.252     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.252     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:93:79)
+#16 4.252     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.252     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.252   ...
+#16 4.255 # Subtest: durable action ledger is visible only with log permission
+#16 4.256 not ok 95 - durable action ledger is visible only with log permission
+#16 4.256   ---
+#16 4.256   duration_ms: 3.532935
+#16 4.256   type: 'test'
+#16 4.256   location: '/app/dist/tests/http.test.js:94:1'
+#16 4.256   failureType: 'testCodeFailure'
+#16 4.256   error: 'invalid_image'
+#16 4.256   code: 'invalid_image'
+#16 4.256   name: 'AppError'
+#16 4.256   stack: |-
+#16 4.256     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.256     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.256     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.256     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.256     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:94:92)
+#16 4.256     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.256     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.256   ...
+#16 4.259 # Subtest: durable action ledger cannot expose another guild records
+#16 4.259 not ok 96 - durable action ledger cannot expose another guild records
+#16 4.259   ---
+#16 4.259   duration_ms: 3.640892
+#16 4.259   type: 'test'
+#16 4.259   location: '/app/dist/tests/http.test.js:95:1'
+#16 4.259   failureType: 'testCodeFailure'
+#16 4.259   error: 'invalid_image'
+#16 4.259   code: 'invalid_image'
+#16 4.259   name: 'AppError'
+#16 4.259   stack: |-
+#16 4.259     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.259     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.259     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.259     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.259     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:95:92)
+#16 4.259     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.259     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.259   ...
+#16 4.263 # Subtest: production enforcement requires deployment acceptance even for an administrator
+#16 4.263 not ok 97 - production enforcement requires deployment acceptance even for an administrator
+#16 4.263   ---
+#16 4.263   duration_ms: 3.775304
+#16 4.263   type: 'test'
+#16 4.263   location: '/app/dist/tests/http.test.js:96:1'
+#16 4.263   failureType: 'testCodeFailure'
+#16 4.263   error: 'invalid_image'
+#16 4.263   code: 'invalid_image'
+#16 4.263   name: 'AppError'
+#16 4.263   stack: |-
+#16 4.263     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.263     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.263     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.263     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.263     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:97:15)
+#16 4.263     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.263     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.263   ...
+#16 4.266 # Subtest: readiness reports dependency failure without leaking error text
+#16 4.266 not ok 98 - readiness reports dependency failure without leaking error text
+#16 4.266   ---
+#16 4.266   duration_ms: 3.423581
+#16 4.266   type: 'test'
+#16 4.266   location: '/app/dist/tests/http.test.js:104:1'
+#16 4.266   failureType: 'testCodeFailure'
+#16 4.266   error: 'invalid_image'
+#16 4.266   code: 'invalid_image'
+#16 4.266   name: 'AppError'
+#16 4.266   stack: |-
+#16 4.266     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.266     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.266     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.266     async setup (file:///app/dist/tests/http.test.js:11:15)
+#16 4.266     async TestContext.<anonymous> (file:///app/dist/tests/http.test.js:106:15)
+#16 4.266     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.266     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.266   ...
+#16 4.353 # Subtest: small PNG becomes an upright baseline JPEG within Jev bounds
+#16 4.353 not ok 99 - small PNG becomes an upright baseline JPEG within Jev bounds
+#16 4.353   ---
+#16 4.353   duration_ms: 42.323267
+#16 4.353   type: 'test'
+#16 4.353   location: '/app/dist/tests/images.test.js:6:1'
+#16 4.353   failureType: 'testCodeFailure'
+#16 4.353   error: 'invalid_image'
+#16 4.353   code: 'invalid_image'
+#16 4.353   name: 'AppError'
+#16 4.353   stack: |-
+#16 4.353     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.353     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.353     async TestContext.<anonymous> (file:///app/dist/tests/images.test.js:6:94)
+#16 4.353     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.353     async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+#16 4.353   ...
+#16 4.355 # Subtest: malformed image is rejected
+#16 4.355 ok 100 - malformed image is rejected
+#16 4.355   ---
+#16 4.355   duration_ms: 2.401319
+#16 4.355   type: 'test'
+#16 4.355   ...
+#16 4.373 # Subtest: SVG is not accepted as a moderation image
+#16 4.373 ok 101 - SVG is not accepted as a moderation image
+#16 4.373   ---
+#16 4.373   duration_ms: 0.888372
+#16 4.373   type: 'test'
+#16 4.373   ...
+#16 4.374 # Subtest: image byte cap is enforced before decoding
+#16 4.374 ok 102 - image byte cap is enforced before decoding
+#16 4.374   ---
+#16 4.374   duration_ms: 0.368979
+#16 4.374   type: 'test'
+#16 4.374   ...
+#16 4.374 # Subtest: attachment parser accepts supported extension when MIME is missing
+#16 4.374 ok 103 - attachment parser accepts supported extension when MIME is missing
+#16 4.374   ---
+#16 4.374   duration_ms: 0.286113
+#16 4.374   type: 'test'
+#16 4.374   ...
+#16 4.374 # Subtest: text attachments are ignored
+#16 4.374 ok 104 - text attachments are ignored
+#16 4.374   ---
+#16 4.374   duration_ms: 0.137922
+#16 4.374   type: 'test'
+#16 4.374   ...
+#16 4.374 # Subtest: Discord CDN URL must match the event channel and attachment ID
+#16 4.374 ok 105 - Discord CDN URL must match the event channel and attachment ID
+#16 4.374   ---
+#16 4.374   duration_ms: 0.424567
+#16 4.374   type: 'test'
+#16 4.374   ...
+#16 4.375 # Subtest: untrusted download URL rejected: http://cdn.discordapp.com/attachments/1/2/x.png
+#16 4.375 ok 106 - untrusted download URL rejected: http://cdn.discordapp.com/attachments/1/2/x.png
+#16 4.375   ---
+#16 4.375   duration_ms: 0.107003
+#16 4.375   type: 'test'
+#16 4.375   ...
+#16 4.375 # Subtest: untrusted download URL rejected: https://127.0.0.1/x.png
+#16 4.375 ok 107 - untrusted download URL rejected: https://127.0.0.1/x.png
+#16 4.375   ---
+#16 4.375   duration_ms: 0.206639
+#16 4.375   type: 'test'
+#16 4.375   ...
+#16 4.375 # Subtest: untrusted download URL rejected: https://cdn.discordapp.com.evil.test/x.png
+#16 4.375 ok 108 - untrusted download URL rejected: https://cdn.discordapp.com.evil.test/x.png
+#16 4.375   ---
+#16 4.375   duration_ms: 0.246539
+#16 4.375   type: 'test'
+#16 4.375   ...
+#16 4.376 # Subtest: untrusted download URL rejected: file:///etc/passwd
+#16 4.376 ok 109 - untrusted download URL rejected: file:///etc/passwd
+#16 4.376   ---
+#16 4.376   duration_ms: 0.108574
+#16 4.376   type: 'test'
+#16 4.376   ...
+#16 4.376 # Subtest: untrusted download URL rejected: https://user:pass@cdn.discordapp.com/x.png
+#16 4.378 ok 110 - untrusted download URL rejected: https://user:pass@cdn.discordapp.com/x.png
+#16 4.378   ---
+#16 4.378   duration_ms: 0.069594
+#16 4.378   type: 'test'
+#16 4.378   ...
+#16 4.378 # Subtest: untrusted download URL rejected: https://cdn.discordapp.com:8443/x.png
+#16 4.378 ok 111 - untrusted download URL rejected: https://cdn.discordapp.com:8443/x.png
+#16 4.378   ---
+#16 4.378   duration_ms: 0.088553
+#16 4.378   type: 'test'
+#16 4.378   ...
+#16 4.384 # Subtest: attachment download forbids redirects and applies timeout
+#16 4.384 not ok 112 - attachment download forbids redirects and applies timeout
+#16 4.384   ---
+#16 4.384   duration_ms: 23.688177
+#16 4.384   type: 'test'
+#16 4.384   location: '/app/dist/tests/images.test.js:15:1'
+#16 4.384   failureType: 'testCodeFailure'
+#16 4.384   error: 'invalid_image'
+#16 4.384   code: 'invalid_image'
+#16 4.384   name: 'AppError'
+#16 4.384   stack: |-
+#16 4.384     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.384     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.384     async TestContext.<anonymous> (file:///app/dist/tests/images.test.js:15:148)
+#16 4.384     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.384     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.384   ...
+#16 4.384 # Subtest: streamed body cap does not trust missing Content-Length
+#16 4.384 ok 113 - streamed body cap does not trust missing Content-Length
+#16 4.384   ---
+#16 4.384   duration_ms: 0.81895
+#16 4.384   type: 'test'
+#16 4.384   ...
+#16 4.384 # Subtest: declared oversized response is rejected
+#16 4.384 ok 114 - declared oversized response is rejected
+#16 4.384   ---
+#16 4.384   duration_ms: 0.576106
+#16 4.384   type: 'test'
+#16 4.384   ...
+#16 4.389 # Subtest: object storage isolates guilds and prevents path traversal
+#16 4.389 not ok 115 - object storage isolates guilds and prevents path traversal
+#16 4.389   ---
+#16 4.389   duration_ms: 5.223151
+#16 4.389   type: 'test'
+#16 4.389   location: '/app/dist/tests/images.test.js:18:1'
+#16 4.389   failureType: 'testCodeFailure'
+#16 4.389   error: 'invalid_image'
+#16 4.389   code: 'invalid_image'
+#16 4.389   name: 'AppError'
+#16 4.389   stack: |-
+#16 4.389     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.389     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.389     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.389     async TestContext.<anonymous> (file:///app/dist/tests/images.test.js:18:93)
+#16 4.389     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.389     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.389   ...
+#16 4.391 # Subtest: normalization is deterministic for identical inputs
+#16 4.392 not ok 116 - normalization is deterministic for identical inputs
+#16 4.392   ---
+#16 4.392   duration_ms: 2.852957
+#16 4.392   type: 'test'
+#16 4.392   location: '/app/dist/tests/images.test.js:19:1'
+#16 4.392   failureType: 'testCodeFailure'
+#16 4.392   error: 'invalid_image'
+#16 4.392   code: 'invalid_image'
+#16 4.392   name: 'AppError'
+#16 4.392   stack: |-
+#16 4.392     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.392     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.392     async TestContext.<anonymous> (file:///app/dist/tests/images.test.js:19:87)
+#16 4.392     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.392     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.392   ...
+#16 4.479 # Subtest: text-only messages do not create jobs
+#16 4.479 not ok 117 - text-only messages do not create jobs
+#16 4.479   ---
+#16 4.479   duration_ms: 43.189019
+#16 4.479   type: 'test'
+#16 4.479   location: '/app/dist/tests/worker.test.js:8:1'
+#16 4.479   failureType: 'testCodeFailure'
+#16 4.479   error: 'invalid_image'
+#16 4.479   code: 'invalid_image'
+#16 4.479   name: 'AppError'
+#16 4.479   stack: |-
+#16 4.479     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.479     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.479     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.479     async TestContext.<anonymous> (file:///app/dist/tests/worker.test.js:8:72)
+#16 4.479     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.479     async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+#16 4.479   ...
+#16 4.483 # Subtest: one supported image creates a durable job
+#16 4.484 not ok 118 - one supported image creates a durable job
+#16 4.484   ---
+#16 4.484   duration_ms: 4.655703
+#16 4.484   type: 'test'
+#16 4.484   location: '/app/dist/tests/worker.test.js:9:1'
+#16 4.484   failureType: 'testCodeFailure'
+#16 4.484   error: 'invalid_image'
+#16 4.484   code: 'invalid_image'
+#16 4.484   name: 'AppError'
+#16 4.484   stack: |-
+#16 4.484     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.484     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.484     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.484     async TestContext.<anonymous> (file:///app/dist/tests/worker.test.js:9:76)
+#16 4.484     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.484     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.484   ...
+#16 4.488 # Subtest: duplicate Gateway events do not create multiple jobs
+#16 4.488 not ok 119 - duplicate Gateway events do not create multiple jobs
+#16 4.488   ---
+#16 4.488   duration_ms: 4.729564
+#16 4.488   type: 'test'
+#16 4.488   location: '/app/dist/tests/worker.test.js:10:1'
+#16 4.488   failureType: 'testCodeFailure'
+#16 4.488   error: 'invalid_image'
+#16 4.488   code: 'invalid_image'
+#16 4.488   name: 'AppError'
+#16 4.488   stack: |-
+#16 4.488     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.488     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.488     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.488     async TestContext.<anonymous> (file:///app/dist/tests/worker.test.js:10:87)
+#16 4.488     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.488     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.488   ...
+#16 4.492 # Subtest: unselected channels do not create jobs
+#16 4.492 not ok 120 - unselected channels do not create jobs
+#16 4.492   ---
+#16 4.492   duration_ms: 3.709761
+#16 4.492   type: 'test'
+#16 4.492   location: '/app/dist/tests/worker.test.js:11:1'
+#16 4.492   failureType: 'testCodeFailure'
+#16 4.492   error: 'invalid_image'
+#16 4.492   code: 'invalid_image'
+#16 4.492   name: 'AppError'
+#16 4.492   stack: |-
+#16 4.492     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.492     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.492     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.492     async TestContext.<anonymous> (file:///app/dist/tests/worker.test.js:11:73)
+#16 4.492     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.492     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.492   ...
+#16 4.496 # Subtest: bots are ignored by default
+#16 4.496 not ok 121 - bots are ignored by default
+#16 4.496   ---
+#16 4.496   duration_ms: 4.268369
+#16 4.496   type: 'test'
+#16 4.496   location: '/app/dist/tests/worker.test.js:12:1'
+#16 4.496   failureType: 'testCodeFailure'
+#16 4.496   error: 'invalid_image'
+#16 4.496   code: 'invalid_image'
+#16 4.496   name: 'AppError'
+#16 4.496   stack: |-
+#16 4.496     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.496     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.496     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.496     async TestContext.<anonymous> (file:///app/dist/tests/worker.test.js:12:62)
+#16 4.496     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.496     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.496   ...
+#16 4.507 # Subtest: explicit webhook processing does not also require processBots
+#16 4.507 not ok 122 - explicit webhook processing does not also require processBots
+#16 4.507   ---
+#16 4.507   duration_ms: 10.410985
+#16 4.507   type: 'test'
+#16 4.507   location: '/app/dist/tests/worker.test.js:13:1'
+#16 4.507   failureType: 'testCodeFailure'
+#16 4.507   error: 'invalid_image'
+#16 4.507   code: 'invalid_image'
+#16 4.507   name: 'AppError'
+#16 4.507   stack: |-
+#16 4.507     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.507     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.507     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.507     async TestContext.<anonymous> (file:///app/dist/tests/worker.test.js:13:96)
+#16 4.507     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.507     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.507   ...
+#16 4.511 # Subtest: positive evaluation executes a configured timeout
+#16 4.512 not ok 123 - positive evaluation executes a configured timeout
+#16 4.512   ---
+#16 4.512   duration_ms: 4.824066
+#16 4.512   type: 'test'
+#16 4.512   location: '/app/dist/tests/worker.test.js:14:1'
+#16 4.512   failureType: 'testCodeFailure'
+#16 4.512   error: 'invalid_image'
+#16 4.512   code: 'invalid_image'
+#16 4.512   name: 'AppError'
+#16 4.512   stack: |-
+#16 4.512     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.512     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.512     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.512     async TestContext.<anonymous> (file:///app/dist/tests/worker.test.js:14:84)
+#16 4.512     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.512     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.512   ...
+#16 4.515 # Subtest: several matching images produce one user sanction
+#16 4.515 not ok 124 - several matching images produce one user sanction
+#16 4.515   ---
+#16 4.515   duration_ms: 3.675591
+#16 4.515   type: 'test'
+#16 4.515   location: '/app/dist/tests/worker.test.js:15:1'
+#16 4.515   failureType: 'testCodeFailure'
+#16 4.515   error: 'invalid_image'
+#16 4.515   code: 'invalid_image'
+#16 4.515   name: 'AppError'
+#16 4.515   stack: |-
+#16 4.515     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.515     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.515     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.515     async TestContext.<anonymous> (file:///app/dist/tests/worker.test.js:15:84)
+#16 4.515     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.515     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.515   ...
+#16 4.519 # Subtest: source deletion and timeout are distinct action slots
+#16 4.519 not ok 125 - source deletion and timeout are distinct action slots
+#16 4.519   ---
+#16 4.519   duration_ms: 3.967728
+#16 4.519   type: 'test'
+#16 4.519   location: '/app/dist/tests/worker.test.js:16:1'
+#16 4.519   failureType: 'testCodeFailure'
+#16 4.519   error: 'invalid_image'
+#16 4.519   code: 'invalid_image'
+#16 4.519   name: 'AppError'
+#16 4.519   stack: |-
+#16 4.519     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.519     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.519     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.519     async TestContext.<anonymous> (file:///app/dist/tests/worker.test.js:16:88)
+#16 4.519     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.519     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.519   ...
+#16 4.523 # Subtest: later attachment edit cannot repeat or escalate a prior sanction
+#16 4.523 not ok 126 - later attachment edit cannot repeat or escalate a prior sanction
+#16 4.523   ---
+#16 4.523   duration_ms: 3.745067
+#16 4.523   type: 'test'
+#16 4.523   location: '/app/dist/tests/worker.test.js:17:1'
+#16 4.523   failureType: 'testCodeFailure'
+#16 4.523   error: 'invalid_image'
+#16 4.523   code: 'invalid_image'
+#16 4.523   name: 'AppError'
+#16 4.523   stack: |-
+#16 4.523     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.523     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.523     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.523     async TestContext.<anonymous> (file:///app/dist/tests/worker.test.js:17:99)
+#16 4.523     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.523     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.523   ...
+#16 4.526 # Subtest: monitor-only records intended action but performs no mutation
+#16 4.526 not ok 127 - monitor-only records intended action but performs no mutation
+#16 4.526   ---
+#16 4.526   duration_ms: 3.474901
+#16 4.526   type: 'test'
+#16 4.526   location: '/app/dist/tests/worker.test.js:18:1'
+#16 4.526   failureType: 'testCodeFailure'
+#16 4.526   error: 'invalid_image'
+#16 4.526   code: 'invalid_image'
+#16 4.526   name: 'AppError'
+#16 4.526   stack: |-
+#16 4.526     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.526     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.526     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.526     async TestContext.<anonymous> (file:///app/dist/tests/worker.test.js:18:96)
+#16 4.526     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.526     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.526   ...
+#16 4.530 # Subtest: negative Jev result never sanctions
+#16 4.530 not ok 128 - negative Jev result never sanctions
+#16 4.530   ---
+#16 4.530   duration_ms: 3.92759
+#16 4.530   type: 'test'
+#16 4.530   location: '/app/dist/tests/worker.test.js:19:1'
+#16 4.530   failureType: 'testCodeFailure'
+#16 4.530   error: 'invalid_image'
+#16 4.530   code: 'invalid_image'
+#16 4.530   name: 'AppError'
+#16 4.530   stack: |-
+#16 4.530     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.530     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.530     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.530     async TestContext.<anonymous> (file:///app/dist/tests/worker.test.js:19:70)
+#16 4.530     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.530     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.530   ...
+#16 4.534 # Subtest: uncertain Jev result creates a review event, not punishment
+#16 4.534 not ok 129 - uncertain Jev result creates a review event, not punishment
+#16 4.534   ---
+#16 4.534   duration_ms: 3.7602
+#16 4.534   type: 'test'
+#16 4.534   location: '/app/dist/tests/worker.test.js:20:1'
+#16 4.534   failureType: 'testCodeFailure'
+#16 4.534   error: 'invalid_image'
+#16 4.534   code: 'invalid_image'
+#16 4.534   name: 'AppError'
+#16 4.534   stack: |-
+#16 4.534     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.534     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.534     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.534     async TestContext.<anonymous> (file:///app/dist/tests/worker.test.js:20:94)
+#16 4.534     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.534     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.534   ...
+#16 4.538 # Subtest: Jev authentication failure produces no punishment or synthetic match
+#16 4.539 not ok 130 - Jev authentication failure produces no punishment or synthetic match
+#16 4.539   ---
+#16 4.539   duration_ms: 4.159016
+#16 4.539   type: 'test'
+#16 4.539   location: '/app/dist/tests/worker.test.js:21:1'
+#16 4.539   failureType: 'testCodeFailure'
+#16 4.539   error: 'invalid_image'
+#16 4.539   code: 'invalid_image'
+#16 4.539   name: 'AppError'
+#16 4.539   stack: |-
+#16 4.539     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.539     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.539     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.539     async TestContext.<anonymous> (file:///app/dist/tests/worker.test.js:21:103)
+#16 4.539     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.539     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.539   ...
+#16 4.542 # Subtest: missing credential prevents Jev-dependent actions
+#16 4.543 not ok 131 - missing credential prevents Jev-dependent actions
+#16 4.543   ---
+#16 4.543   duration_ms: 4.096897
+#16 4.543   type: 'test'
+#16 4.543   location: '/app/dist/tests/worker.test.js:22:1'
+#16 4.543   failureType: 'testCodeFailure'
+#16 4.543   error: 'invalid_image'
+#16 4.543   code: 'invalid_image'
+#16 4.543   name: 'AppError'
+#16 4.543   stack: |-
+#16 4.543     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.543     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.543     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.543     async TestContext.<anonymous> (file:///app/dist/tests/worker.test.js:22:84)
+#16 4.543     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.543     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.543   ...
+#16 4.547 # Subtest: any-image action can operate without Jev only when explicitly enabled and approved
+#16 4.547 not ok 132 - any-image action can operate without Jev only when explicitly enabled and approved
+#16 4.547   ---
+#16 4.547   duration_ms: 3.820403
+#16 4.547   type: 'test'
+#16 4.547   location: '/app/dist/tests/worker.test.js:23:1'
+#16 4.547   failureType: 'testCodeFailure'
+#16 4.547   error: 'invalid_image'
+#16 4.547   code: 'invalid_image'
+#16 4.547   name: 'AppError'
+#16 4.547   stack: |-
+#16 4.547     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.547     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.547     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.547     async TestContext.<anonymous> (file:///app/dist/tests/worker.test.js:23:117)
+#16 4.547     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.547     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.547   ...
+#16 4.550 # Subtest: second verification disagreement suppresses a ban
+#16 4.550 not ok 133 - second verification disagreement suppresses a ban
+#16 4.550   ---
+#16 4.550   duration_ms: 3.53417
+#16 4.550   type: 'test'
+#16 4.550   location: '/app/dist/tests/worker.test.js:24:1'
+#16 4.550   failureType: 'testCodeFailure'
+#16 4.550   error: 'invalid_image'
+#16 4.550   code: 'invalid_image'
+#16 4.550   name: 'AppError'
+#16 4.550   stack: |-
+#16 4.550     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.550     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.550     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.550     async TestContext.<anonymous> (file:///app/dist/tests/worker.test.js:24:84)
+#16 4.550     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.550     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.550   ...
+#16 4.554 # Subtest: second verification agreement permits an approved ban path (mock Discord)
+#16 4.554 not ok 134 - second verification agreement permits an approved ban path (mock Discord)
+#16 4.554   ---
+#16 4.554   duration_ms: 3.804412
+#16 4.554   type: 'test'
+#16 4.554   location: '/app/dist/tests/worker.test.js:25:1'
+#16 4.554   failureType: 'testCodeFailure'
+#16 4.554   error: 'invalid_image'
+#16 4.554   code: 'invalid_image'
+#16 4.554   name: 'AppError'
+#16 4.554   stack: |-
+#16 4.554     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.554     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.554     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.554     async TestContext.<anonymous> (file:///app/dist/tests/worker.test.js:25:108)
+#16 4.554     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.554     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.554   ...
+#16 4.558 # Subtest: member exemption prevents evaluation and sanctions
+#16 4.558 not ok 135 - member exemption prevents evaluation and sanctions
+#16 4.558   ---
+#16 4.558   duration_ms: 4.020748
+#16 4.558   type: 'test'
+#16 4.558   location: '/app/dist/tests/worker.test.js:26:1'
+#16 4.558   failureType: 'testCodeFailure'
+#16 4.558   error: 'invalid_image'
+#16 4.558   code: 'invalid_image'
+#16 4.558   name: 'AppError'
+#16 4.558   stack: |-
+#16 4.558     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.558     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.558     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.558     async TestContext.<anonymous> (file:///app/dist/tests/worker.test.js:26:85)
+#16 4.558     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.558     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.558   ...
+#16 4.562 # Subtest: administrator member is protected from automatic sanctions
+#16 4.562 not ok 136 - administrator member is protected from automatic sanctions
+#16 4.562   ---
+#16 4.562   duration_ms: 3.76057
+#16 4.562   type: 'test'
+#16 4.562   location: '/app/dist/tests/worker.test.js:27:1'
+#16 4.562   failureType: 'testCodeFailure'
+#16 4.562   error: 'invalid_image'
+#16 4.562   code: 'invalid_image'
+#16 4.562   name: 'AppError'
+#16 4.562   stack: |-
+#16 4.562     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.562     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.562     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.562     async TestContext.<anonymous> (file:///app/dist/tests/worker.test.js:27:93)
+#16 4.562     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.562     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.562   ...
+#16 4.566 # Subtest: Discord permission failure does not execute a REST mutation
+#16 4.566 not ok 137 - Discord permission failure does not execute a REST mutation
+#16 4.566   ---
+#16 4.566   duration_ms: 3.962832
+#16 4.566   type: 'test'
+#16 4.566   location: '/app/dist/tests/worker.test.js:28:1'
+#16 4.566   failureType: 'testCodeFailure'
+#16 4.566   error: 'invalid_image'
+#16 4.566   code: 'invalid_image'
+#16 4.566   name: 'AppError'
+#16 4.566   stack: |-
+#16 4.566     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.566     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.566     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.566     async TestContext.<anonymous> (file:///app/dist/tests/worker.test.js:28:94)
+#16 4.566     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.566     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.566   ...
+#16 4.570 # Subtest: ambiguous mutation response is recorded unknown and never replayed
+#16 4.570 not ok 138 - ambiguous mutation response is recorded unknown and never replayed
+#16 4.570   ---
+#16 4.570   duration_ms: 4.236358
+#16 4.570   type: 'test'
+#16 4.570   location: '/app/dist/tests/worker.test.js:29:1'
+#16 4.570   failureType: 'testCodeFailure'
+#16 4.570   error: 'invalid_image'
+#16 4.570   code: 'invalid_image'
+#16 4.570   name: 'AppError'
+#16 4.570   stack: |-
+#16 4.570     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.570     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.570     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.570     async TestContext.<anonymous> (file:///app/dist/tests/worker.test.js:29:101)
+#16 4.570     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.570     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.570   ...
+#16 4.574 # Subtest: one malformed image suppresses all actions for an incomplete multi-image decision
+#16 4.574 not ok 139 - one malformed image suppresses all actions for an incomplete multi-image decision
+#16 4.574   ---
+#16 4.574   duration_ms: 3.892718
+#16 4.574   type: 'test'
+#16 4.574   location: '/app/dist/tests/worker.test.js:30:1'
+#16 4.574   failureType: 'testCodeFailure'
+#16 4.574   error: 'invalid_image'
+#16 4.574   code: 'invalid_image'
+#16 4.574   name: 'AppError'
+#16 4.574   stack: |-
+#16 4.574     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.574     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.574     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.574     async TestContext.<anonymous> (file:///app/dist/tests/worker.test.js:31:15)
+#16 4.574     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.574     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.574   ...
+#16 4.578 # Subtest: removed attachment is not evaluated from a stale Gateway job
+#16 4.578 not ok 140 - removed attachment is not evaluated from a stale Gateway job
+#16 4.578   ---
+#16 4.578   duration_ms: 3.66634
+#16 4.578   type: 'test'
+#16 4.578   location: '/app/dist/tests/worker.test.js:45:1'
+#16 4.578   failureType: 'testCodeFailure'
+#16 4.578   error: 'invalid_image'
+#16 4.578   code: 'invalid_image'
+#16 4.578   name: 'AppError'
+#16 4.578   stack: |-
+#16 4.578     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.578     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.578     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.578     async TestContext.<anonymous> (file:///app/dist/tests/worker.test.js:45:95)
+#16 4.578     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.578     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.578   ...
+#16 4.581 # Subtest: rule test records labeled result but never calls Discord moderation
+#16 4.582 not ok 141 - rule test records labeled result but never calls Discord moderation
+#16 4.582   ---
+#16 4.582   duration_ms: 3.719727
+#16 4.582   type: 'test'
+#16 4.582   location: '/app/dist/tests/worker.test.js:46:1'
+#16 4.582   failureType: 'testCodeFailure'
+#16 4.582   error: 'invalid_image'
+#16 4.582   code: 'invalid_image'
+#16 4.582   name: 'AppError'
+#16 4.582   stack: |-
+#16 4.582     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.582     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.582     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.582     async TestContext.<anonymous> (file:///app/dist/tests/worker.test.js:46:102)
+#16 4.582     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.582     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.582   ...
+#16 4.586 # Subtest: daily budget exhaustion stops comparisons safely
+#16 4.586 not ok 142 - daily budget exhaustion stops comparisons safely
+#16 4.586   ---
+#16 4.586   duration_ms: 4.332938
+#16 4.586   type: 'test'
+#16 4.586   location: '/app/dist/tests/worker.test.js:47:1'
+#16 4.586   failureType: 'testCodeFailure'
+#16 4.586   error: 'invalid_image'
+#16 4.586   code: 'invalid_image'
+#16 4.586   name: 'AppError'
+#16 4.586   stack: |-
+#16 4.586     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.586     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.586     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.586     async TestContext.<anonymous> (file:///app/dist/tests/worker.test.js:47:83)
+#16 4.586     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.586     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.586   ...
+#16 4.590 # Subtest: group rule selects only references from its own group
+#16 4.590 not ok 143 - group rule selects only references from its own group
+#16 4.590   ---
+#16 4.590   duration_ms: 3.680964
+#16 4.590   type: 'test'
+#16 4.590   location: '/app/dist/tests/worker.test.js:48:1'
+#16 4.590   failureType: 'testCodeFailure'
+#16 4.590   error: 'invalid_image'
+#16 4.590   code: 'invalid_image'
+#16 4.590   name: 'AppError'
+#16 4.590   stack: |-
+#16 4.590     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.590     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.590     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.590     async TestContext.<anonymous> (file:///app/dist/tests/worker.test.js:48:88)
+#16 4.590     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.590     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.590   ...
+#16 4.594 # Subtest: pause after evaluation but before dispatch suppresses the action
+#16 4.594 not ok 144 - pause after evaluation but before dispatch suppresses the action
+#16 4.594   ---
+#16 4.594   duration_ms: 4.41101
+#16 4.594   type: 'test'
+#16 4.594   location: '/app/dist/tests/worker.test.js:49:1'
+#16 4.594   failureType: 'testCodeFailure'
+#16 4.594   error: 'invalid_image'
+#16 4.594   code: 'invalid_image'
+#16 4.594   name: 'AppError'
+#16 4.594   stack: |-
+#16 4.594     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.594     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.594     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.594     async TestContext.<anonymous> (file:///app/dist/tests/worker.test.js:49:99)
+#16 4.594     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.594     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.594   ...
+#16 4.598 # Subtest: deployment acceptance blocks persisted approved enforcement settings
+#16 4.598 not ok 145 - deployment acceptance blocks persisted approved enforcement settings
+#16 4.598   ---
+#16 4.598   duration_ms: 3.796542
+#16 4.598   type: 'test'
+#16 4.598   location: '/app/dist/tests/worker.test.js:50:1'
+#16 4.598   failureType: 'testCodeFailure'
+#16 4.598   error: 'invalid_image'
+#16 4.598   code: 'invalid_image'
+#16 4.598   name: 'AppError'
+#16 4.598   stack: |-
+#16 4.598     normalizeInternal (file:///app/dist/server/images.js:58:15)
+#16 4.598     async normalize (file:///app/dist/server/images.js:36:16)
+#16 4.598     async fixture (file:///app/dist/tests/helpers.js:76:19)
+#16 4.598     async TestContext.<anonymous> (file:///app/dist/tests/worker.test.js:51:15)
+#16 4.598     async Test.run (node:internal/test_runner/test:1054:7)
+#16 4.598     async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+#16 4.598   ...
+#16 4.606 1..145
+#16 4.606 # tests 145
+#16 4.606 # suites 0
+#16 4.606 # pass 49
+#16 4.606 # fail 96
+#16 4.606 # cancelled 0
+#16 4.606 # skipped 0
+#16 4.606 # todo 0
+#16 4.606 # duration_ms 1003.985965
+#16 ERROR: process "/bin/sh -c npm run build && npm test && npm prune --omit=dev" did not complete successfully: exit code: 1
+------
+ > [build 11/11] RUN npm run build && npm test && npm prune --omit=dev:
+4.598   ...
+4.606 1..145
+4.606 # tests 145
+4.606 # suites 0
+4.606 # pass 49
+4.606 # fail 96
+4.606 # cancelled 0
+4.606 # skipped 0
+4.606 # todo 0
+4.606 # duration_ms 1003.985965
+------
+Dockerfile:11
+
+--------------------
+
+   9 |     COPY tests ./tests
+
+  10 |     COPY scripts/bundle-sdk.mjs ./scripts/bundle-sdk.mjs
+
+  11 | >>> RUN npm run build && npm test && npm prune --omit=dev
+
+  12 |     
+
+  13 |     FROM node:22-bookworm-slim AS runtime
+
+--------------------
+
+failed to solve: process "/bin/sh -c npm run build && npm test && npm prune --omit=dev" did not complete successfully: exit code: 1
+
+
+
+View build details: docker-desktop://dashboard/build/default/default/uncew6ao7feuswjy1a6w9q798
+

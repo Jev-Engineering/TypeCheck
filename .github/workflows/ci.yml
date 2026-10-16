@@ -3,6 +3,37 @@ on: [push, pull_request]
 permissions:
   contents: read
 jobs:
+  mysql:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: test-only-root
+          MYSQL_DATABASE: guard_test
+          MYSQL_USER: guard
+          MYSQL_PASSWORD: test-only-password
+        ports: [3306:3306]
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 --silent"
+          --health-interval 5s --health-timeout 5s --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --omit=dev --no-audit --no-fund
+      - run: npm run check
+      - run: npm run build
+      - run: npm run test:mysql > evidence/mysql-ci.txt 2>&1
+        env:
+          TEST_DATABASE_URL: mysql://guard:test-only-password@127.0.0.1:3306/guard_test
+          ALLOW_DATABASE_TESTS: 'true'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mysql-validation
+          path: evidence/mysql-ci.txt
   tests:
     runs-on: ubuntu-latest
     services:
@@ -21,7 +52,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm install --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
+      - run: npm audit --audit-level=high
+      - run: node scripts/review-dependencies.mjs
+      - run: npm run check
       - run: npm run build
       - run: npm test
       - run: node dist/server/migrate.js
@@ -31,3 +65,19 @@ jobs:
         env:
           TEST_DATABASE_URL: postgresql://guard:test-only-password@localhost:5432/guard_test
           ALLOW_DATABASE_TESTS: 'true'
+      - run: npm run test:compose
+      - name: Scan final runtime image (unresolved high findings block release)
+        run: |
+          IMAGE="$(node -e "console.log(JSON.parse(require('fs').readFileSync('evidence/container-result.json')).project + '-app:latest')")"
+          docker save "$IMAGE" -o /tmp/jev-image.tar
+          docker run --rm -v /tmp/jev-image.tar:/scan/image.tar:ro -v "$PWD/evidence:/report" aquasec/trivy@sha256:2416d1f74045b57274df1a340eee6b510cacd73c66a6ccb8da092b117eb7d222 image --input /scan/image.tar --scanners vuln --severity HIGH,CRITICAL --exit-code 1 --format json --output /report/container-vulnerabilities.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: isolated-validation
+          path: |
+            evidence/container-validation.json
+            evidence/container-result.json
+            evidence/postgres-validation.txt
+            evidence/container-vulnerabilities.json
+            evidence/dependency-licenses.json

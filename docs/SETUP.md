@@ -24,7 +24,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 
 Set `CREDENTIAL_MASTER_KEY` to this value. Back it up separately from database/object backups; losing it makes existing Jev credentials unreadable. Set `DATABASE_URL`, `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DISCORD_BOT_TOKEN`, `PUBLIC_ORIGIN` and `OBJECT_DIR`. For Compose, generate a URL-safe password, for example `randomBytes(24).toString('hex')`, and set `POSTGRES_PASSWORD`.
 
-Install dependencies, review/freeze the generated lockfile, build, test, provision PostgreSQL and run migration 001 before starting the application. The runtime does not silently create schema. Run the database integration helper against a dedicated disposable database before accepting the deployment.
+Run `npm ci`, `npm run check`, `npm run build` and `npm test`; provision PostgreSQL or MySQL and run migration 001 before starting the application. Keep `ACCEPTANCE_APPROVED=0` until the documented live and independent acceptance gates pass. The runtime creates schema only when explicitly configured with `MIGRATE_ON_START=1`. Run the database integration helper against a dedicated disposable database before accepting the deployment.
 
 A local private object volume must be writable by the app user and backed up with the database. It must never be exposed as a public static directory. The HTTP endpoint authorizes each reference-image read.
 
@@ -61,3 +61,29 @@ Use Permissions to grant capabilities to specific roles. Read-only, image-manage
 [D4] https://docs.discord.com/developers/activities/development-guides/networking
 
 Official documentation consulted October 15, 2026. Portal UI and approval processes can change; recheck before installation.
+
+## Repeatable isolated deployment validation
+
+Run `npm ci`, `npm run build`, then `npm run test:compose` with Docker Compose 2.24.4+ (override tags required). This uses `tests/compose.env` with public disposable values, never your `.env`, and disables Gateway/worker startup. It builds the official image, tests PostgreSQL, exercises outage/restart/backup/restore and removes only its containers/network. Dedicated test volumes remain for inspection. `VALIDATION_SUBNET` may select an unused private subnet if the default 10.253.215.0/28 conflicts; inspect existing networks/routes first. Do not prune shared resources.
+
+Live setup belongs in the ignored `.env`: test application credentials, test guild/channel/consenting users, explicitly permitted actions, authorized HTTPS origin, TypeSafe evaluation key and labeled corpus manifest path. Never use a production database. No browser setup agent should start a second bot controller.
+
+## GoDaddy managed MySQL deployment
+
+The public [GoDaddy hosting contract](https://github.com/godaddy/nodejs-hosting-agent-skill/blob/main/skills/godaddy-nodejs-hosting/contract.md) (consulted October 16, 2026) specifies `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, production-only dependency installation, and a subsequent build/start. Build tools are pinned in dependencies so that this pipeline can compile the application; `.npmrc` selects the public npm registry. A clean production-only install/build was verified locally, not on GoDaddy.
+
+For the separately authorized deployment of app `NODEJS-mxa13say2y`:
+
+1. Verify Settings â†’ Hosted Database â†’ Open database guide, the actual server version (MySQL 8.0.16+), and TLS requirements. The app-specific guide and hosted server version were not available in this run. The local `.env` contains a loopback PostgreSQL URL, not hosted database credentials. Never use the hosted database for tests.
+2. Point the app at `feat/mysql-store`; use its build and start scripts. Supply Discord credentials, public HTTPS origin, a backed-up master key and database credentials through the hosting secrets UI yourself. Either supply a percent-encoded `mysql://user:password@host:port/database` URL, or omit `DATABASE_URL` and use the platform's five `DB_*` variables. An existing `DATABASE_URL` takes precedence. Do not upload `.env`.
+3. If TLS is required, set `DB_SSL=1`; supply the provider's PEM CA as `DB_SSL_CA` if it is not publicly trusted. Certificate chain and hostname/IP identity verification stay enabled. URL query options are rejected; configure TLS through these dedicated variables. TLS does not default on without verified provider requirements.
+4. For an authorized first boot only, set `MIGRATE_ON_START=1`. The process acquires the migration lock, applies migration 001, then checks its receipt before opening HTTP. Turn the flag off after success. Ordinary startup refuses an unmigrated schema. MySQL DDL auto-commits; a failed first migration resumes statement by statement with `CREATE TABLE IF NOT EXISTS`, and the version receipt is last. This is not an upgrade/repair system for manually altered schemas.
+5. Keep `ACCEPTANCE_APPROVED=0` and enforcement/high-impact defaults unchanged. Verify HTTPS, Activity OAuth, Gateway connectivity, recovery, backups, storage and remaining acceptance gates before granting enforcement approval.
+
+`npm start`, `npm run migrate`, and `npm run evaluate` use `--env-file-if-exists=.env` (Node >=22.13). The evaluator does not open a SQL database; it still needs an explicitly authorized evaluation key and corpus.
+
+Preview and published processes using one database elect one controller. The loser serves HTTP/API, returns `standby` from `/api/health`, and retries every five seconds. `/api/ready` accepts a database-connected standby and reports `controller: standby`; for a leader, Gateway must be online. Only the elected process starts Gateway/worker and resets interrupted jobs/actions. Preview can win election: publishing does not guarantee the published process becomes leader. Gracefully stop the old leader when deliberately transferring ownership. Both instances need the same bot identity and encryption master key.
+
+Leadership loss stops Gateway/worker and exits the affected process for host-supervised recovery. Requests already sent cannot be recalled. Graceful shutdown drains worker work before releasing the database lock, with a 30-second forced-exit limit. Never connect two different databases to the same bot: database-local election cannot coordinate them.
+
+Private object storage is still filesystem-based. Verify a durable, shared `OBJECT_DIR` accessible to both preview/published processes, or operate only one instance. A shared SQL database alone does not share reference-image files. GoDaddy filesystem persistence/sharing, process lifetime, outbound Gateway WebSocket access and restart policy remain deployment acceptance checks.

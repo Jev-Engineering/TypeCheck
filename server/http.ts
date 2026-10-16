@@ -50,7 +50,7 @@ function rulePermissions(a: Authority, next: RuleInput, old?: Rule) {
     if (next.action === 'ban' && next.enabled)
         requireCapability(a, 'ban.enable');
 }
-export function createHttp(services: Services, config: Config, root = process.cwd()) {
+export function createHttp(services: Services, config: Config, root = process.cwd(), readiness?: () => Promise<boolean>, controllerState?: () => string) {
     const { store, discord } = services;
     const limits = new Map<string, {
         at: number;
@@ -70,7 +70,11 @@ export function createHttp(services: Services, config: Config, root = process.cw
         if (url.pathname === '/api/config' && method === 'GET')
             return { body: { clientId: config.clientId, version: '0.1.0', experimental: true } };
         if (url.pathname === '/api/health' && method === 'GET')
-            return { body: { status: 'running' } };
+            return { body: { status: controllerState?.() ?? 'running' } };
+        if (url.pathname === '/api/ready' && method === 'GET') {
+            const ready = readiness ? await readiness().catch(() => false) : false;
+            return { status: ready ? 200 : 503, body: { status: ready ? 'ready' : 'not_ready', ...(controllerState ? { controller: controllerState() } : {}) } };
+        }
         if (url.pathname === '/api/auth/start' && method === 'POST') {
             rate('auth:' + req.socket.remoteAddress, 20);
             const nonce = token();
@@ -133,6 +137,7 @@ export function createHttp(services: Services, config: Config, root = process.cw
                 const old = await tx.getSettings(guild);
                 assert(old.revision === revision, 'revision_conflict', 409);
                 if (value.enforcement && !old.value.enforcement) {
+                    assert(!config.production || config.enforcementApproved === true, 'deployment_acceptance_required', 403);
                     assert(b.acknowledgement === 'ENABLE_AUTOMATIC_ENFORCEMENT', 'enforcement_acknowledgement_required');
                     assert(value.channels.length > 0, 'choose_monitored_channels');
                 }
@@ -399,7 +404,18 @@ export function createHttp(services: Services, config: Config, root = process.cw
         throw new AppError('route_not_found', 404);
     }
     async function staticFile(pathname: string): Promise<Reply> {
-        const fixed: Record<string, string> = { '/': 'activity/index.html', '/style.css': 'activity/style.css', '/vendor/discord-sdk.js': 'dist/activity/vendor/discord-sdk.js', '/shared/domain.js': 'dist/shared/domain.js' };
+        const fixed: Record<string, string> = { '/': 'activity/index.html', '/style.css': 'activity/style.css', '/vendor/discord-sdk.js': 'dist/activity/vendor/discord-sdk.js', '/vendor/THIRD_PARTY_NOTICES.txt': 'dist/activity/vendor/THIRD_PARTY_NOTICES.txt', '/shared/domain.js': 'dist/shared/domain.js' };
+        const fonts: Record<string, string> = { '/fonts/schibsted-grotesk-400.woff2': 'activity/fonts/schibsted-grotesk-400.woff2', '/fonts/schibsted-grotesk-500.woff2': 'activity/fonts/schibsted-grotesk-500.woff2', '/fonts/vt323-400.woff2': 'activity/fonts/vt323-400.woff2', '/fonts/jetbrains-mono-400.woff2': 'activity/fonts/jetbrains-mono-400.woff2' };
+        if (fonts[pathname]) {
+            let bytes: Buffer;
+            try {
+                bytes = await readFile(resolve(root, fonts[pathname]));
+            }
+            catch {
+                throw new AppError('not_found', 404);
+            }
+            return { bytes, type: 'font/woff2', headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } };
+        }
         let file = fixed[pathname];
         if (/^\/activity\/src\/[a-z-]+\.js$/.test(pathname))
             file = 'dist' + pathname;
@@ -411,7 +427,7 @@ export function createHttp(services: Services, config: Config, root = process.cw
         catch {
             throw new AppError('asset_not_built_run_npm_build', 404);
         }
-        return { bytes, type: file.endsWith('.html') ? 'text/html; charset=utf-8' : file.endsWith('.css') ? 'text/css; charset=utf-8' : 'text/javascript; charset=utf-8' };
+        return { bytes, type: file.endsWith('.html') ? 'text/html; charset=utf-8' : file.endsWith('.css') ? 'text/css; charset=utf-8' : file.endsWith('.txt') ? 'text/plain; charset=utf-8' : 'text/javascript; charset=utf-8' };
     }
     const server = createServer(async (req, res) => {
         const requestId = randomUUID();

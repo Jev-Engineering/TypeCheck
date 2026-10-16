@@ -1,5 +1,11 @@
 # Acceptance matrix and remaining gates
 
+Current verdict: **NOT PRODUCTION READY**. Fresh local/container results are in ../VALIDATION.md; live provider, TLS and independent sign-off gates remain open.
+
+MySQL port update (October 16, 2026): 155 local tests passed, the unchanged PostgreSQL harness passed, and MySQL 8.0.46 passed 104 assertions on a fresh loopback-only disposable database. Startup without `.env`, opt-in startup migration, a production-only install/build, and trusted/untrusted TLS behavior passed locally. Standby/loss/takeover tests use fake controllers and HTTP identities; real MySQL lock-loss testing terminates only a connection inside the disposable test container. See ../VALIDATION.md for commands and evidence.
+
+The GoDaddy server version and private database guide remain unverified. No hosted migration/deployment, real Discord Activity/Gateway/moderation, shared/durable object storage, live provider accuracy, production fault/soak test, new runtime-image scan or independent security/operations sign-off is claimed. Enforcement and high-impact defaults remain disabled; `ACCEPTANCE_APPROVED=0` must stay in place. Earlier results below are historical.
+
 The attached specification is preserved in USER_SPECIFICATION.md. “Implemented” means source code exists and is exercised locally where noted; it does not mean a live Discord/Jev deployment has passed acceptance.
 
 | Specification area | Candidate implementation | Remaining acceptance |
@@ -8,13 +14,13 @@ The attached specification is preserved in USER_SPECIFICATION.md. “Implemented
 | Jev image matching | Pinned official multipart/Noul adapter, four prompt modes | Real account compatibility and representative accuracy |
 | Reference library and rule modes | Private uploads, groups, individual/library/any-image policies | Real provider matching and deployed storage |
 | Moderation actions | Delete/warn/timeout/kick/ban/review/log-only, combinations | Real consenting test accounts, permission/hierarchy/rate tests |
-| Activity UI | Six screens, rule/test dialogs, credential/RBAC controls | Official SDK bundle, real OAuth, proxy and Activity launch |
+| Activity UI | Six screens, rule/test dialogs, credential/RBAC controls | SDK bundle passed; real OAuth, proxy and Activity launch remain open |
 | Administrator/moderator permissions | Live role-derived capabilities and restricted delegation | Real role revoke/change tests and independent review |
 | Credential management | Encrypted, write-only, validated replacement and removal | Real TypeSafe key lifecycle and recovery test |
-| Tenant isolation | Guild queries/constraints, encrypted AAD, object prefixes | Real PostgreSQL constraints and adversarial integration tests |
+| Tenant isolation | Guild queries/constraints, encrypted AAD, object prefixes | Isolated PostgreSQL constraints/read isolation passed; live adversarial integration remains open |
 | Logs, testing and calibration | Event/evaluation/audit/ledger, CSV, labeled trials, approvals | Real corpus results, long-running retention and unknown-outcome drill |
 | Reliability | Fail-closed policy, durable claims, pauses, second check | Live network/crash recovery and load tests |
-| Packaging | Source, migrations, Compose/Docker/CI and docs | Clean dependency resolution, image build and hosted deployment |
+| Packaging | Source, migrations, Compose/Docker/CI and docs | Clean npm ci, image build and offline Compose restore passed; live hosted deployment remains open |
 
 ## Deliberate restrictions/differences
 
@@ -34,3 +40,11 @@ These differences are visible design decisions, not silently claimed features. O
 8. Obtain independent security/operations sign-off and retain actual execution evidence before enabling kick/ban in a community.
 
 Until those gates pass, completion of the original end-to-end acceptance checklist must not be claimed.
+
+## Evidence rules for this run
+
+Local: 147 passing tests; compiled official SDK; fresh audit and license inventory. Container: isolated PostgreSQL, offline identity startup, health/outage, project restart and separate-volume/database restore passed. Live Discord and Jev: no passing receipt yet. Do not count Claude browser setup progress, synthetic image fixtures, or mocked responses as live acceptance. Historical offline browser screenshots are unchanged.
+
+Keep `ACCEPTANCE_APPROVED=0`. A production process refuses enforcement without this operator attestation, even if an old database contains enabled settings. Only an authorized operator may change it after reviewing completed acceptance evidence; rule approvals, thresholds, second verification and high-impact settings still apply. Development test actions require explicit test-guild/account authorization.
+
+Runtime-image security is also OPEN: the final scan has 43 high package findings across 8 unique CVEs. The clean application npm audit does not close this gate. See DEPENDENCIES.md for retained results and vendor references.

@@ -13,7 +13,7 @@ import type { DiscordAdapter } from '../server/discord.js';
 import { fingerprint } from '../server/policy.js';
 export const G = '100000000000000001', G2 = '100000000000000002', ADMIN = '100000000000000011', MOD = '100000000000000012', USER = '100000000000000013', BOT = '100000000000000014', CHANNEL = '100000000000000021', ROLE = '100000000000000031';
 export const API_KEY = 'test-key-not-a-live-provider-credential';
-export const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a9WQAAAAASUVORK5CYII=', 'base64');
+export const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADElEQVQImWP4//8/AAX+Av5Y8msOAAAAAElFTkSuQmCC', 'base64');
 export function message(n = 1): ImageMessage { const id = String(100000000000000100n + BigInt(n)); return { guildId: G, channelId: CHANNEL, messageId: String(100000000000000200n + BigInt(n)), userId: USER, bot: false, webhook: false, attachments: [{ id, url: `https://cdn.discordapp.com/attachments/${CHANNEL}/${id}/fixture.png`, size: PNG.length, contentType: 'image/png', filename: 'fixture.png' }] }; }
 export class FakeDiscord implements DiscordAdapter {
     online = true;

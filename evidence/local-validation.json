@@ -1,0 +1,46 @@
+{
+  "node": "v24.18.0",
+  "platform": "win32",
+  "results": [
+    {
+      "name": "typecheck",
+      "command": [
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "--noEmit"
+      ],
+      "exitCode": 0,
+      "at": "2026-10-16T03:22:48.815Z"
+    },
+    {
+      "name": "build",
+      "command": [
+        "node",
+        "node_modules/typescript/bin/tsc"
+      ],
+      "exitCode": 0,
+      "at": "2026-10-16T03:22:50.204Z"
+    },
+    {
+      "name": "sdk",
+      "command": [
+        "node",
+        "scripts/bundle-sdk.mjs"
+      ],
+      "exitCode": 0,
+      "at": "2026-10-16T03:22:51.004Z"
+    },
+    {
+      "name": "tests",
+      "command": [
+        "node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-concurrency=1",
+        "dist/tests/*.test.js"
+      ],
+      "exitCode": 0,
+      "at": "2026-10-16T03:22:55.860Z"
+    }
+  ]
+}

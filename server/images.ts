@@ -1,6 +1,6 @@
-import { mkdir, readFile, writeFile, unlink, readdir, stat } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, unlink, readdir, stat, rename } from 'node:fs/promises';
 import { resolve, dirname, sep } from 'node:path';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { assert, AppError, snowflake, type Attachment } from '../shared/domain.js';
 export const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 export const MAX_PIXELS = 24000000;
@@ -113,7 +113,16 @@ export class ObjectStore {
     readonly root: string;
     constructor(root: string) { this.root = resolve(root); }
     private path(key: string) { assert(/^[0-9]{6,22}\/[0-9a-f]{64}\.jpg$/.test(key), 'invalid_object_key'); const p = resolve(this.root, key); assert(p.startsWith(this.root + sep), 'invalid_object_key'); return p; }
-    async put(guildId: string, image: NormalizedImage) { const key = `${guildId}/${image.sha256}.jpg`; const p = this.path(key); await mkdir(dirname(p), { recursive: true, mode: 0o700 }); await writeFile(p, image.bytes, { mode: 0o600 }); return key; }
+    async put(guildId: string, image: NormalizedImage) {
+        const key = `${guildId}/${image.sha256}.jpg`, p = this.path(key);
+        await mkdir(dirname(p), { recursive: true, mode: 0o700 });
+        const temporary = `${p}.${randomUUID()}.tmp`;
+        try {
+            await writeFile(temporary, image.bytes, { mode: 0o600, flag: 'wx', flush: true });
+            await rename(temporary, p);
+        } finally { await unlink(temporary).catch(e => { if (e.code !== 'ENOENT') throw e; }); }
+        return key;
+    }
     async get(guildId: string, key: string) { assert(key.startsWith(guildId + '/'), 'cross_guild_object', 403); return readFile(this.path(key)); }
     async remove(guildId: string, key: string) { assert(key.startsWith(guildId + '/'), 'cross_guild_object', 403); await unlink(this.path(key)).catch(e => { if (e.code !== 'ENOENT')
         throw e; }); }

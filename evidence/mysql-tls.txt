@@ -1,0 +1,2 @@
+PASS: untrusted TLS certificate rejected.
+PASS: trusted TLS connection with matching host identity and encrypted query.

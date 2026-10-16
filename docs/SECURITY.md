@@ -41,3 +41,15 @@ For complete guild removal, the application owner must stop processing that guil
 ## Preproduction checklist
 
 Review dependencies and freeze lockfiles/image digests; verify TLS/CSP/proxy handling; run live OAuth and revocation tests; run cross-guild database tests; test decoder limits under load; check backups and key recovery; verify crash/unknown-action handling; publish retention and provider-data notices; conduct independent security review. None of these is implied complete by local mock-based tests.
+
+## MySQL and controller election
+
+MySQL uses InnoDB, binary identifier collation, composite tenant foreign keys, JSON consistency CHECKs, parameterized SQL, strict session mode and UTC timestamps. MySQL 8.0.16+ is required; MariaDB and older servers fail with `mysql_8_0_16_required`. Tested MySQL 8.0.46 accepts direct JSON CHECK expressions with retained delete actions. The only stored generated column is the role-grant uniqueness key. No `INSERT IGNORE` is used: FK, CHECK and truncation failures remain errors.
+
+Guild transactions lock the ensured guild row. Leader election holds `GET_LOCK('typecheck:leader',0)` on a dedicated connection, checks ownership every five seconds, and treats errors/end/failed keepalive as lost leadership. Its session idle timeout is 120 seconds. Only the winner resets processing jobs and changes attempting actions to unknown tombstones. Migration holds a separate `typecheck:migrate` lock. Dedicated MySQL lock connections are destroyed after release or error so no named lock leaks into pooled work. The pool is limited to five connections per process, including its leader connection.
+
+Non-leaders remain API-serving standbys. Lock loss stops local controllers and exits; queued work can recover on another process. This is the existing single-controller model, not a distributed lease with external fencing: an already-issued Discord request cannot be cancelled, and network partitions need live fault testing. PostgreSQL retains its advisory lock and original schema/test path.
+
+Never log environment values, connection URLs, raw driver exceptions or private keys. `DATABASE_URL` takes precedence over `DB_*`; use only one intended configuration. `DB_SSL=1` verifies the certificate and host identity, including IP literals; `DB_SSL_CA` is a PEM trust certificate, never a private key. No hosted database connection or migration was performed during this change. The app-specific provider TLS requirement is still unknown.
+
+Whole-guild removal has a MySQL-specific operational constraint: InnoDB checks `RESTRICT` immediately during cascading deletes. A direct guild deletion can fail when rules/images still reference groups or images. After stopping processing for the guild, use one transaction to delete its `moderation_rules`, then `reference_images`, then the `guilds` row; remaining records cascade. Keep all statements scoped by the same guild ID and commit before deleting its private object directory. This ordering was tested; the foreign keys were retained. There is no whole-guild deletion method in the Store/API.
