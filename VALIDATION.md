@@ -1,5 +1,21 @@
 # Validation record
 
+## Configurable review threshold — October 16, 2026
+
+Issue #6; isolated branch `fix/configurable-review-threshold` based on main `2f2329f`. Synthetic images, mocked Jev/Discord and MemoryStore only; no hosted database, charged provider calls or live Discord mutations. Existing cost-analytics worktree/PR, `.env` and `ACCEPTANCE_APPROVED` were not changed.
+
+- `npm ci --no-audit --no-fund`: passed (44 packages). npm reported esbuild's install script blocked by local allowScripts policy; the subsequent SDK bundle succeeded without changing that policy.
+- `npm run check`: passed; `evidence/review-threshold-check.txt`.
+- `npm run build`: passed; `evidence/review-threshold-build.txt`.
+- `npm test`: **164 passed, 0 failed/skipped**; `evidence/review-threshold-tests.txt`.
+- `npm audit --audit-level=high`: passed, zero vulnerabilities. `node scripts/review-dependencies.mjs`: passed, 96 declarations reviewed.
+- Diff checked with CRLF-aware whitespace handling, preserving existing file line endings. Initial unrelated line-ending churn was corrected before committing. No test failures occurred.
+
+Coverage includes configurable review/action floors, equality and adjacent boundaries, empty review bands, explicit review under ignore, invalid probabilities, pinned-model mismatch, disabled rules/modes, deterministic rule/comparison precedence, and existing calibration/approval/verification/permission regressions. A worker-to-HTTP integration test starts with a mocked action-qualified result reduced to 0.8 by second verification, reads its persisted open review event as a delegated moderator, resolves it through the review API, and verifies no Discord punishment, notification or action-ledger entry. Below-default-band and ignore cases retain evaluations without opening review.
+
+This does not establish provider accuracy, an error-rate bound, live Activity acceptance or production readiness. No local SQL/Compose drill or browser visual check was run for this policy/UI-copy change; hosted CI runs the database/Compose and runtime scan checks separately. Existing image security and live/independent acceptance gates remain in force.
+
+
 ## MySQL port validation — October 16, 2026
 
 Branch `feat/mysql-store`, based on `1bf77cb`. Local host: Windows, Node 24.18.0, npm 12.2.0. Only newly created `jev-guard-validation-mysql-20261046-codex` and `jev-guard-validation-pg-20261046-codex` containers were used; published ports were loopback only. MySQL reported **8.0.46**. No shared containers or WSL sessions were restarted.
