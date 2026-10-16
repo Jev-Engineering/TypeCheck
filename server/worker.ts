@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { assert, baseRecord, AppError, type Evaluation, type ImageMessage, type Match, type ModerationEvent, type ReferenceImage, type Rule, type Settings, type Action } from '../shared/domain.js';
-import { Services } from './services.js';
+import { Services, EvaluationFailure } from './services.js';
 import { downloadAttachment, supportedAttachment } from './images.js';
 import { resolvePolicy, fingerprint, type Decision } from './policy.js';
 import { safeError } from './security.js';
@@ -75,13 +75,13 @@ export class Worker {
             try {
                 const image = await this.download(a, live.channelId);
                 const result = await this.services.evaluate(guild, a.id, image, rules, images, settings);
-                const evaluation: Evaluation = { ...baseRecord(guild, randomUUID()), messageId: live.messageId, channelId: live.channelId, userId: live.userId, attachmentId: a.id, matches: result.matches, outcome: result.matches.some(m => m.probability >= 0.5) ? 'evaluated' : 'no_match', error: null, inputTokens: result.inputTokens, model: settings.model, test: false };
+                const evaluation: Evaluation = { ...baseRecord(guild, randomUUID()), messageId: live.messageId, channelId: live.channelId, userId: live.userId, attachmentId: a.id, matches: result.matches, outcome: result.matches.some(m => m.provenance === 'exact_hash' || (m.probability !== null && m.probability >= 0.5)) ? 'evaluated' : 'no_match', error: null, inputTokens: result.inputTokens, hashComparisons: result.hashComparisons, model: result.matches.some(m => m.provenance === 'jev') ? settings.model : null, test: false };
                 await store.put('evaluations', evaluation, 0);
                 allMatches.push(...result.matches);
                 processed.push(a.id);
             }
             catch (e) {
-                const evaluation: Evaluation = { ...baseRecord(guild, randomUUID()), messageId: live.messageId, channelId: live.channelId, userId: live.userId, attachmentId: a.id, matches: [], outcome: 'error', error: safeError(e), inputTokens: 0, model: settings.model, test: false };
+                const evaluation: Evaluation = { ...baseRecord(guild, randomUUID()), messageId: live.messageId, channelId: live.channelId, userId: live.userId, attachmentId: a.id, matches: e instanceof EvaluationFailure ? e.matches : [], outcome: 'error', error: safeError(e), inputTokens: e instanceof EvaluationFailure ? e.inputTokens : 0, hashComparisons: e instanceof EvaluationFailure ? e.hashComparisons : 0, model: null, test: false };
                 await store.put('evaluations', evaluation, 0);
                 // An incomplete multi-image decision cannot safely resolve overlapping rules.
                 throw e;
@@ -101,7 +101,7 @@ export class Worker {
         const guild = message.guildId;
         const event: ModerationEvent = { ...baseRecord(guild, randomUUID()), messageId: message.messageId, channelId: message.channelId, userId: message.userId, ruleId: decision.rule.id, intended: decision.action, actual: 'suppressed', reason: decision.reason, matches, reviewStatus: decision.action === 'review' || !decision.execute ? 'open' : null };
         if (!decision.execute || !this.enforcementAllowed) {
-            if (!this.enforcementAllowed) event.reason = 'deployment_acceptance_required';
+            if (!this.enforcementAllowed) { event.reason = 'deployment_acceptance_required'; event.reviewStatus = 'open'; }
             await store.put('events', event, 0);
             return;
         }
@@ -109,6 +109,7 @@ export class Worker {
         const source = await discord.currentMessage(message.channelId, message.messageId);
         if (source.guildId !== guild || source.userId !== message.userId || !source.attachments.some(a => a.id === decision.match.attachmentId)) {
             event.reason = 'matched_attachment_removed';
+            if (decision.match.provenance === 'exact_hash') event.reviewStatus = 'open';
             await store.put('events', event, 0);
             return;
         }
@@ -165,6 +166,10 @@ export class Worker {
         event.actual = outcomes.join(';');
         event.reason = 'execution_recorded';
         event.reviewStatus = outcomes.some(o => o.includes(':unknown')) ? 'open' : null;
+        if (decision.match.provenance === 'exact_hash' && outcomes.some(o => o.includes(':suppressed') || o.endsWith(':paused'))) {
+            event.reviewStatus = 'open';
+            event.reason = `exact_hash:${outcomes.join(';')}`;
+        }
         await store.put('events', event, 0);
         const settings = (await store.getSettings(guild)).value;
         const summary = `TypeCheck | user ${message.userId} | message ${message.messageId} | rule ${decision.rule.name} | ${event.actual}`;

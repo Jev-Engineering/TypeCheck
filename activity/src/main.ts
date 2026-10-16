@@ -366,14 +366,14 @@ async function testRule(rule: Rule) {
     const files = h('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp,image/gif', multiple: true }), expected = select([['unlabeled', 'Do not label'], ['match', 'Should match'], ['nonmatch', 'Should not match']], 'unlabeled');
     const results = h('div');
     const trials = await api<Calibration[]>(`rules/${rule.id}/calibration`);
-    const history = table(['Sample', 'Expected', 'Predicted', 'Probability', 'Model'], trials.slice(0, 15).map(t => [t.sampleSha256.slice(0, 10), String(t.expected), String(t.predicted), String(t.probability), t.model]));
+    const history = table(['Sample', 'Expected', 'Predicted', 'Probability', 'Model'], trials.slice(0, 15).map(t => [t.sampleSha256.slice(0, 10), String(t.expected), String(t.predicted), t.provenance === 'exact_hash' ? 'Exact normalized-image match' : String(t.probability), t.model ?? 'Not applicable']));
     modal('Test: ' + rule.name, 'Tests never moderate a Discord user. Use distinct representative positive and negative examples; synthetic examples alone do not establish real-world accuracy.', h('div', { class: 'form-stack' }, field('Sample images', files), field('Expected result for these images', expected), results, h('h3', {}, 'Recent calibration samples'), history), [button('Run tests', async () => {
             if (!files.files?.length)
                 throw new Error('Select sample images');
             results.replaceChildren();
             for (const file of Array.from(files.files)) {
                 const r = await api(`rules/${rule.id}/test`, 'POST', { base64: await base64(file), ...(expected.value !== 'unlabeled' ? { expected: expected.value === 'match' } : {}) });
-                results.append(h('div', { class: 'test-result' }, h('strong', {}, file.name), badge(r.predicted ? 'MATCH' : 'NO MATCH', r.predicted ? 'amber' : 'green'), h('span', {}, `Probability ${r.probability} Â· ${r.inputTokens} input tokens Â· No action executed`)));
+                results.append(h('div', { class: 'test-result' }, h('strong', {}, file.name), badge(r.predicted ? 'MATCH' : 'NO MATCH', r.predicted ? 'amber' : 'green'), h('span', {}, `${r.hashComparisons ? 'Exact normalized-image match; numerical thresholds do not apply' : r.thresholdApplies === false ? 'Any-image policy; numerical thresholds do not apply' : 'Jev score ' + r.probability + ' / rule ' + r.ruleThreshold + ' / action floor ' + r.actionFloor + ' / effective ' + r.effectiveThreshold + ' / meets threshold: ' + r.meetsThreshold} / ${r.hashComparisons ?? 0} hash-handled comparisons / ${r.inputTokens} reported provider input tokens / No action executed`)));
             }
             message('Tests finished. Labeled examples were stored without retaining their uploaded image bytes.');
         })]);
@@ -399,7 +399,7 @@ async function logs(parent: HTMLElement) {
             return;
         }
         results.append(table(['Time', 'Summary', 'Outcome', 'Details'], r.items.map((row: any) => [date(row.createdAt), h('div', {}, row.userId ?? row.actor ?? '', h('small', {}, row.messageId ?? row.target ?? '')), pretty(row.actual ?? row.outcome ?? row.event ?? row.status ?? ''), button('View', () => {
-                const body = h('div', { class: 'form-stack' }, h('pre', { class: 'code-block' }, JSON.stringify(row, null, 2)));
+                const body = h('div', { class: 'form-stack' }, ...(row.matches ?? []).map((m: any) => h('p', {}, `${m.provenance === 'exact_hash' ? 'Exact normalized-image match' : m.provenance === 'any_image' ? 'Any-image policy' : 'Jev estimate ' + m.probability} · Reference ${m.referenceId ?? 'none'} · ${row.reason ?? row.outcome ?? ''}`)), h('pre', { class: 'code-block' }, JSON.stringify(row, null, 2)));
                 const actions: HTMLElement[] = [];
                 let d: HTMLDialogElement;
                 if (category.value === 'events' && can('rules.edit'))
@@ -474,9 +474,10 @@ async function settingsPage(parent: HTMLElement) {
     }
     parent.append(panel('Monitoring & enforcement', 'Default: no monitored channels, no automatic actions. Source images are transient and not retained.', h('div', { class: 'columns' }, h('div', { class: 'form-stack' }, monitoring.node, enforcement.node, high.node, any.node, semantic.node), h('div', { class: 'form-stack' }, bots.node, webhooks.node, dm.node, field('Uncertain result policy', uncertain))), h('div', { class: 'columns' }, monitored.node, excluded.node), exempt.node));
     parent.append(panel('Matching, usage & retention', 'Action-specific floors combine with the rule threshold. Changing model or threshold settings makes prior approvals stale. Valid range: 0.5-1.0 inclusive; timeout <= kick <= ban. Standard 0.70 and Strict 0.90 are starting points, not accuracy claims.', h('div', { class: 'form-row' }, field('Pinned Jev model', model), field('Daily request limit (UTC)', daily), field('Log retention, days', retention)), field('Moderator log channel', log), thresholdGrid,
-        h('p', {}, 'Automation: a comparison must reach the greater of its rule threshold and action floor. Equality qualifies; approvals, verification, permissions and all execution safeguards still apply.'),
-        h('p', {}, 'Human review: when the uncertain result policy is review and no rule qualifies for its action, comparisons at or above the human-review threshold but below their effective action threshold enter Logs as open moderation events. Below the review threshold, no fallback review is created. Ignore disables this fallback; explicit review rules still apply.'),
+        h('p', {}, 'Jev automation: a comparison must reach the greater of its rule threshold and action floor. Equality qualifies; approvals, verification, permissions and all execution safeguards still apply.'),
+        h('p', {}, 'Jev human review: when the uncertain result policy is review and no rule qualifies for its action, comparisons at or above the human-review threshold but below their effective action threshold enter Logs as open moderation events. Below the review threshold, no fallback review is created. Ignore disables this fallback; explicit review rules still apply.'),
         h('p', {}, 'A review threshold equal to or above an effective action threshold leaves no fallback review band for that rule. Action-qualified rules take precedence. Thresholds do not guarantee an error rate. New servers default to a review threshold of 0.70; older versions used 0.5 for fallback review.'),
+        h('p', {}, 'Exact normalized-image matches have no probability. Numerical bands do not apply to hash evidence; unmet execution safeguards route it to review without Jev.'),
         h('div', { class: 'actions' }, button('Save settings', async () => {
         const enabling = enforcement.box.checked && !s.enforcement;
         if (enabling && !await confirmAction('Enable automatic enforcement?', 'Only approved rules will execute. Model errors and uncertain matches do not authorize punishment. False positives remain possible.'))

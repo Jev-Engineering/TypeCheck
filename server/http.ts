@@ -258,7 +258,7 @@ export function createHttp(services: Services, config: Config, root = process.cw
                 else
                     assert(old!.revision === number(b.revision, 1, 1e9, true), 'revision_conflict', 409);
                 const record: ReferenceImage = { ...(old ?? baseRecord(guild, id)), revision: (old?.revision ?? 0) + 1, updatedAt: new Date().toISOString(), name, groupId, enabled, createdBy: old?.createdBy ?? a.userId,
-                    objectKey: objectKey ?? old!.objectKey, sha256: normalized?.sha256 ?? old!.sha256, bytes: normalized?.bytes.length ?? old!.bytes, width: normalized?.width ?? old!.width, height: normalized?.height ?? old!.height };
+                    objectKey: objectKey ?? old!.objectKey, sha256: normalized?.sha256 ?? old!.sha256, hashVersion: normalized ? normalized.hashVersion : old?.hashVersion, bytes: normalized?.bytes.length ?? old!.bytes, width: normalized?.width ?? old!.width, height: normalized?.height ?? old!.height };
                 await tx.put('images', record, old?.revision ?? 0);
                 await services.audit(guild, a.userId, creating ? 'image.created' : 'image.updated', id, { sha256: record.sha256 }, tx);
                 return { status: creating ? 201 : 200, body: record };

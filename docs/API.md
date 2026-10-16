@@ -64,3 +64,13 @@ Grant: `{ "capabilities":["images.view"], "revision":0 }` for a new grant; use c
 400 indicates invalid schema/configuration; 401 missing/expired session; 403 insufficient authority/origin; 404 missing guild-scoped record; 409 optimistic conflict/in-use record; 429 application budget/queue limit; 5xx operational/provider failure. Reload after revision conflicts. Never retry unknown Discord sanctions from a management client.
 
 Event-family lists accept `q` and `before` ISO timestamp and return `items`, `nextBefore`, `totalRetained`; up to 100 rows per page. Filtering currently happens after loading retained guild rows. Timestamp-only pagination may skip rows sharing an exact page-boundary timestamp; use export/database inspection for exhaustive investigations. `/actions` is the durable forensic ledger, including unknown outcomes, not an action-retry endpoint. API JSON is authoritative; no generated OpenAPI client is included.
+
+## Exact normalized-image evidence
+
+Image create/replacement derives optional `hashVersion` server-side with `sha256`; caller-supplied hashes/versions are not trusted. Metadata-only updates preserve the stored version. Legacy references without it use Jev. Existing image and log capabilities/guild scoping are unchanged.
+
+`Match.provenance` is `exact_hash`, `jev`, or `any_image` for new results; legacy records may omit it. Exact matches carry `probability: null`, `model: null`, `verified: false`, `referenceRevision`, `hashVersion` and `policyFingerprint`; they never carry a synthetic provider response. Both hash and new Jev evidence bind to a policy/reference revision. Content digests are not added to match records, public notices or provider ledgers. Existing authorized reference/calibration APIs retain their current fields.
+
+Rule-test responses and evaluations include `hashComparisons`, distinct from reported provider tokens/attempts. Hash-only rule tests have `predicted: true`, `probability: null`; hash-only evaluations have `model: null`. Mixed evaluations retain each comparison's provenance. Failed evaluations may retain partial evidence and are never actionable. UI displays “Exact normalized-image match”, matched reference ID and decision reason in authorized event details. Review labels remain annotations, not execution commands. Consumers must handle nullable model/probability and must not price avoided calls.
+
+Exact-hash rule-test summaries set `thresholdApplies: false`, `effectiveThreshold: null`, and `meetsThreshold: null`. Configured rule/action values remain visible but are not a numerical verdict on deterministic evidence. Jev summaries retain the Standard/Strict/custom effective-threshold fields.
