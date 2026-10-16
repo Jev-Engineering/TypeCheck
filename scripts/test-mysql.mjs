@@ -135,5 +135,16 @@ try{
   assert.equal((await pool.query('SELECT hash FROM sessions WHERE hash=?',[hash])).rowCount,0);
   assert.equal((await pool.query('SELECT hash FROM auth_nonces WHERE hash=?',[expired])).rowCount,0);
   assert.equal(await store.beginAction(action),false);
+  // InnoDB RESTRICT checks are immediate during a parent cascade. Whole-guild
+  // removal must delete rules/images first while retaining the tenant FKs.
+  const linkedGroup=baseRecord(g,randomUUID()),linkedImage={...baseRecord(g,randomUUID()),groupId:linkedGroup.id};
+  await store.put('groups',linkedGroup,0);await store.put('images',linkedImage,0);
+  await store.put('rules',{...baseRecord(g,randomUUID()),groupId:linkedGroup.id,referenceId:linkedImage.id},0);
+  await assert.rejects(pool.query('DELETE FROM guilds WHERE id=?',[g]),e=>e.errno===1451);
+  assert.ok(await store.get('groups',g,linkedGroup.id));
+  const deletion=await pool.connect();
+  try {await deletion.query('BEGIN');await deletion.query('DELETE FROM moderation_rules WHERE guild_id=?',[g]);await deletion.query('DELETE FROM reference_images WHERE guild_id=?',[g]);await deletion.query('DELETE FROM guilds WHERE id=?',[g]);await deletion.query('COMMIT');}
+  catch(e){await deletion.query('ROLLBACK');throw e;}finally{deletion.release();}
+  assert.equal((await pool.query('SELECT id FROM image_groups WHERE guild_id=?',[g])).rowCount,0);
   console.log(`MySQL integration passed: ${assertions} assertions; migration retry/concurrency, tenant constraints, revisions, UTC, expiry, quota/claim/nonce concurrency, two-pool election, lock loss, leader-only reset, retention and durable no-replay.`);
 } finally {await pool.query('DELETE FROM guilds WHERE id IN (?,?)',[g,g2]);await pool.end();}
