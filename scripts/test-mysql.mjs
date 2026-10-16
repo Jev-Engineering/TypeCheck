@@ -15,10 +15,10 @@ assert.ok(['localhost','127.0.0.1','[::1]'].includes(url.hostname),'Only loopbac
 let pool=await openMySqlPool(process.env.TEST_DATABASE_URL),store=new MySqlStore(pool);
 const g=String(Date.now())+'01',g2=String(Date.now())+'02';
 try{
-  await thresholdPersistence(store,pool,'mysql',g+'9');
   console.log(`MySQL version: ${(await pool.query('SELECT VERSION() AS version')).rows[0].version}`);
   await Promise.all([migrateDatabase(pool,'mysql'),migrateDatabase(pool,'mysql')]);
   assert.equal((await pool.query("SELECT version FROM schema_migrations WHERE version='001'")).rowCount,1);
+  await thresholdPersistence(store,pool,'mysql',g+'9');
   const s=await store.getSettings(g);await store.getSettings(g2);assert.equal(s.value.enforcement,false);
   await store.putSettings(g,{...s.value,channels:['123456789']},s.revision);
   await assert.rejects(store.putSettings(g,s.value,s.revision),/revision_conflict/);
