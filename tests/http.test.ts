@@ -2,6 +2,8 @@ import { test, type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { baseRecord, type RoleGrant, type Rule, type Calibration, type ModerationEvent } from '../shared/domain.js';
+import { Worker } from '../server/worker.js';
+import { enable, message } from './helpers.js';
 import { createHttp } from '../server/http.js';
 import { digest } from '../server/security.js';
 import { fingerprint } from '../server/policy.js';
@@ -159,4 +161,37 @@ test('API rejects invalid thresholds and reversed severity floors without saving
     const reversed = await f.request(`/api/g/${G}/settings`, 'PUT', { value: { thresholds: { timeout: .95 } }, revision: s.revision }, token);
     assert.equal(reversed.status, 400); assert.equal(reversed.data.error, 'severe_threshold_must_not_be_lower');
     assert.deepEqual(await f.store.getSettings(G), s);
+});
+
+test('review-band worker result reaches moderator HTTP workflow without a punitive action', async t => {
+    const f = await setup(t);
+    await enable(f, rule(f.ref, { secondVerification: true, deleteMessage: true }));
+    // A second check can reduce an action candidate into the configured review band.
+    f.control.probability = 1; f.control.secondProbability = 0.8;
+    const m = message(); f.discord.messages.set(m.messageId, m);
+    await new Worker(f.services, async () => f.image).process(m);
+    assert.equal(f.control.calls, 2);
+    await f.grant(['logs.view', 'rules.edit']);
+    const login = await f.login('moderator-code'), token = login.data.sessionToken;
+    const listed = await f.request(`/api/g/${G}/events`, 'GET', undefined, token);
+    assert.equal(listed.status, 200); assert.equal(listed.data.items.length, 1);
+    const event = listed.data.items[0];
+    assert.equal(event.intended, 'review'); assert.equal(event.actual, 'suppressed');
+    assert.equal(event.reason, 'uncertain'); assert.equal(event.reviewStatus, 'open');
+    assert.equal(event.matches[0].probability, 0.8); assert.equal(event.matches[0].verified, false);
+    const reviewed = await f.request(`/api/g/${G}/events/${event.id}/review`, 'POST', { status: 'confirmed', revision: event.revision }, token);
+    assert.equal(reviewed.status, 200); assert.equal(reviewed.data.reviewStatus, 'confirmed');
+    assert.equal((await f.store.get<ModerationEvent>('events', G, event.id))?.reviewStatus, 'confirmed');
+    assert.equal(f.discord.performed.length, 0); assert.equal(f.discord.notifications.length, 0);
+    const actions = await f.request(`/api/g/${G}/actions`, 'GET', undefined, token);
+    assert.deepEqual(actions.data.items, []);
+});
+
+test('settings API round trips review thresholds above action floors without rejecting stored settings', async t => {
+    const f = await setup(t), login = await f.login();
+    const old = await f.store.getSettings(G);
+    const updated = await f.request(`/api/g/${G}/settings`, 'PUT', { value: { ...old.value, thresholds: { ...old.value.thresholds, review: 1 } }, revision: old.revision }, login.data.sessionToken);
+    assert.equal(updated.status, 200);
+    const read = await f.request(`/api/g/${G}/settings`, 'GET', undefined, login.data.sessionToken);
+    assert.equal(read.data.value.thresholds.review, 1);
 });

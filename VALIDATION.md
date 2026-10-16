@@ -1,5 +1,33 @@
 # Validation record
 
+## CI image remediation — October 16, 2026
+
+PR #8 replaces the Debian build/runtime base with digest-pinned official Node 22 Alpine 3.24 and applies stable Alpine updates. The old image failed the high/critical gate with 43 high Debian findings. No scanner exclusions, severity changes or workflow bypasses were added.
+
+- `npm run check`: passed.
+- `docker build --progress=plain -t typecheck-pr8-alpine:validation .`: passed production build and **164 tests**, 0 failed/skipped. Evidence: `evidence/alpine-runtime-build.txt`.
+- Read-only, network-disabled runtime smoke: Node 22.23.3, UID 1000, sharp 0.35.5 synthetic PNG decode/JPEG encode, PostgreSQL and MySQL client loading passed; runtime npm absent.
+- The same pinned Trivy scanner and `--scanners vuln --severity HIGH,CRITICAL --exit-code 1` used by CI exited **0**: **0 high/critical OS or Node-package findings**. Alpine 3.24.2, 18 OS packages. Evidence: `evidence/alpine-runtime-vulnerabilities.json` records scanned image metadata. This scan does not assert that lower-severity findings or future vulnerabilities are absent.
+
+Hosted CI must additionally verify PostgreSQL/MySQL and the Compose recovery/restore drill on the new base. Local validation used only a new image and transient smoke/scan containers; shared services and WSL were not restarted. No live providers, Discord actions, hosted database connections, deployment or merge. Historical Debian scan records below remain historical evidence; live/independent production acceptance is still separate.
+
+
+## Configurable review threshold — October 16, 2026
+
+Issue #6; isolated branch `fix/configurable-review-threshold` based on main `2f2329f`. Synthetic images, mocked Jev/Discord and MemoryStore only; no hosted database, charged provider calls or live Discord mutations. Existing cost-analytics worktree/PR, `.env` and `ACCEPTANCE_APPROVED` were not changed.
+
+- `npm ci --no-audit --no-fund`: passed (44 packages). npm reported esbuild's install script blocked by local allowScripts policy; the subsequent SDK bundle succeeded without changing that policy.
+- `npm run check`: passed; `evidence/review-threshold-check.txt`.
+- `npm run build`: passed; `evidence/review-threshold-build.txt`.
+- `npm test`: **164 passed, 0 failed/skipped**; `evidence/review-threshold-tests.txt`.
+- `npm audit --audit-level=high`: passed, zero vulnerabilities. `node scripts/review-dependencies.mjs`: passed, 96 declarations reviewed.
+- Diff checked with CRLF-aware whitespace handling, preserving existing file line endings. Initial unrelated line-ending churn was corrected before committing. No test failures occurred.
+
+Coverage includes configurable review/action floors, equality and adjacent boundaries, empty review bands, explicit review under ignore, invalid probabilities, pinned-model mismatch, disabled rules/modes, deterministic rule/comparison precedence, and existing calibration/approval/verification/permission regressions. A worker-to-HTTP integration test starts with a mocked action-qualified result reduced to 0.8 by second verification, reads its persisted open review event as a delegated moderator, resolves it through the review API, and verifies no Discord punishment, notification or action-ledger entry. Below-default-band and ignore cases retain evaluations without opening review.
+
+This does not establish provider accuracy, an error-rate bound, live Activity acceptance or production readiness. No local SQL/Compose drill or browser visual check was run for this policy/UI-copy change; hosted CI runs the database/Compose and runtime scan checks separately. Existing image security and live/independent acceptance gates remain in force.
+
+
 ## MySQL port validation — October 16, 2026
 
 Branch `feat/mysql-store`, based on `1bf77cb`. Local host: Windows, Node 24.18.0, npm 12.2.0. Only newly created `jev-guard-validation-mysql-20261046-codex` and `jev-guard-validation-pg-20261046-codex` containers were used; published ports were loopback only. MySQL reported **8.0.46**. No shared containers or WSL sessions were restarted.
@@ -132,3 +160,11 @@ Local validation: TypeScript check/build, 184 automated tests, npm audit (zero v
 Coverage includes new/missing defaults, exact 0.5/0.70/0.90/1.0 and custom boundaries, invalid types/ranges, severity ordering, API round trips and omitted-value preservation, floor overrides, rule/floor approval invalidation, SQL JSON key-order preservation for historical fingerprints, delegated permissions, second verification and any-image semantics. Both existing database integration runners now exercise new settings, legacy/custom persistence, missing stored fields and no rewrite-on-read against disposable guilds. Hosted execution results will be recorded on the PR.
 
 Author review checked API authorization, revision locks, read-only floor disclosure, enforcement acknowledgement, unchanged review routing, fingerprint compatibility and second verification. Existing runtime-image vulnerability and live acceptance gates remain intact. PR #8 independently changes uncertain-review routing; this change does not incorporate it. Historical evaluation fixtures and results retain their original thresholds.
+
+## Threshold PR integration with remediated main (2026-10-16)
+
+Merged main at 116df6f into the threshold branch, reusing PR #8's digest-pinned Alpine runtime fix. The unchanged high/critical scan policy passes on the same Alpine base; a local threshold-image scan also returned zero high/critical Alpine and Node-package findings. No scanner exclusions or severity changes were introduced.
+
+Resolved integration conflicts by retaining configured review-floor routing, the shared effective-threshold calculation, all HTTP regressions, and the Standard 0.70 defaults. Updated the inherited worker boundary test to assert review at 0.70 and no fallback below it at 0.699999. Updated matching/API/Activity explanations to distinguish new defaults from preserved saved values.
+
+Local integrated validation: check/build, 193 tests (zero failures), and all 18 desktop/mobile offline browser checks passed. Author review covered conflict resolutions, permissions, fingerprint preservation, exact boundaries, second verification and enforcement gates. No repository-required approval rule is configured; an optional review request to romgenie remains open. Hosted final-head CI is the remaining merge gate. Earlier counts and blockers above describe their historical commits.

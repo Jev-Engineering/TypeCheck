@@ -21,19 +21,21 @@ export interface Decision {
 }
 export function resolvePolicy(rules: Rule[], matches: Match[], settings: Settings, images: ReferenceImage[]): Decision | null {
     const eligible = rules.filter(r => r.enabled && (r.type !== 'any_image' || settings.anyImageEnabled) && (r.mode !== 'semantic' || settings.semanticEnabled));
-    const matched = eligible.flatMap(rule => {
+    // Use the same validity checks and precedence for action and review candidates.
+    const candidates = eligible.flatMap(rule => {
         const floor = effectiveThreshold(rule, settings);
-        const candidates = matches.filter(m => m.ruleId === rule.id && Number.isFinite(m.probability) && m.probability >= floor && m.probability <= 1 && m.model === settings.model)
-            .sort((a, b) => b.probability - a.probability || a.attachmentId.localeCompare(b.attachmentId));
-        return candidates[0] ? [{ rule, match: candidates[0] }] : [];
+        const valid = matches.filter(m => m.ruleId === rule.id && Number.isFinite(m.probability) && m.probability >= 0 && m.probability <= 1 && m.model === settings.model)
+            .sort((a, b) => b.probability - a.probability || a.attachmentId.localeCompare(b.attachmentId)
+                || (a.referenceId ?? '').localeCompare(b.referenceId ?? '') || Number(a.verified) - Number(b.verified));
+        return valid[0] ? [{ rule, match: valid[0], floor }] : [];
     }).sort((a, b) => b.rule.priority - a.rule.priority || rank[a.rule.type] - rank[b.rule.type] || a.rule.id.localeCompare(b.rule.id));
-    const selected = matched[0];
+    const selected = candidates.find(c => c.match.probability >= c.floor);
     if (!selected) {
         if (settings.uncertain === 'ignore')
             return null;
-        const uncertain = matches.find(m => m.probability >= 0.5 && m.probability <= 1 && eligible.some(r => r.id === m.ruleId));
-        const r = uncertain && eligible.find(r => r.id === uncertain.ruleId);
-        return r && uncertain ? { rule: r, match: uncertain, action: 'review', deleteMessage: false, execute: false, reason: 'uncertain' } : null;
+        // If review >= floor this half-open band is empty; action selection still wins.
+        const uncertain = candidates.find(c => c.match.probability >= settings.thresholds.review && c.match.probability < c.floor);
+        return uncertain ? { rule: uncertain.rule, match: uncertain.match, action: 'review', deleteMessage: false, execute: false, reason: 'uncertain' } : null;
     }
     const { rule, match } = selected;
     let reason = 'eligible';
