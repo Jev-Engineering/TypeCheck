@@ -1,0 +1,1157 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 1.67kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/node:22-trixie-slim@sha256:154ba2f4d6fec323d28e4f4bb86bba4677f1223391a1979cf521304e03a98dfa
+#2 DONE 0.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 130B done
+#3 DONE 0.0s
+
+#4 [build  1/11] FROM docker.io/library/node:22-trixie-slim@sha256:154ba2f4d6fec323d28e4f4bb86bba4677f1223391a1979cf521304e03a98dfa
+#4 resolve docker.io/library/node:22-trixie-slim@sha256:154ba2f4d6fec323d28e4f4bb86bba4677f1223391a1979cf521304e03a98dfa 0.0s done
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 27.92kB 0.0s done
+#5 DONE 0.0s
+
+#6 [build  3/11] COPY package.json package-lock.json ./
+#6 CACHED
+
+#7 [build  4/11] RUN npm ci --no-audit --no-fund
+#7 CACHED
+
+#8 [build  2/11] WORKDIR /app
+#8 CACHED
+
+#9 [build  5/11] COPY tsconfig.json ./
+#9 CACHED
+
+#10 [build  6/11] COPY server ./server
+#10 DONE 0.1s
+
+#11 [build  7/11] COPY shared ./shared
+#11 DONE 0.1s
+
+#12 [build  8/11] COPY activity ./activity
+#12 DONE 0.1s
+
+#13 [build  9/11] COPY tests ./tests
+#13 DONE 0.1s
+
+#14 [build 10/11] COPY scripts/bundle-sdk.mjs ./scripts/bundle-sdk.mjs
+#14 DONE 0.1s
+
+#15 [build 11/11] RUN npm run build && npm test && npm prune --omit=dev     && npm uninstall --no-save --ignore-scripts typescript esbuild @types/node
+#15 0.421 
+#15 0.421 > typecheck@0.1.0 build
+#15 0.421 > tsc && node scripts/bundle-sdk.mjs
+#15 0.421 
+#15 2.080 Official Discord Embedded App SDK bundled.
+#15 2.173 
+#15 2.173 > typecheck@0.1.0 test
+#15 2.173 > tsc && node --test --test-concurrency=1 dist/tests/*.test.js
+#15 2.173 
+#15 3.205 TAP version 13
+#15 3.278 # Subtest: defaults are monitoring-only, no channels, no semantic or any-image rules
+#15 3.279 ok 1 - defaults are monitoring-only, no channels, no semantic or any-image rules
+#15 3.279   ---
+#15 3.279   duration_ms: 1.078581
+#15 3.279   type: 'test'
+#15 3.279   ...
+#15 3.279 # Subtest: settings reject unversioned model alias
+#15 3.280 ok 2 - settings reject unversioned model alias
+#15 3.280   ---
+#15 3.280   duration_ms: 0.541056
+#15 3.280   type: 'test'
+#15 3.280   ...
+#15 3.280 # Subtest: settings reject unknown client authority claims
+#15 3.280 ok 3 - settings reject unknown client authority claims
+#15 3.280   ---
+#15 3.280   duration_ms: 0.093325
+#15 3.280   type: 'test'
+#15 3.280   ...
+#15 3.280 # Subtest: higher-severity threshold cannot be lower than timeout
+#15 3.280 ok 4 - higher-severity threshold cannot be lower than timeout
+#15 3.280   ---
+#15 3.280   duration_ms: 0.132431
+#15 3.280   type: 'test'
+#15 3.280   ...
+#15 3.280 # Subtest: settings reject string booleans and NaN budget
+#15 3.280 ok 5 - settings reject string booleans and NaN budget
+#15 3.281   ---
+#15 3.281   duration_ms: 0.178885
+#15 3.281   type: 'test'
+#15 3.281   ...
+#15 3.318 # Subtest: timeout bounds include 28 days, exclude longer duration
+#15 3.318 ok 6 - timeout bounds include 28 days, exclude longer duration
+#15 3.318   ---
+#15 3.318   duration_ms: 44.315
+#15 3.318   type: 'test'
+#15 3.318   ...
+#15 3.349 # Subtest: severe rule requires second check even if client asks to disable it
+#15 3.349 ok 7 - severe rule requires second check even if client asks to disable it
+#15 3.349   ---
+#15 3.349   duration_ms: 30.868525
+#15 3.349   type: 'test'
+#15 3.349   ...
+#15 3.376 # Subtest: review/none cannot smuggle a delete side effect
+#15 3.376 ok 8 - review/none cannot smuggle a delete side effect
+#15 3.376   ---
+#15 3.376   duration_ms: 27.325106
+#15 3.376   type: 'test'
+#15 3.376   ...
+#15 3.405 # Subtest: group/individual targets are mutually exclusive
+#15 3.406 ok 9 - group/individual targets are mutually exclusive
+#15 3.406   ---
+#15 3.406   duration_ms: 27.14226
+#15 3.406   type: 'test'
+#15 3.406   ...
+#15 3.406 # Subtest: owner receives full capabilities without grants
+#15 3.406 ok 10 - owner receives full capabilities without grants
+#15 3.406   ---
+#15 3.406   duration_ms: 0.374986
+#15 3.406   type: 'test'
+#15 3.406   ...
+#15 3.406 # Subtest: administrator receives full capabilities without grants
+#15 3.406 ok 11 - administrator receives full capabilities without grants
+#15 3.406   ---
+#15 3.406   duration_ms: 0.0716
+#15 3.406   type: 'test'
+#15 3.406   ...
+#15 3.406 # Subtest: moderator without explicit grant has no capabilities
+#15 3.406 ok 12 - moderator without explicit grant has no capabilities
+#15 3.407   ---
+#15 3.407   duration_ms: 0.07325
+#15 3.407   type: 'test'
+#15 3.407   ...
+#15 3.407 # Subtest: role grants do not leak administrator-only capabilities
+#15 3.407 ok 13 - role grants do not leak administrator-only capabilities
+#15 3.407   ---
+#15 3.407   duration_ms: 0.146951
+#15 3.407   type: 'test'
+#15 3.407   ...
+#15 3.407 # Subtest: cross-guild role grants do not apply
+#15 3.407 ok 14 - cross-guild role grants do not apply
+#15 3.408   ---
+#15 3.408   duration_ms: 0.069862
+#15 3.408   type: 'test'
+#15 3.408   ...
+#15 3.408 # Subtest: role revocation changes effective permissions immediately
+#15 3.408 ok 15 - role revocation changes effective permissions immediately
+#15 3.408   ---
+#15 3.408   duration_ms: 0.061733
+#15 3.408   type: 'test'
+#15 3.408   ...
+#15 3.409 # Subtest: vault uses randomized authenticated encryption and supports roundtrip
+#15 3.409 ok 16 - vault uses randomized authenticated encryption and supports roundtrip
+#15 3.409   ---
+#15 3.409   duration_ms: 0.362742
+#15 3.409   type: 'test'
+#15 3.409   ...
+#15 3.409 # Subtest: ciphertext cannot be transplanted to another guild
+#15 3.409 ok 17 - ciphertext cannot be transplanted to another guild
+#15 3.409   ---
+#15 3.409   duration_ms: 0.237395
+#15 3.409   type: 'test'
+#15 3.409   ...
+#15 3.409 # Subtest: tampered ciphertext is rejected
+#15 3.409 ok 18 - tampered ciphertext is rejected
+#15 3.409   ---
+#15 3.409   duration_ms: 0.246647
+#15 3.409   type: 'test'
+#15 3.409   ...
+#15 3.409 # Subtest: vault rejects short master key
+#15 3.409 ok 19 - vault rejects short master key
+#15 3.409   ---
+#15 3.409   duration_ms: 0.07247
+#15 3.409   type: 'test'
+#15 3.409   ...
+#15 3.410 # Subtest: CSV formula cells are escaped, including whitespace prefix
+#15 3.410 ok 20 - CSV formula cells are escaped, including whitespace prefix
+#15 3.410   ---
+#15 3.410   duration_ms: 0.119484
+#15 3.410   type: 'test'
+#15 3.410   ...
+#15 3.437 # Subtest: eligible approved match produces intended timeout
+#15 3.437 ok 21 - eligible approved match produces intended timeout
+#15 3.437   ---
+#15 3.437   duration_ms: 31.473295
+#15 3.437   type: 'test'
+#15 3.437   ...
+#15 3.465 # Subtest: monitoring-only suppresses a valid match
+#15 3.465 ok 22 - monitoring-only suppresses a valid match
+#15 3.465   ---
+#15 3.465   duration_ms: 27.803317
+#15 3.465   type: 'test'
+#15 3.465   ...
+#15 3.493 # Subtest: missing approval suppresses action
+#15 3.493 ok 23 - missing approval suppresses action
+#15 3.493   ---
+#15 3.493   duration_ms: 27.647235
+#15 3.493   type: 'test'
+#15 3.493   ...
+#15 3.519 # Subtest: reference replacement invalidates approval
+#15 3.519 ok 24 - reference replacement invalidates approval
+#15 3.519   ---
+#15 3.519   duration_ms: 26.18764
+#15 3.519   type: 'test'
+#15 3.519   ...
+#15 3.549 # Subtest: action-specific floor overrides lower rule threshold
+#15 3.549 ok 25 - action-specific floor overrides lower rule threshold
+#15 3.549   ---
+#15 3.549   duration_ms: 29.941362
+#15 3.549   type: 'test'
+#15 3.549   ...
+#15 3.577 # Subtest: confident negative produces no match
+#15 3.577 ok 26 - confident negative produces no match
+#15 3.577   ---
+#15 3.577   duration_ms: 27.921778
+#15 3.577   type: 'test'
+#15 3.577   ...
+#15 3.604 # Subtest: uncertain result can be explicitly ignored
+#15 3.604 ok 27 - uncertain result can be explicitly ignored
+#15 3.604   ---
+#15 3.604   duration_ms: 27.172533
+#15 3.604   type: 'test'
+#15 3.604   ...
+#15 3.630 # Subtest: kick/ban require a completed second check
+#15 3.630 ok 28 - kick/ban require a completed second check
+#15 3.630   ---
+#15 3.630   duration_ms: 25.725324
+#15 3.630   type: 'test'
+#15 3.630   ...
+#15 3.657 # Subtest: high impact setting blocks kick/ban independently
+#15 3.657 ok 29 - high impact setting blocks kick/ban independently
+#15 3.657   ---
+#15 3.657   duration_ms: 26.729191
+#15 3.657   type: 'test'
+#15 3.657   ...
+#15 3.682 # Subtest: semantic mode stays review-only even with approval
+#15 3.682 ok 30 - semantic mode stays review-only even with approval
+#15 3.682   ---
+#15 3.682   duration_ms: 25.749666
+#15 3.682   type: 'test'
+#15 3.682   ...
+#15 3.708 # Subtest: any-image mode remains disabled by default
+#15 3.708 ok 31 - any-image mode remains disabled by default
+#15 3.708   ---
+#15 3.708   duration_ms: 25.989495
+#15 3.708   type: 'test'
+#15 3.708   ...
+#15 3.734 # Subtest: individual rule precedes global rule at equal priority
+#15 3.735 ok 32 - individual rule precedes global rule at equal priority
+#15 3.735   ---
+#15 3.735   duration_ms: 25.999152
+#15 3.735   type: 'test'
+#15 3.735   ...
+#15 3.764 # Subtest: explicit numeric priority overrides default precedence
+#15 3.764 ok 33 - explicit numeric priority overrides default precedence
+#15 3.764   ---
+#15 3.764   duration_ms: 29.183327
+#15 3.764   type: 'test'
+#15 3.764   ...
+#15 3.793 # Subtest: several images still resolve a single effective rule
+#15 3.793 ok 34 - several images still resolve a single effective rule
+#15 3.793   ---
+#15 3.793   duration_ms: 29.63175
+#15 3.793   type: 'test'
+#15 3.793   ...
+#15 3.835 # Subtest: fingerprint is independent of stored approval and timestamps
+#15 3.835 ok 35 - fingerprint is independent of stored approval and timestamps
+#15 3.835   ---
+#15 3.835   duration_ms: 24.837542
+#15 3.835   type: 'test'
+#15 3.835   ...
+#15 3.835 # Subtest: Jev parser rejects invalid probability NaN
+#15 3.835 ok 36 - Jev parser rejects invalid probability NaN
+#15 3.835   ---
+#15 3.835   duration_ms: 0.218222
+#15 3.835   type: 'test'
+#15 3.835   ...
+#15 3.835 # Subtest: Jev parser rejects invalid probability Infinity
+#15 3.835 ok 37 - Jev parser rejects invalid probability Infinity
+#15 3.835   ---
+#15 3.835   duration_ms: 0.037225
+#15 3.835   type: 'test'
+#15 3.835   ...
+#15 3.836 # Subtest: Jev parser rejects invalid probability -1
+#15 3.836 ok 38 - Jev parser rejects invalid probability -1
+#15 3.836   ---
+#15 3.836   duration_ms: 0.026323
+#15 3.836   type: 'test'
+#15 3.836   ...
+#15 3.836 # Subtest: Jev parser rejects invalid probability 1.01
+#15 3.836 ok 39 - Jev parser rejects invalid probability 1.01
+#15 3.836   ---
+#15 3.836   duration_ms: 0.025498
+#15 3.836   type: 'test'
+#15 3.836   ...
+#15 3.836 # Subtest: Jev parser rejects invalid probability 0.99
+#15 3.836 ok 40 - Jev parser rejects invalid probability 0.99
+#15 3.836   ---
+#15 3.836   duration_ms: 0.026841
+#15 3.836   type: 'test'
+#15 3.836   ...
+#15 3.837 # Subtest: Jev parser rejects invalid probability null
+#15 3.837 ok 41 - Jev parser rejects invalid probability null
+#15 3.837   ---
+#15 3.837   duration_ms: 0.020878
+#15 3.837   type: 'test'
+#15 3.837   ...
+#15 3.837 # Subtest: Jev parser rejects model drift
+#15 3.837 ok 42 - Jev parser rejects model drift
+#15 3.837   ---
+#15 3.837   duration_ms: 0.052944
+#15 3.837   type: 'test'
+#15 3.837   ...
+#15 3.837 # Subtest: Jev parser reads official noul field, not free-form text
+#15 3.837 ok 43 - Jev parser reads official noul field, not free-form text
+#15 3.837   ---
+#15 3.837   duration_ms: 0.049347
+#15 3.837   type: 'test'
+#15 3.837   ...
+#15 3.838 # Subtest: multipart request references both images exactly once in state
+#15 3.838 ok 44 - multipart request references both images exactly once in state
+#15 3.838   ---
+#15 3.838   duration_ms: 11.974395
+#15 3.838   type: 'test'
+#15 3.838   ...
+#15 3.838 # Subtest: Jev calls include image header and honor Retry-After with a new budget reservation
+#15 3.838 ok 45 - Jev calls include image header and honor Retry-After with a new budget reservation
+#15 3.838   ---
+#15 3.838   duration_ms: 3.436091
+#15 3.838   type: 'test'
+#15 3.838   ...
+#15 3.838 # Subtest: Discord permission overwrite combines role allows after denies
+#15 3.839 ok 46 - Discord permission overwrite combines role allows after denies
+#15 3.839   ---
+#15 3.839   duration_ms: 0.185013
+#15 3.839   type: 'test'
+#15 3.839   ...
+#15 3.839 # Subtest: member-specific deny takes precedence over role allow
+#15 3.839 ok 47 - member-specific deny takes precedence over role allow
+#15 3.839   ---
+#15 3.839   duration_ms: 0.080357
+#15 3.839   type: 'test'
+#15 3.839   ...
+#15 3.840 # Subtest: message parser does not persist message text
+#15 3.840 ok 48 - message parser does not persist message text
+#15 3.840   ---
+#15 3.840   duration_ms: 0.146644
+#15 3.840   type: 'test'
+#15 3.840   ...
+#15 3.911 # Subtest: Discord 204 mutation is a successful empty response
+#15 3.911 ok 49 - Discord 204 mutation is a successful empty response
+#15 3.911   ---
+#15 3.911   duration_ms: 75.72996
+#15 3.911   type: 'test'
+#15 3.911   ...
+#15 3.911 # Subtest: production rejects HTTP origin
+#15 3.911 ok 50 - production rejects HTTP origin
+#15 3.911   ---
+#15 3.911   duration_ms: 0.340258
+#15 3.911   type: 'test'
+#15 3.911   ...
+#15 4.159 # Subtest: evaluation CLI applies action floors and second verification without granting approval
+#15 4.159 ok 51 - evaluation CLI applies action floors and second verification without granting approval
+#15 4.159   ---
+#15 4.159   duration_ms: 168.096236
+#15 4.159   type: 'test'
+#15 4.159   ...
+#15 4.278 # Subtest: exact normalized content bypasses credentials, quota, provider and tokens with explicit evidence
+#15 4.278 ok 52 - exact normalized content bypasses credentials, quota, provider and tokens with explicit evidence
+#15 4.278   ---
+#15 4.278   duration_ms: 41.656757
+#15 4.278   type: 'test'
+#15 4.278   ...
+#15 4.328 # Subtest: missing reference digest falls through to Jev
+#15 4.328 ok 53 - missing reference digest falls through to Jev
+#15 4.328   ---
+#15 4.328   duration_ms: 49.079409
+#15 4.328   type: 'test'
+#15 4.328   ...
+#15 4.359 # Subtest: incompatible reference digest falls through to Jev
+#15 4.359 ok 54 - incompatible reference digest falls through to Jev
+#15 4.359   ---
+#15 4.359   duration_ms: 31.408854
+#15 4.359   type: 'test'
+#15 4.359   ...
+#15 4.395 # Subtest: different reference digest falls through to Jev
+#15 4.395 ok 55 - different reference digest falls through to Jev
+#15 4.395   ---
+#15 4.395   duration_ms: 34.855726
+#15 4.395   type: 'test'
+#15 4.395   ...
+#15 4.514 # Subtest: normalization strips PNG metadata/encoding variations; crops and recompression need not match
+#15 4.514 ok 56 - normalization strips PNG metadata/encoding variations; crops and recompression need not match
+#15 4.514   ---
+#15 4.514   duration_ms: 120.223461
+#15 4.514   type: 'test'
+#15 4.514   ...
+#15 4.542 # Subtest: guild, disabled and reference eligibility gates run before hash matching
+#15 4.542 ok 57 - guild, disabled and reference eligibility gates run before hash matching
+#15 4.542   ---
+#15 4.542   duration_ms: 27.383066
+#15 4.542   type: 'test'
+#15 4.542   ...
+#15 4.576 # Subtest: mixed hash/Jev evaluation preserves all rules, references, reuse and priority
+#15 4.576 ok 58 - mixed hash/Jev evaluation preserves all rules, references, reuse and priority
+#15 4.576   ---
+#15 4.576   duration_ms: 34.159269
+#15 4.576   type: 'test'
+#15 4.576   ...
+#15 4.610 # Subtest: evidence and approval become stale after reference or matching configuration changes
+#15 4.610 ok 59 - evidence and approval become stale after reference or matching configuration changes
+#15 4.610   ---
+#15 4.610   duration_ms: 34.417301
+#15 4.610   type: 'test'
+#15 4.610   ...
+#15 4.639 # Subtest: hash ban requiring verification goes to review without a verification call
+#15 4.639 ok 60 - hash ban requiring verification goes to review without a verification call
+#15 4.639   ---
+#15 4.639   duration_ms: 28.738511
+#15 4.639   type: 'test'
+#15 4.639   ...
+#15 4.669 # Subtest: hash kick requiring verification goes to review without a verification call
+#15 4.669 ok 61 - hash kick requiring verification goes to review without a verification call
+#15 4.669   ---
+#15 4.669   duration_ms: 29.00344
+#15 4.669   type: 'test'
+#15 4.669   ...
+#15 4.698 # Subtest: hash timeout requiring verification goes to review without a verification call
+#15 4.698 ok 62 - hash timeout requiring verification goes to review without a verification call
+#15 4.698   ---
+#15 4.698   duration_ms: 29.473633
+#15 4.698   type: 'test'
+#15 4.698   ...
+#15 4.726 # Subtest: hash worker review preserves evidence and zero usage, respects acceptance and protected members
+#15 4.726 ok 63 - hash worker review preserves evidence and zero usage, respects acceptance and protected members
+#15 4.726   ---
+#15 4.726   duration_ms: 28.019493
+#15 4.726   type: 'test'
+#15 4.726   ...
+#15 4.754 # Subtest: hash evidence cannot bypass approval, permission or deployment acceptance
+#15 4.754 ok 64 - hash evidence cannot bypass approval, permission or deployment acceptance
+#15 4.754   ---
+#15 4.754   duration_ms: 27.556242
+#15 4.754   type: 'test'
+#15 4.754   ...
+#15 4.782 # Subtest: partial provider failure retains exact evidence but suppresses whole-message enforcement
+#15 4.782 ok 65 - partial provider failure retains exact evidence but suppresses whole-message enforcement
+#15 4.782   ---
+#15 4.782   duration_ms: 28.674753
+#15 4.782   type: 'test'
+#15 4.782   ...
+#15 4.807 # Subtest: hash calibration is deterministic evidence, never a fabricated Jev calibration sample
+#15 4.807 ok 66 - hash calibration is deterministic evidence, never a fabricated Jev calibration sample
+#15 4.807   ---
+#15 4.807   duration_ms: 25.114702
+#15 4.807   type: 'test'
+#15 4.807   ...
+#15 4.832 # Subtest: a labeled exact-hash false positive blocks approval instead of disappearing from calibration
+#15 4.832 ok 67 - a labeled exact-hash false positive blocks approval instead of disappearing from calibration
+#15 4.832   ---
+#15 4.832   duration_ms: 24.591576
+#15 4.832   type: 'test'
+#15 4.832   ...
+#15 4.923 # Subtest: Gateway HELLO identifies with only image-message-relevant intents
+#15 4.924 ok 68 - Gateway HELLO identifies with only image-message-relevant intents
+#15 4.924   ---
+#15 4.924   duration_ms: 18.295993
+#15 4.924   type: 'test'
+#15 4.924   ...
+#15 4.935 # Subtest: Gateway READY reports online and server heartbeat carries last sequence
+#15 4.935 ok 69 - Gateway READY reports online and server heartbeat carries last sequence
+#15 4.935   ---
+#15 4.935   duration_ms: 11.411053
+#15 4.935   type: 'test'
+#15 4.935   ...
+#15 4.946 # Subtest: Gateway ignores text-only messages without passing content to ingestion
+#15 4.946 ok 70 - Gateway ignores text-only messages without passing content to ingestion
+#15 4.946   ---
+#15 4.946   duration_ms: 10.595387
+#15 4.946   type: 'test'
+#15 4.946   ...
+#15 4.957 # Subtest: Gateway retains image metadata but discards message text
+#15 4.957 ok 71 - Gateway retains image metadata but discards message text
+#15 4.958   ---
+#15 4.958   duration_ms: 11.428037
+#15 4.958   type: 'test'
+#15 4.958   ...
+#15 5.097 # Subtest: HTTP health is public but exposes no credentials
+#15 5.097 ok 72 - HTTP health is public but exposes no credentials
+#15 5.097   ---
+#15 5.097   duration_ms: 53.737974
+#15 5.097   type: 'test'
+#15 5.097   ...
+#15 5.130 # Subtest: HTTP unauthenticated guild request is denied
+#15 5.130 ok 73 - HTTP unauthenticated guild request is denied
+#15 5.130   ---
+#15 5.130   duration_ms: 33.309811
+#15 5.130   type: 'test'
+#15 5.130   ...
+#15 5.164 # Subtest: HTTP rejects a mutation from an untrusted origin
+#15 5.164 ok 74 - HTTP rejects a mutation from an untrusted origin
+#15 5.164   ---
+#15 5.164   duration_ms: 33.335002
+#15 5.164   type: 'test'
+#15 5.164   ...
+#15 5.197 # Subtest: HTTP mutation without Origin is denied
+#15 5.197 ok 75 - HTTP mutation without Origin is denied
+#15 5.197   ---
+#15 5.197   duration_ms: 32.974987
+#15 5.197   type: 'test'
+#15 5.197   ...
+#15 5.228 # Subtest: HTTP accepts the exact Discord proxy origin
+#15 5.228 ok 76 - HTTP accepts the exact Discord proxy origin
+#15 5.228   ---
+#15 5.228   duration_ms: 31.074713
+#15 5.228   type: 'test'
+#15 5.228   ...
+#15 5.261 # Subtest: OAuth nonce is one-use
+#15 5.261 ok 77 - OAuth nonce is one-use
+#15 5.261   ---
+#15 5.261   duration_ms: 33.360269
+#15 5.261   type: 'test'
+#15 5.261   ...
+#15 5.294 # Subtest: Discord administrator receives a usable management session
+#15 5.294 ok 78 - Discord administrator receives a usable management session
+#15 5.294   ---
+#15 5.294   duration_ms: 33.049427
+#15 5.294   type: 'test'
+#15 5.294   ...
+#15 5.324 # Subtest: ungranted moderator cannot get a session
+#15 5.324 ok 79 - ungranted moderator cannot get a session
+#15 5.324   ---
+#15 5.324   duration_ms: 29.899494
+#15 5.324   type: 'test'
+#15 5.324   ...
+#15 5.359 # Subtest: cross-server API access is denied for a valid session
+#15 5.359 ok 80 - cross-server API access is denied for a valid session
+#15 5.359   ---
+#15 5.359   duration_ms: 34.416883
+#15 5.359   type: 'test'
+#15 5.359   ...
+#15 5.388 # Subtest: revoked role membership invalidates write authority on next request
+#15 5.388 ok 81 - revoked role membership invalidates write authority on next request
+#15 5.388   ---
+#15 5.388   duration_ms: 29.281646
+#15 5.388   type: 'test'
+#15 5.388   ...
+#15 5.417 # Subtest: member removed from guild cannot reuse the old session
+#15 5.417 ok 82 - member removed from guild cannot reuse the old session
+#15 5.417   ---
+#15 5.417   duration_ms: 28.509014
+#15 5.417   type: 'test'
+#15 5.417   ...
+#15 5.448 # Subtest: logout removes the opaque session
+#15 5.448 ok 83 - logout removes the opaque session
+#15 5.448   ---
+#15 5.448   duration_ms: 31.654291
+#15 5.448   type: 'test'
+#15 5.448   ...
+#15 5.475 # Subtest: expired opaque session cannot authorize a request
+#15 5.475 ok 84 - expired opaque session cannot authorize a request
+#15 5.475   ---
+#15 5.475   duration_ms: 26.8341
+#15 5.475   type: 'test'
+#15 5.475   ...
+#15 5.510 # Subtest: API credential status never contains plaintext or encrypted envelope
+#15 5.510 ok 85 - API credential status never contains plaintext or encrypted envelope
+#15 5.510   ---
+#15 5.510   duration_ms: 35.151124
+#15 5.510   type: 'test'
+#15 5.510   ...
+#15 5.543 # Subtest: moderator cannot read credential management endpoint
+#15 5.543 ok 86 - moderator cannot read credential management endpoint
+#15 5.543   ---
+#15 5.543   duration_ms: 32.910152
+#15 5.543   type: 'test'
+#15 5.543   ...
+#15 5.574 # Subtest: moderator cannot overwrite credentials through direct API call
+#15 5.574 ok 87 - moderator cannot overwrite credentials through direct API call
+#15 5.574   ---
+#15 5.574   duration_ms: 30.713301
+#15 5.574   type: 'test'
+#15 5.574   ...
+#15 5.625 # Subtest: valid credential replacement rotates encrypted data without restart
+#15 5.625 ok 88 - valid credential replacement rotates encrypted data without restart
+#15 5.625   ---
+#15 5.625   duration_ms: 50.568728
+#15 5.625   type: 'test'
+#15 5.625   ...
+#15 5.671 # Subtest: invalid replacement leaves the original working credential unchanged
+#15 5.671 ok 89 - invalid replacement leaves the original working credential unchanged
+#15 5.671   ---
+#15 5.671   duration_ms: 45.9449
+#15 5.671   type: 'test'
+#15 5.671   ...
+#15 5.712 # Subtest: credential removal is revision-checked
+#15 5.712 ok 90 - credential removal is revision-checked
+#15 5.712   ---
+#15 5.712   duration_ms: 41.170085
+#15 5.712   type: 'test'
+#15 5.712   ...
+#15 5.765 # Subtest: credential values are absent from audit records
+#15 5.765 ok 91 - credential values are absent from audit records
+#15 5.765   ---
+#15 5.765   duration_ms: 52.689469
+#15 5.765   type: 'test'
+#15 5.765   ...
+#15 5.793 # Subtest: unknown frontend admin claim is rejected by settings schema
+#15 5.793 ok 92 - unknown frontend admin claim is rejected by settings schema
+#15 5.793   ---
+#15 5.793   duration_ms: 28.50611
+#15 5.793   type: 'test'
+#15 5.793   ...
+#15 5.823 # Subtest: enabling enforcement requires explicit acknowledgement and selected channels
+#15 5.823 ok 93 - enabling enforcement requires explicit acknowledgement and selected channels
+#15 5.823   ---
+#15 5.823   duration_ms: 29.986649
+#15 5.823   type: 'test'
+#15 5.823   ...
+#15 5.857 # Subtest: settings use optimistic revisions, preventing lost updates
+#15 5.857 ok 94 - settings use optimistic revisions, preventing lost updates
+#15 5.857   ---
+#15 5.857   duration_ms: 34.170061
+#15 5.857   type: 'test'
+#15 5.857   ...
+#15 5.889 # Subtest: delegated pause cannot resume enforcement or modify security settings
+#15 5.889 ok 95 - delegated pause cannot resume enforcement or modify security settings
+#15 5.889   ---
+#15 5.889   duration_ms: 31.139164
+#15 5.889   type: 'test'
+#15 5.889   ...
+#15 5.940 # Subtest: image upload persists only a normalized guild-owned object
+#15 5.940 ok 96 - image upload persists only a normalized guild-owned object
+#15 5.940   ---
+#15 5.940   duration_ms: 50.909095
+#15 5.940   type: 'test'
+#15 5.940   ...
+#15 5.969 # Subtest: image library is isolated when a foreign image ID is requested
+#15 5.969 ok 97 - image library is isolated when a foreign image ID is requested
+#15 5.969   ---
+#15 5.969   duration_ms: 29.001884
+#15 5.969   type: 'test'
+#15 5.969   ...
+#15 5.998 # Subtest: image metadata edits retain stable ID and increment revision
+#15 5.998 ok 98 - image metadata edits retain stable ID and increment revision
+#15 5.998   ---
+#15 5.998   duration_ms: 28.849464
+#15 5.998   type: 'test'
+#15 5.998   ...
+#15 6.027 # Subtest: individual referenced image cannot be deleted until its rule is removed
+#15 6.027 ok 99 - individual referenced image cannot be deleted until its rule is removed
+#15 6.027   ---
+#15 6.027   duration_ms: 29.885722
+#15 6.027   type: 'test'
+#15 6.027   ...
+#15 6.059 # Subtest: image-only moderator cannot change sanctions through the rule API
+#15 6.059 ok 100 - image-only moderator cannot change sanctions through the rule API
+#15 6.059   ---
+#15 6.059   duration_ms: 31.303308
+#15 6.059   type: 'test'
+#15 6.059   ...
+#15 6.090 # Subtest: rule editor cannot select a ban without ban capability
+#15 6.090 ok 101 - rule editor cannot select a ban without ban capability
+#15 6.090   ---
+#15 6.090   duration_ms: 30.923822
+#15 6.090   type: 'test'
+#15 6.090   ...
+#15 6.121 # Subtest: changing any rule content clears its old approval
+#15 6.121 ok 102 - changing any rule content clears its old approval
+#15 6.121   ---
+#15 6.121   duration_ms: 31.043626
+#15 6.121   type: 'test'
+#15 6.121   ...
+#15 6.172 # Subtest: direct test API cannot execute moderation actions
+#15 6.172 ok 103 - direct test API cannot execute moderation actions
+#15 6.172   ---
+#15 6.172   duration_ms: 51.337741
+#15 6.172   type: 'test'
+#15 6.172   ...
+#15 6.202 # Subtest: rule approval without labeled examples is rejected
+#15 6.202 ok 104 - rule approval without labeled examples is rejected
+#15 6.202   ---
+#15 6.202   duration_ms: 29.96555
+#15 6.202   type: 'test'
+#15 6.202   ...
+#15 6.231 # Subtest: conflicting labels for the same sample cannot satisfy calibration
+#15 6.231 ok 105 - conflicting labels for the same sample cannot satisfy calibration
+#15 6.231   ---
+#15 6.231   duration_ms: 28.416568
+#15 6.231   type: 'test'
+#15 6.231   ...
+#15 6.259 # Subtest: a false-positive calibration result blocks approval
+#15 6.259 ok 106 - a false-positive calibration result blocks approval
+#15 6.259   ---
+#15 6.259   duration_ms: 28.131619
+#15 6.259   type: 'test'
+#15 6.259   ...
+#15 6.289 # Subtest: false positive annotation disables the associated rule and clears approval
+#15 6.289 ok 107 - false positive annotation disables the associated rule and clears approval
+#15 6.289   ---
+#15 6.289   duration_ms: 29.738826
+#15 6.289   type: 'test'
+#15 6.289   ...
+#15 6.319 # Subtest: moderator cannot grant themselves more capabilities
+#15 6.319 ok 108 - moderator cannot grant themselves more capabilities
+#15 6.319   ---
+#15 6.319   duration_ms: 30.076158
+#15 6.319   type: 'test'
+#15 6.319   ...
+#15 6.347 # Subtest: administrator-only capabilities cannot be inserted in a role grant
+#15 6.347 ok 109 - administrator-only capabilities cannot be inserted in a role grant
+#15 6.347   ---
+#15 6.347   duration_ms: 28.651081
+#15 6.347   type: 'test'
+#15 6.347   ...
+#15 6.375 # Subtest: CSV export is a separate delegated capability
+#15 6.375 ok 110 - CSV export is a separate delegated capability
+#15 6.375   ---
+#15 6.375   duration_ms: 28.051702
+#15 6.375   type: 'test'
+#15 6.375   ...
+#15 6.406 # Subtest: unexpected backend errors never echo secrets
+#15 6.406 ok 111 - unexpected backend errors never echo secrets
+#15 6.406   ---
+#15 6.406   duration_ms: 30.415372
+#15 6.406   type: 'test'
+#15 6.406   ...
+#15 6.440 # Subtest: durable action ledger is visible only with log permission
+#15 6.440 ok 112 - durable action ledger is visible only with log permission
+#15 6.440   ---
+#15 6.440   duration_ms: 33.973772
+#15 6.440   type: 'test'
+#15 6.440   ...
+#15 6.469 # Subtest: durable action ledger cannot expose another guild records
+#15 6.469 ok 113 - durable action ledger cannot expose another guild records
+#15 6.469   ---
+#15 6.469   duration_ms: 29.237646
+#15 6.469   type: 'test'
+#15 6.469   ...
+#15 6.500 # Subtest: production enforcement requires deployment acceptance even for an administrator
+#15 6.500 ok 114 - production enforcement requires deployment acceptance even for an administrator
+#15 6.500   ---
+#15 6.500   duration_ms: 30.671985
+#15 6.500   type: 'test'
+#15 6.500   ...
+#15 6.530 # Subtest: readiness reports dependency failure without leaking error text
+#15 6.530 ok 115 - readiness reports dependency failure without leaking error text
+#15 6.530   ---
+#15 6.530   duration_ms: 29.903719
+#15 6.530   type: 'test'
+#15 6.530   ...
+#15 6.562 # Subtest: standby serves health and authenticated API without requiring a Gateway
+#15 6.562 ok 116 - standby serves health and authenticated API without requiring a Gateway
+#15 6.562   ---
+#15 6.562   duration_ms: 32.136035
+#15 6.562   type: 'test'
+#15 6.562   ...
+#15 6.633 # Subtest: hash upload provenance is server-derived and preserved by metadata edits; test API reports no model or usage
+#15 6.633 ok 117 - hash upload provenance is server-derived and preserved by metadata edits; test API reports no model or usage
+#15 6.633   ---
+#15 6.633   duration_ms: 70.61184
+#15 6.633   type: 'test'
+#15 6.633   ...
+#15 6.731 # Subtest: small PNG becomes an upright baseline JPEG within Jev bounds
+#15 6.731 ok 118 - small PNG becomes an upright baseline JPEG within Jev bounds
+#15 6.731   ---
+#15 6.731   duration_ms: 23.11515
+#15 6.731   type: 'test'
+#15 6.731   ...
+#15 6.732 # Subtest: malformed image is rejected
+#15 6.732 ok 119 - malformed image is rejected
+#15 6.732   ---
+#15 6.732   duration_ms: 1.022591
+#15 6.732   type: 'test'
+#15 6.732   ...
+#15 6.750 # Subtest: SVG is not accepted as a moderation image
+#15 6.750 ok 120 - SVG is not accepted as a moderation image
+#15 6.750   ---
+#15 6.750   duration_ms: 1.044008
+#15 6.750   type: 'test'
+#15 6.750   ...
+#15 6.750 # Subtest: image byte cap is enforced before decoding
+#15 6.750 ok 121 - image byte cap is enforced before decoding
+#15 6.750   ---
+#15 6.750   duration_ms: 0.322416
+#15 6.750   type: 'test'
+#15 6.750   ...
+#15 6.750 # Subtest: attachment parser accepts supported extension when MIME is missing
+#15 6.750 ok 122 - attachment parser accepts supported extension when MIME is missing
+#15 6.750   ---
+#15 6.750   duration_ms: 0.221247
+#15 6.750   type: 'test'
+#15 6.750   ...
+#15 6.750 # Subtest: text attachments are ignored
+#15 6.750 ok 123 - text attachments are ignored
+#15 6.750   ---
+#15 6.750   duration_ms: 0.137854
+#15 6.750   type: 'test'
+#15 6.750   ...
+#15 6.751 # Subtest: Discord CDN URL must match the event channel and attachment ID
+#15 6.751 ok 124 - Discord CDN URL must match the event channel and attachment ID
+#15 6.751   ---
+#15 6.751   duration_ms: 0.252301
+#15 6.751   type: 'test'
+#15 6.751   ...
+#15 6.751 # Subtest: untrusted download URL rejected: http://cdn.discordapp.com/attachments/1/2/x.png
+#15 6.751 ok 125 - untrusted download URL rejected: http://cdn.discordapp.com/attachments/1/2/x.png
+#15 6.751   ---
+#15 6.751   duration_ms: 0.111784
+#15 6.751   type: 'test'
+#15 6.751   ...
+#15 6.751 # Subtest: untrusted download URL rejected: https://127.0.0.1/x.png
+#15 6.751 ok 126 - untrusted download URL rejected: https://127.0.0.1/x.png
+#15 6.751   ---
+#15 6.751   duration_ms: 0.24119
+#15 6.751   type: 'test'
+#15 6.751   ...
+#15 6.751 # Subtest: untrusted download URL rejected: https://cdn.discordapp.com.evil.test/x.png
+#15 6.752 ok 127 - untrusted download URL rejected: https://cdn.discordapp.com.evil.test/x.png
+#15 6.752   ---
+#15 6.752   duration_ms: 0.295784
+#15 6.752   type: 'test'
+#15 6.752   ...
+#15 6.752 # Subtest: untrusted download URL rejected: file:///etc/passwd
+#15 6.752 ok 128 - untrusted download URL rejected: file:///etc/passwd
+#15 6.752   ---
+#15 6.752   duration_ms: 0.126084
+#15 6.752   type: 'test'
+#15 6.752   ...
+#15 6.752 # Subtest: untrusted download URL rejected: https://user:pass@cdn.discordapp.com/x.png
+#15 6.752 ok 129 - untrusted download URL rejected: https://user:pass@cdn.discordapp.com/x.png
+#15 6.752   ---
+#15 6.752   duration_ms: 0.095613
+#15 6.752   type: 'test'
+#15 6.752   ...
+#15 6.752 # Subtest: untrusted download URL rejected: https://cdn.discordapp.com:8443/x.png
+#15 6.752 ok 130 - untrusted download URL rejected: https://cdn.discordapp.com:8443/x.png
+#15 6.752   ---
+#15 6.752   duration_ms: 0.123158
+#15 6.752   type: 'test'
+#15 6.752   ...
+#15 6.772 # Subtest: attachment download forbids redirects and applies timeout
+#15 6.772 ok 131 - attachment download forbids redirects and applies timeout
+#15 6.772   ---
+#15 6.772   duration_ms: 35.175062
+#15 6.772   type: 'test'
+#15 6.772   ...
+#15 6.772 # Subtest: streamed body cap does not trust missing Content-Length
+#15 6.772 ok 132 - streamed body cap does not trust missing Content-Length
+#15 6.772   ---
+#15 6.772   duration_ms: 0.802894
+#15 6.772   type: 'test'
+#15 6.772   ...
+#15 6.772 # Subtest: declared oversized response is rejected
+#15 6.772 ok 133 - declared oversized response is rejected
+#15 6.773   ---
+#15 6.773   duration_ms: 0.466739
+#15 6.773   type: 'test'
+#15 6.773   ...
+#15 6.804 # Subtest: object storage isolates guilds and prevents path traversal
+#15 6.804 ok 134 - object storage isolates guilds and prevents path traversal
+#15 6.804   ---
+#15 6.804   duration_ms: 31.061557
+#15 6.804   type: 'test'
+#15 6.804   ...
+#15 6.838 # Subtest: normalization is deterministic for identical inputs
+#15 6.838 ok 135 - normalization is deterministic for identical inputs
+#15 6.838   ---
+#15 6.838   duration_ms: 34.22174
+#15 6.838   type: 'test'
+#15 6.838   ...
+#15 6.840 # Subtest: PNG with corrupt IDAT checksum is rejected
+#15 6.841 ok 136 - PNG with corrupt IDAT checksum is rejected
+#15 6.841   ---
+#15 6.841   duration_ms: 2.938056
+#15 6.841   type: 'test'
+#15 6.841   ...
+#15 6.892 # Subtest: second instance stays standby; release permits takeover without overlapping controllers
+#15 6.892 ok 137 - second instance stays standby; release permits takeover without overlapping controllers
+#15 6.892   ---
+#15 6.892   duration_ms: 6.798776
+#15 6.892   type: 'test'
+#15 6.892   ...
+#15 6.892 # Subtest: leadership loss stops Gateway and worker synchronously and never restarts them
+#15 6.892 ok 138 - leadership loss stops Gateway and worker synchronously and never restarts them
+#15 6.892   ---
+#15 6.892   duration_ms: 0.366868
+#15 6.892   type: 'test'
+#15 6.892   ...
+#15 6.893 # Subtest: overlapping retries and shutdown during acquisition cannot create controllers
+#15 6.893 ok 139 - overlapping retries and shutdown during acquisition cannot create controllers
+#15 6.893   ---
+#15 6.893   duration_ms: 0.142431
+#15 6.893   type: 'test'
+#15 6.893   ...
+#15 6.894 # Subtest: loss during acquisition never starts controllers
+#15 6.894 ok 140 - loss during acquisition never starts controllers
+#15 6.894   ---
+#15 6.894   duration_ms: 0.112037
+#15 6.894   type: 'test'
+#15 6.894   ...
+#15 6.894 # Subtest: a transient acquisition error remains retryable standby
+#15 6.894 ok 141 - a transient acquisition error remains retryable standby
+#15 6.894   ---
+#15 6.894   duration_ms: 0.304243
+#15 6.894   type: 'test'
+#15 6.894   ...
+#15 6.894 # Subtest: MySQL minimum version rejects old servers, MariaDB and malformed values
+#15 6.894 ok 142 - MySQL minimum version rejects old servers, MariaDB and malformed values
+#15 6.894   ---
+#15 6.894   duration_ms: 0.500355
+#15 6.894   type: 'test'
+#15 6.894   ...
+#15 6.894 # Subtest: database selection and GoDaddy variables preserve special characters without exposing them
+#15 6.894 ok 143 - database selection and GoDaddy variables preserve special characters without exposing them
+#15 6.894   ---
+#15 6.894   duration_ms: 0.388428
+#15 6.894   type: 'test'
+#15 6.894   ...
+#15 7.007 # Subtest: text-only messages do not create jobs
+#15 7.007 ok 144 - text-only messages do not create jobs
+#15 7.007   ---
+#15 7.007   duration_ms: 38.600096
+#15 7.007   type: 'test'
+#15 7.007   ...
+#15 7.035 # Subtest: one supported image creates a durable job
+#15 7.035 ok 145 - one supported image creates a durable job
+#15 7.035   ---
+#15 7.035   duration_ms: 27.912429
+#15 7.035   type: 'test'
+#15 7.035   ...
+#15 7.066 # Subtest: duplicate Gateway events do not create multiple jobs
+#15 7.066 ok 146 - duplicate Gateway events do not create multiple jobs
+#15 7.066   ---
+#15 7.066   duration_ms: 31.13297
+#15 7.066   type: 'test'
+#15 7.066   ...
+#15 7.097 # Subtest: unselected channels do not create jobs
+#15 7.097 ok 147 - unselected channels do not create jobs
+#15 7.097   ---
+#15 7.097   duration_ms: 30.461055
+#15 7.097   type: 'test'
+#15 7.097   ...
+#15 7.125 # Subtest: bots are ignored by default
+#15 7.125 ok 148 - bots are ignored by default
+#15 7.125   ---
+#15 7.125   duration_ms: 28.270441
+#15 7.125   type: 'test'
+#15 7.125   ...
+#15 7.152 # Subtest: explicit webhook processing does not also require processBots
+#15 7.152 ok 149 - explicit webhook processing does not also require processBots
+#15 7.152   ---
+#15 7.152   duration_ms: 27.52532
+#15 7.152   type: 'test'
+#15 7.152   ...
+#15 7.198 # Subtest: positive evaluation executes a configured timeout
+#15 7.198 ok 150 - positive evaluation executes a configured timeout
+#15 7.198   ---
+#15 7.198   duration_ms: 45.753586
+#15 7.198   type: 'test'
+#15 7.198   ...
+#15 7.231 # Subtest: several matching images produce one user sanction
+#15 7.231 ok 151 - several matching images produce one user sanction
+#15 7.231   ---
+#15 7.231   duration_ms: 32.632253
+#15 7.231   type: 'test'
+#15 7.231   ...
+#15 7.260 # Subtest: source deletion and timeout are distinct action slots
+#15 7.260 ok 152 - source deletion and timeout are distinct action slots
+#15 7.260   ---
+#15 7.260   duration_ms: 28.576433
+#15 7.260   type: 'test'
+#15 7.260   ...
+#15 12.65 # Subtest: later attachment edit cannot repeat or escalate a prior sanction
+#15 12.65 ok 153 - later attachment edit cannot repeat or escalate a prior sanction
+#15 12.65   ---
+#15 12.65   duration_ms: 46.923757
+#15 12.65   type: 'test'
+#15 12.65   ...
+#15 12.68 # Subtest: monitor-only records intended action but performs no mutation
+#15 12.68 ok 154 - monitor-only records intended action but performs no mutation
+#15 12.68   ---
+#15 12.68   duration_ms: 29.114299
+#15 12.68   type: 'test'
+#15 12.68   ...
+#15 6.883 # Subtest: negative Jev result never sanctions
+#15 6.883 ok 155 - negative Jev result never sanctions
+#15 6.883   ---
+#15 6.883   duration_ms: 28.954095
+#15 6.883   type: 'test'
+#15 6.883   ...
+#15 6.911 # Subtest: uncertain Jev result creates a review event, not punishment
+#15 6.911 ok 156 - uncertain Jev result creates a review event, not punishment
+#15 6.911   ---
+#15 6.911   duration_ms: 27.841665
+#15 6.911   type: 'test'
+#15 6.911   ...
+#15 6.959 # Subtest: Jev authentication failure produces no punishment or synthetic match
+#15 6.959 ok 157 - Jev authentication failure produces no punishment or synthetic match
+#15 6.959   ---
+#15 6.959   duration_ms: 47.598485
+#15 6.959   type: 'test'
+#15 6.959   ...
+#15 6.985 # Subtest: missing credential prevents Jev-dependent actions
+#15 6.985 ok 158 - missing credential prevents Jev-dependent actions
+#15 6.985   ---
+#15 6.985   duration_ms: 26.601853
+#15 6.985   type: 'test'
+#15 6.985   ...
+#15 7.011 # Subtest: any-image action can operate without Jev only when explicitly enabled and approved
+#15 7.011 ok 159 - any-image action can operate without Jev only when explicitly enabled and approved
+#15 7.011   ---
+#15 7.011   duration_ms: 25.569033
+#15 7.011   type: 'test'
+#15 7.011   ...
+#15 12.84 # Subtest: second verification disagreement suppresses a ban
+#15 12.84 ok 160 - second verification disagreement suppresses a ban
+#15 12.84   ---
+#15 12.84   duration_ms: 27.597691
+#15 12.84   type: 'test'
+#15 12.84   ...
+#15 12.87 # Subtest: second verification agreement permits an approved ban path (mock Discord)
+#15 12.87 ok 161 - second verification agreement permits an approved ban path (mock Discord)
+#15 12.87   ---
+#15 12.87   duration_ms: 25.799927
+#15 12.87   type: 'test'
+#15 12.87   ...
+#15 7.071 # Subtest: member exemption prevents evaluation and sanctions
+#15 7.071 ok 162 - member exemption prevents evaluation and sanctions
+#15 7.071   ---
+#15 7.071   duration_ms: 25.35817
+#15 7.071   type: 'test'
+#15 7.071   ...
+#15 7.096 # Subtest: administrator member is protected from automatic sanctions
+#15 7.096 ok 163 - administrator member is protected from automatic sanctions
+#15 7.096   ---
+#15 7.096   duration_ms: 25.241238
+#15 7.096   type: 'test'
+#15 7.096   ...
+#15 7.129 # Subtest: Discord permission failure does not execute a REST mutation
+#15 7.129 ok 164 - Discord permission failure does not execute a REST mutation
+#15 7.129   ---
+#15 7.129   duration_ms: 32.710686
+#15 7.129   type: 'test'
+#15 7.129   ...
+#15 7.170 # Subtest: ambiguous mutation response is recorded unknown and never replayed
+#15 7.170 ok 165 - ambiguous mutation response is recorded unknown and never replayed
+#15 7.170   ---
+#15 7.170   duration_ms: 41.419691
+#15 7.170   type: 'test'
+#15 7.170   ...
+#15 7.199 # Subtest: one malformed image suppresses all actions for an incomplete multi-image decision
+#15 7.199 ok 166 - one malformed image suppresses all actions for an incomplete multi-image decision
+#15 7.199   ---
+#15 7.199   duration_ms: 29.081364
+#15 7.199   type: 'test'
+#15 7.199   ...
+#15 7.224 # Subtest: removed attachment is not evaluated from a stale Gateway job
+#15 7.224 ok 167 - removed attachment is not evaluated from a stale Gateway job
+#15 7.224   ---
+#15 7.224   duration_ms: 24.138116
+#15 7.224   type: 'test'
+#15 7.224   ...
+#15 7.249 # Subtest: rule test records labeled result but never calls Discord moderation
+#15 7.249 ok 168 - rule test records labeled result but never calls Discord moderation
+#15 7.249   ---
+#15 7.249   duration_ms: 25.133721
+#15 7.249   type: 'test'
+#15 7.249   ...
+#15 7.274 # Subtest: daily budget exhaustion stops comparisons safely
+#15 7.274 ok 169 - daily budget exhaustion stops comparisons safely
+#15 7.274   ---
+#15 7.274   duration_ms: 25.462077
+#15 7.274   type: 'test'
+#15 7.274   ...
+#15 7.299 # Subtest: group rule selects only references from its own group
+#15 7.299 ok 170 - group rule selects only references from its own group
+#15 7.299   ---
+#15 7.299   duration_ms: 24.792496
+#15 7.299   type: 'test'
+#15 7.299   ...
+#15 7.326 # Subtest: pause after evaluation but before dispatch suppresses the action
+#15 7.326 ok 171 - pause after evaluation but before dispatch suppresses the action
+#15 7.326   ---
+#15 7.326   duration_ms: 26.947875
+#15 7.326   type: 'test'
+#15 7.326   ...
+#15 7.353 # Subtest: deployment acceptance blocks persisted approved enforcement settings
+#15 7.353 ok 172 - deployment acceptance blocks persisted approved enforcement settings
+#15 7.353   ---
+#15 7.353   duration_ms: 27.118082
+#15 7.353   type: 'test'
+#15 7.353   ...
+#15 7.368 1..172
+#15 7.368 # tests 172
+#15 7.368 # suites 0
+#15 7.368 # pass 172
+#15 7.368 # fail 0
+#15 7.368 # cancelled 0
+#15 7.368 # skipped 0
+#15 7.368 # todo 0
+#15 7.368 # duration_ms 4673.755764
+#15 7.858 
+#15 7.858 up to date, audited 49 packages in 443ms
+#15 7.858 
+#15 7.858 8 packages are looking for funding
+#15 7.858   run `npm fund` for details
+#15 7.858 
+#15 7.858 found 0 vulnerabilities
+#15 10.18 
+#15 10.18 added 2 packages, removed 3 packages, and audited 48 packages in 2s
+#15 10.18 
+#15 10.18 10 packages are looking for funding
+#15 10.18   run `npm fund` for details
+#15 10.18 
+#15 10.18 found 0 vulnerabilities
+#15 DONE 10.2s
+
+#16 [runtime  2/10] RUN apt-get update && apt-get upgrade -y --no-install-recommends     && rm -rf /var/lib/apt/lists/* /usr/local/lib/node_modules /opt/yarn*     && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack /usr/local/bin/yarn /usr/local/bin/yarnpkg
+#16 CACHED
+
+#17 [runtime  3/10] WORKDIR /app
+#17 CACHED
+
+#18 [runtime  4/10] COPY --from=build /app/node_modules ./node_modules
+#18 CACHED
+
+#19 [runtime  5/10] COPY --from=build /app/dist ./dist
+#19 DONE 0.1s
+
+#20 [runtime  6/10] COPY --from=build /app/package.json ./package.json
+#20 DONE 0.1s
+
+#21 [runtime  7/10] COPY activity/index.html activity/style.css ./activity/
+#21 DONE 0.1s
+
+#22 [runtime  8/10] COPY activity/fonts ./activity/fonts
+#22 DONE 0.1s
+
+#23 [runtime  9/10] COPY db ./db
+#23 DONE 0.1s
+
+#24 [runtime 10/10] RUN mkdir -p /data/objects && chown -R node:node /data
+#24 DONE 0.3s
+
+#25 exporting to image
+#25 exporting layers
+#25 exporting layers 0.8s done
+#25 exporting manifest sha256:e5142b951f8720306f838e0be6b1e6dececc66d2dd307c8f5c3b0ecf1a1a4d83 0.0s done
+#25 exporting config sha256:61fb9771effaa9e1c6b65c7fbc61e3704ad8c1d8c7ce1fe5e3416f4c4caa8d60 0.0s done
+#25 exporting attestation manifest sha256:6788bf58dc04b0676bdc70bd5335e4b59ff87192a789bef6b47e3cc5a4c4fd92 0.0s done
+#25 exporting manifest list sha256:2523d3bdacb096e167f6a4cf9c1372a147a4354b97d99c04437c369a03a83fa3
+#25 exporting manifest list sha256:2523d3bdacb096e167f6a4cf9c1372a147a4354b97d99c04437c369a03a83fa3 0.0s done
+#25 naming to docker.io/library/typecheck-hash-final-20261016:local done
+#25 unpacking to docker.io/library/typecheck-hash-final-20261016:local
+#25 unpacking to docker.io/library/typecheck-hash-final-20261016:local 5.6s done
+#25 DONE 0.8s
+
+View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/nwcfpingya7lmo5ag15m0juhj
