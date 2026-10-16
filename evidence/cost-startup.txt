@@ -1,0 +1,2 @@
+PASS: default-off refuses an unmigrated schema.
+PASS: MIGRATE_ON_START=1 migrates and serves HTTP without .env; Discord identity is offline fixture only.

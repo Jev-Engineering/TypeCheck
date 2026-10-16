@@ -1,5 +1,11 @@
 # Security design and deployment review
 
+## Cost analytics privacy and integrity
+
+Analytics reads and paginated CSV require live `dashboard.view`; rate mutations require an administrator, allowed Origin, optimistic revision and transactional audit record. Composite guild keys and bounded indexed SQL ranges isolate attempt data. CSV uses the existing formula-injection protection. The attempt ledger stores no API keys, request/response bodies, image bytes, signed URLs, user IDs or message IDs; correlations are random UUIDs. Pricing notes are operator metadata and must not contain secrets.
+
+Detailed attempts have 100-day retention; quota/legacy daily aggregates have 400-day retention, supporting reports within the last 90 UTC days. Pricing provenance and tracking metadata persist until guild removal. Cleanup is safe across instances and does not alter leader election. This supersedes the older statement below that daily usage persists indefinitely. Unknown tokens remain unknown. Dispatch markers do not prove receipt or billing; see [COSTS.md](COSTS.md) for crash windows and the absence of exactly-once billing guarantees. Accounting errors never invalidate credentials by themselves. Estimated input costs exclude other charges and do not change enforcement.
+
 ## Trust boundaries
 
 Untrusted inputs include posted images, image filenames/metadata, browser requests, client guild identifiers and model responses. Browser controls are not permissions. Every guild API request uses a hashed bearer session, verifies live membership with Discord, and derives capabilities from current roles and per-guild grants. Records and references are queried with guild IDs; composite database keys/foreign keys prevent cross-guild references. The same guild boundary is included as AES-GCM authenticated data for credentials.

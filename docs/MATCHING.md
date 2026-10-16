@@ -1,5 +1,13 @@
 # Matching, calibration and costs
 
+## Durable usage and estimated spend
+
+The guild attempt ledger supplies cost analytics; evaluation records remain decision evidence, not billing records. Each actual retry, second verification and credential validation request is recorded separately; reused comparisons incur no extra attempt. Valid input tokens are captured even when the answer fails strict moderation validation. Earlier successful usage survives a later failure. Missing usage stays unknown and failed/timed-out requests are never described as free.
+
+Overview and Cost & Usage show **Estimated** input-token costs at administrator-entered, revisioned model rates with currency-separated totals and coverage counts. No default price is invented. Historical daily totals are legacy aggregates, displayed separately without fabricated model attribution or costs. Rates are snapshotted at attempt start and do not reprice history or change actual provider prices. There is no currency hard cap or enforcement change. See [COSTS.md](COSTS.md) for exact rounding, UTC ranges, retention, provenance and crash limits.
+
+The standalone CLI records `usageAttempts` and safe failures in `evaluation-results.json`, including partial runs. Optional `JEV_EVAL_PRICING` accepts the API pricing JSON format and uses the same integer calculation. It never opens a database or imports results into guild analytics. Tests use fake keys and mocked responses only. Real CLI runs remain charged provider calls requiring explicit authorization.
+
 ## Provider boundary
 
 The adapter sends two normalized images per comparison through the official System One multipart protocol, using a Noul question and the explicit image header. It validates the model identifier, answer type, finite probability and usage fields. No free-form generated answer is parsed as an action. TypeSafe marks image support experimental; compatibility and accuracy can change [J1, J2].

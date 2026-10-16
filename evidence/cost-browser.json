@@ -1,0 +1,52 @@
+{
+  "scope": "Offline synthetic TypeCheck preview only; Docker-hosted Playwright Chromium; no charged provider calls or live Discord actions",
+  "url": "http://host.docker.internal:4178",
+  "checks": [
+    {
+      "screen": "Overview",
+      "viewport": [
+        1440,
+        1000
+      ],
+      "estimatedCostCard": true
+    },
+    {
+      "screen": "Cost & Usage",
+      "viewport": [
+        1440,
+        1000
+      ],
+      "horizontalOverflow": false,
+      "partialEstimate": true,
+      "mixedCurrencies": true,
+      "unknownUsage": true,
+      "missingRate": true,
+      "legacySeparate": true,
+      "pricingControls": true
+    },
+    {
+      "screen": "Cost & Usage",
+      "viewport": [
+        390,
+        844
+      ],
+      "horizontalOverflow": false,
+      "secondPageItems": 3
+    },
+    {
+      "state": "empty",
+      "visible": true
+    },
+    {
+      "state": "injected503",
+      "visible": true
+    }
+  ],
+  "console": "Initial favicon 404; intentional injected analytics 503. No observed application JavaScript errors after encoding correction.",
+  "screenshots": [
+    "cost-overview.png",
+    "cost-desktop.png",
+    "cost-mobile.png"
+  ],
+  "passed": true
+}

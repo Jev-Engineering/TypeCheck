@@ -1,5 +1,32 @@
 # Validation record
 
+## Cost analytics validation - October 16, 2026
+
+Branch `feat/cost-analytics`, based on fetched main `f116266`. Windows host, Node **24.18.0**, npm **12.2.0**. No hosted database, charged provider call, live Discord action, shared-service restart or WSL termination was used. Original-checkout Claude evidence files were untouched. No merge or deployment is authorized by this record.
+
+| Actual command/check | Result | Evidence |
+|---|---|---|
+| `npm ci` | Passed; 44 packages installed, 0 npm advisories. npm reported esbuild's install script blocked by its existing allowScripts policy; subsequent build succeeded. | Turn execution record |
+| `npm run check` | Passed | `evidence/cost-check.txt` |
+| `npm run build` | Passed; official SDK bundled | `evidence/cost-build.txt` |
+| `npm test` | **170 passed**, 0 failed/skipped | `evidence/cost-unit-tests.txt` |
+| `ALLOW_DATABASE_TESTS=true TEST_DATABASE_URL=<disposable loopback URL> node scripts/test-cost-databases.mjs` (each engine) | **30 assertions per engine**: populated 001 upgrade, repeated/concurrent migration, interrupted MySQL DDL recovery, quota/finalization concurrency, tenant isolation, effective rates, mixed currencies, month-boundary accounting, cursor pagination and retention | `evidence/cost-postgres-analytics.txt`, `evidence/cost-mysql-analytics.txt` |
+| `npm run test:postgres` with the disposable PostgreSQL URL | Passed existing harness | `evidence/cost-postgres.txt` |
+| `npm run test:mysql` with the disposable MySQL URL | **104 assertions passed** | `evidence/cost-mysql.txt` |
+| Direct `migrateDatabase` twice and `assertMigrated` on empty `cost_fresh` schemas | Fresh 001+002 and repeat passed on both engines | `evidence/cost-fresh-migrations.txt` |
+| `node scripts/test-mysql-startup.mjs` with empty disposable `cost_startup` schema | Default-off refusal and opt-in migration/API startup without .env passed; fake Discord identity only | `evidence/cost-startup.txt` |
+| Docker-hosted Playwright with `PREVIEW_PORT=4178 node scripts/preview.mjs` | Synthetic Overview and Cost & Usage, desktop/mobile, pagination, mixed currencies, missing rates, unknown usage, legacy, empty/error states | `evidence/cost-browser.json`, `evidence/cost-overview.png`, `evidence/cost-desktop.png`, `evidence/cost-mobile.png` |
+
+Only task-created containers `typecheck-cost-pg-6395-20261016` (`postgres:16`, **PostgreSQL 16.15 / Debian 16.15-1.pgdg13+2**) and `typecheck-cost-mysql-6395-20261016` (`mysql:8.0`, **8.0.46**) were used for database integration. They were created with `--network bridge`, disposable test passwords and `-p 127.0.0.1::5432` / `-p 127.0.0.1::3306`; assigned ports were **27017** and **27485**. Test URLs used database `cost_test`, then separate empty `cost_fresh` and MySQL `cost_startup`. The cost-specific harness expects a fresh disposable `cost_test`; it is not a production maintenance tool. Cleanup removes only these named containers and their anonymous volumes.
+
+New tests cover valid usage with an invalid moderation answer, missing usage, interrupted response bodies, ambiguous network results, retries and verification, shared/cached comparisons, partial evaluation failures, credential validation, persistence failure after a response, replay after ambiguous commit, exact half-up rounding, effective rates/currencies, dates, HTTP permissions/origin/revisions/audit, tuple pagination, formula-safe CSV and partial CLI results. Database tests verify original-day token credit over a UTC month boundary and concurrent cleanup consistency. No test sends real provider traffic.
+
+Development failures were corrected: an initial UI parenthesis error and recursive TypeScript type-inference errors, mixed encoding in newly inserted UI punctuation, and a screenshot-copy attempt against the wrong container (read-only, no mutation). Initial browser favicon 404 and a deliberately injected analytics 503 were observed; the latter verifies the error state. No application test failure is hidden in the final counts. Ordinary `git diff --check` flags pre-existing CRLF file style as trailing whitespace; review uses `git -c core.whitespace=cr-at-eol diff --check` while preserving original file endings.
+
+Limits: synthetic browser testing is not real Discord Activity/proxy acceptance. No provider invoice reconciliation or live crash/power-loss/network-partition test was performed. Pending dispatches can remain unknown after a crash or exhausted completion-write retries; no response spool/reconciliation is claimed. Exports are bounded pages rather than a frozen whole-range export. Historical daily aggregates are never fabricated into attempts or repriced. See [COSTS.md](docs/COSTS.md) for retention and exact semantics.
+
+The **existing Debian image-scan release blocker remains open**. This feature does not rescan, suppress or fix it. Live Discord/Jev, public TLS, hosted configuration/storage and independent security/operations approval remain required. `ACCEPTANCE_APPROVED`, enforcement defaults, high-impact safeguards, leader election and moderation capabilities are unchanged.
+
 ## MySQL port validation — October 16, 2026
 
 Branch `feat/mysql-store`, based on `1bf77cb`. Local host: Windows, Node 24.18.0, npm 12.2.0. Only newly created `jev-guard-validation-mysql-20261046-codex` and `jev-guard-validation-pg-20261046-codex` containers were used; published ports were loopback only. MySQL reported **8.0.46**. No shared containers or WSL sessions were restarted.

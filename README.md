@@ -1,5 +1,7 @@
 # TypeCheck
 
+Cost analytics: Overview and **Cost & Usage** report guild-scoped attempts, reported input tokens and **estimated** Jev input-token spend. Retries, verification and credential tests are tracked separately. Administrators supply revisioned rates; missing rates and unknown usage produce coverage warnings, never an invented full bill. Legacy daily totals remain separate. See [cost accounting](docs/COSTS.md), [API](docs/API.md) and [validation](VALIDATION.md). Existing installations require forward migration 002; no deployment or production acceptance is implied.
+
 *Formerly Jev Image Guard.* Image moderation for Discord, powered by Jev.
 
 **Version 0.1.0 Â· implementation candidate Â· October 15, 2026**
