@@ -1,4 +1,4 @@
-import { assert, object, onlyKeys, MODES, type Mode } from './domain.js';
+import { assert, object, onlyKeys, uuid, type Mode } from './domain.js';
 export const PURPOSES = ['moderation', 'rule_test', 'credential_validation'] as const;
 export const OUTCOMES = ['reserved', 'dispatching', 'success', 'failure', 'uncertain'] as const;
 export type Purpose = typeof PURPOSES[number];
@@ -49,7 +49,7 @@ export function analyticsQuery(p: URLSearchParams, now = new Date()): AnalyticsQ
     if (p.has('purpose')) { assert(PURPOSES.includes(p.get('purpose') as Purpose), 'invalid_purpose'); q.purpose = p.get('purpose')!; }
     if (p.has('outcome')) { assert((OUTCOMES as readonly string[]).includes(p.get('outcome')!), 'invalid_outcome'); q.outcome = p.get('outcome')!; }
     if (p.has('verification')) { assert(['true','false'].includes(p.get('verification')!), 'invalid_verification'); q.verification = p.get('verification') === 'true'; }
-    if (p.has('before') || p.has('beforeId')) { const b = p.get('before') ?? '', id = p.get('beforeId') ?? ''; assert(/^\d{4}-\d{2}-\d{2}T.*Z$/.test(b) && Number.isFinite(Date.parse(b)) && new Date(b).toISOString() === b && /^[0-9a-f-]{36}$/.test(id), 'invalid_cursor'); q.before = b; q.beforeId = id; }
+    if (p.has('before') || p.has('beforeId')) { const b = p.get('before') ?? '', id = p.get('beforeId') ?? ''; assert(/^\d{4}-\d{2}-\d{2}T.*Z$/.test(b) && Number.isFinite(Date.parse(b)) && new Date(b).toISOString() === b && uuid(id), 'invalid_cursor'); q.before = b; q.beforeId = id; }
     return q;
 }
 export interface Bucket { key: string; currency: string | null; attempts: number; successes: number; failures: number; pending: number; uncertain: number; dispatched: number; unknownUsage: number; priced: number; covered: number; inputTokens: string; costMicros: string }

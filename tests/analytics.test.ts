@@ -21,6 +21,7 @@ test('exact price arithmetic rounds half up per attempt and preserves large inte
 });
 test('UTC month, midnight, leap-day, range and cursor validation',()=>{
     const now=new Date('2026-03-01T00:00:00.000Z');
+    assert.throws(()=>analyticsQuery(new URLSearchParams('before=2026-03-01T00:00:00.000Z&beforeId=------------------------------------'),now));
     assert.deepEqual([analyticsQuery(new URLSearchParams('range=mtd'),now).start,analyticsQuery(new URLSearchParams('range=7d'),now).start],['2026-03-01','2026-02-23']);
     for(const q of ['range=custom&start=2026-02-30&end=2026-03-01','range=custom&start=2025-01-01&end=2026-03-01','range=no','limit=0','limit=101','limit=1.5','group=evil','purpose=evil','verification=1','outcome=evil','before=x','limit=1&limit=2','unknown=1']) assert.throws(()=>analyticsQuery(new URLSearchParams(q),now),q);
 });
