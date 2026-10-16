@@ -9,6 +9,7 @@ import { digest, token, safeError, csvCell } from './security.js';
 import { normalize } from './images.js';
 import type { Config } from './config.js';
 import { fingerprint } from './policy.js';
+import { assetVersion, type Release } from './release.js';
 interface Reply {
     status?: number;
     body?: unknown;
@@ -51,7 +52,8 @@ function rulePermissions(a: Authority, next: RuleInput, old?: Rule) {
     if (next.action === 'ban' && next.enabled)
         requireCapability(a, 'ban.enable');
 }
-export function createHttp(services: Services, config: Config, root = process.cwd(), readiness?: () => Promise<boolean>, controllerState?: () => string) {
+export interface Deployment { release: Release | null; storage: string | null }
+export function createHttp(services: Services, config: Config, root = process.cwd(), readiness?: () => Promise<boolean>, controllerState?: () => string, deployment?: Deployment) {
     const { store, discord } = services;
     const limits = new Map<string, {
         at: number;
@@ -71,7 +73,7 @@ export function createHttp(services: Services, config: Config, root = process.cw
         if (url.pathname === '/api/config' && method === 'GET')
             return { body: { clientId: config.clientId, version: '0.1.0', experimental: true } };
         if (url.pathname === '/api/health' && method === 'GET')
-            return { body: { status: controllerState?.() ?? 'running' } };
+            return { body: { status: controllerState?.() ?? 'running', ...(deployment ? { release: deployment.release?.commit ?? null, storage: deployment.storage } : {}) } };
         if (url.pathname === '/api/ready' && method === 'GET') {
             const ready = readiness ? await readiness().catch(() => false) : false;
             return { status: ready ? 200 : 503, body: { status: ready ? 'ready' : 'not_ready', ...(controllerState ? { controller: controllerState() } : {}) } };
@@ -433,8 +435,17 @@ export function createHttp(services: Services, config: Config, root = process.cw
         }
         throw new AppError('route_not_found', 404);
     }
-    async function staticFile(pathname: string): Promise<Reply> {
-        const fixed: Record<string, string> = { '/': 'activity/index.html', '/style.css': 'activity/style.css', '/vendor/discord-sdk.js': 'dist/activity/vendor/discord-sdk.js', '/vendor/THIRD_PARTY_NOTICES.txt': 'dist/activity/vendor/THIRD_PARTY_NOTICES.txt', '/shared/analytics.js':'dist/shared/analytics.js','/shared/domain.js': 'dist/shared/domain.js' };
+    // The hosting edge applies long browser caching to .js/.css whatever the app sends,
+    // so the page references release-scoped paths and old modules cannot mix with new ones.
+    const version = assetVersion(deployment?.release ?? null);
+    async function staticFile(requested: string): Promise<Reply> {
+        const scoped = /^\/r\/(?:[0-9a-f]{12}|dev)(\/.+)$/.exec(requested);
+        const pathname = scoped ? scoped[1]! : requested;
+        if (pathname === '/') {
+            const html = await readFile(resolve(root, 'activity/index.html'), 'utf8');
+            return { bytes: Buffer.from(html.replace(/(href|src)="\/(style\.css|activity\/src\/main\.js)"/g, `$1="/r/${version}/$2"`)), type: 'text/html; charset=utf-8' };
+        }
+        const fixed: Record<string, string> = { '/style.css': 'activity/style.css', '/vendor/discord-sdk.js': 'dist/activity/vendor/discord-sdk.js', '/vendor/THIRD_PARTY_NOTICES.txt': 'dist/activity/vendor/THIRD_PARTY_NOTICES.txt', '/shared/analytics.js':'dist/shared/analytics.js','/shared/domain.js': 'dist/shared/domain.js' };
         const fonts: Record<string, string> = { '/fonts/schibsted-grotesk-400.woff2': 'activity/fonts/schibsted-grotesk-400.woff2', '/fonts/schibsted-grotesk-500.woff2': 'activity/fonts/schibsted-grotesk-500.woff2', '/fonts/vt323-400.woff2': 'activity/fonts/vt323-400.woff2', '/fonts/jetbrains-mono-400.woff2': 'activity/fonts/jetbrains-mono-400.woff2' };
         if (fonts[pathname]) {
             let bytes: Buffer;

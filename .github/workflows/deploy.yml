@@ -1,0 +1,272 @@
+name: Deploy production
+# Deploys only a commit whose Validate run on a push to main succeeded. Pull request
+# runs, other branches and failed or cancelled runs never reach the deploy job.
+# workflow_run is used only to observe Validate's verdict for main. No pull request code is
+# checked out or executed here; the candidate is a main commit that already passed CI.
+on: # zizmor: ignore[dangerous-triggers]
+  workflow_run:
+    workflows: [Validate]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: Full SHA of a main commit whose Validate push run succeeded
+        required: true
+      rollback:
+        description: Allow a commit older than the live release (schema compatibility is still enforced)
+        type: boolean
+        default: false
+      reason:
+        description: Why this manual deployment is needed
+        required: true
+permissions:
+  contents: read
+# One production release at a time. A newer queued run replaces an older queued one;
+# a running deployment (including its migration and cutover) is never cancelled.
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    environment:
+      name: production
+      url: ${{ vars.PRODUCTION_URL }}
+      deployment: false # recorded below against the exact candidate commit instead
+    permissions:
+      contents: read
+      actions: read
+      deployments: write
+    env:
+      APP_ID: ${{ vars.GODADDY_APP_ID }}
+      PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+      DISCORD_CLIENT_ID: ${{ vars.DISCORD_CLIENT_ID }}
+      CANDIDATE: ${{ github.event.workflow_run.head_sha || inputs.commit }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      GDDY_VERSION: v0.2.29
+      GDDY_SHA256: d1ec8f525c2f283bc3ee8b8a3604552432f46f7d818ee8a73d73938c7be211a2
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify the candidate passed Validate on main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [[ "$CANDIDATE" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::commit must be a full 40-character SHA"; exit 1; }
+          git merge-base --is-ancestor "$CANDIDATE" origin/main || { echo "::error::$CANDIDATE is not on main"; exit 1; }
+          passed="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$CANDIDATE&event=push&branch=main&status=success" --jq '.total_count')"
+          [[ "$passed" -ge 1 ]] || { echo "::error::no successful Validate push run on main for $CANDIDATE"; exit 1; }
+          echo "Validate passed for $CANDIDATE on main"
+
+      - name: Read the live release
+        id: live
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          health="$(curl -fsS --max-time 20 "$PRODUCTION_URL/api/health" || echo '{}')"
+          release="$(jq -r '.release // empty' <<<"$health")"
+          storage="$(jq -r '.storage // empty' <<<"$health")"
+          source=health
+          if [[ -z "$release" ]]; then
+            # Older releases do not report their commit; fall back to the last recorded success.
+            source=deployments
+            for id in $(gh api "repos/$GITHUB_REPOSITORY/deployments?environment=production&per_page=50" --jq '.[].id'); do
+              if [[ "$(gh api "repos/$GITHUB_REPOSITORY/deployments/$id/statuses?per_page=1" --jq '.[0].state')" == success ]]; then
+                release="$(gh api "repos/$GITHUB_REPOSITORY/deployments/$id" --jq '.sha')"; break
+              fi
+            done
+          fi
+          [[ "$release" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::cannot determine the live release"; exit 1; }
+          git cat-file -e "$release^{commit}" || { echo "::error::live release $release is not in this repository"; exit 1; }
+          { echo "release=$release"; echo "storage=$storage"; echo "source=$source"; } | tee -a "$GITHUB_OUTPUT"
+
+      - name: Check ordering and schema compatibility
+        id: guard
+        env:
+          LIVE: ${{ steps.live.outputs.release }}
+          ROLLBACK: ${{ inputs.rollback && '--rollback' || '' }}
+        run: |
+          set +e
+          # shellcheck disable=SC2086 # ROLLBACK is empty or one flag
+          result="$(node scripts/release-guard.mjs "$LIVE" "$CANDIDATE" $ROLLBACK)"
+          code=$?
+          set -e
+          echo "$result" | jq .
+          echo "action=$(jq -r .action <<<"$result")" >> "$GITHUB_OUTPUT"
+          echo "migrations=$(jq -r .migrations <<<"$result")" >> "$GITHUB_OUTPUT"
+          if [[ $code -ne 0 ]]; then echo "::error::release blocked: $(jq -r .reason <<<"$result")"; exit 1; fi
+
+      - name: Skip a commit that is already live
+        id: noop
+        if: steps.guard.outputs.action == 'redeploy' && github.event_name == 'workflow_run'
+        run: echo "skip=true" >> "$GITHUB_OUTPUT"; echo "$CANDIDATE is already live; nothing to do." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Record deployment start
+        id: record
+        if: steps.noop.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REASON: ${{ inputs.reason || 'Validate succeeded on main' }}
+          LIVE: ${{ steps.live.outputs.release }}
+          ACTION: ${{ steps.guard.outputs.action }}
+        run: |
+          id="$(jq -n --arg ref "$CANDIDATE" --arg live "$LIVE" --arg action "$ACTION" --arg reason "$REASON" --arg run "$RUN_URL" \
+            '{ref: $ref, environment: "production", auto_merge: false, required_contexts: [], production_environment: true,
+              description: ("TypeCheck " + $action + " from " + $live[0:12]), payload: {live: $live, action: $action, reason: $reason, run: $run}}' \
+            | gh api "repos/$GITHUB_REPOSITORY/deployments" --input - --jq .id)"
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+          gh api "repos/$GITHUB_REPOSITORY/deployments/$id/statuses" -f state=in_progress -f log_url="$RUN_URL" -f environment_url="$PRODUCTION_URL" >/dev/null
+
+      - name: Install the GoDaddy CLI (pinned, checksum-verified)
+        if: steps.noop.outputs.skip != 'true'
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/gddy.tar.gz" "https://github.com/godaddy/cli/releases/download/$GDDY_VERSION/gddy-x86_64-unknown-linux-gnu.tar.gz"
+          echo "$GDDY_SHA256  $RUNNER_TEMP/gddy.tar.gz" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/gddy" && tar -xzf "$RUNNER_TEMP/gddy.tar.gz" -C "$RUNNER_TEMP/gddy"
+          sudo install -m 0755 "$(find "$RUNNER_TEMP/gddy" -name gddy -type f | head -1)" /usr/local/bin/gddy
+          gddy --version
+          sudo apt-get install -y -qq age >/dev/null
+
+      - name: Build the candidate migrator (no secrets in scope)
+        if: steps.noop.outputs.skip != 'true' && steps.guard.outputs.migrations == 'expand'
+        run: |
+          git worktree add --detach "$RUNNER_TEMP/candidate" "$CANDIDATE"
+          cd "$RUNNER_TEMP/candidate"
+          npm ci --omit=dev --no-audit --no-fund
+          npm run build
+
+      - name: Back up production and run a restore drill
+        id: backup
+        if: steps.noop.outputs.skip != 'true'
+        # Mandatory before a migration; best effort for code-only releases.
+        continue-on-error: ${{ steps.guard.outputs.migrations == 'none' }}
+        env:
+          GDDY_PAT: ${{ secrets.GODADDY_PAT }}
+          DB_NAME: ${{ secrets.GODADDY_DB_NAME }}
+          DB_USER: ${{ secrets.GODADDY_DB_USER }}
+          DB_PASSWORD: ${{ secrets.GODADDY_DB_PASSWORD }}
+          BACKUP_AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
+        run: scripts/godaddy-release.sh backup "$RUNNER_TEMP/backup"
+
+      - name: Store the encrypted backup
+        if: steps.backup.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: production-db-backup-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/backup/*.age
+            ${{ runner.temp }}/backup/SHA256SUMS
+            ${{ runner.temp }}/backup/source-counts.txt
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Rehearse the migration on the restored copy
+        if: steps.noop.outputs.skip != 'true' && steps.guard.outputs.migrations == 'expand'
+        env:
+          DB_NAME: ${{ secrets.GODADDY_DB_NAME }}
+        run: scripts/godaddy-release.sh migrate "$RUNNER_TEMP/candidate" drill
+
+      - name: Migrate production once (expand-only, application lock)
+        if: steps.noop.outputs.skip != 'true' && steps.guard.outputs.migrations == 'expand'
+        env:
+          GDDY_PAT: ${{ secrets.GODADDY_PAT }}
+          DB_NAME: ${{ secrets.GODADDY_DB_NAME }}
+          DB_USER: ${{ secrets.GODADDY_DB_USER }}
+          DB_PASSWORD: ${{ secrets.GODADDY_DB_PASSWORD }}
+        run: scripts/godaddy-release.sh migrate "$RUNNER_TEMP/candidate" tunnel
+
+      - name: Upload the exact commit and publish
+        id: ship
+        if: steps.noop.outputs.skip != 'true'
+        env:
+          GDDY_PAT: ${{ secrets.GODADDY_PAT }}
+        run: scripts/godaddy-release.sh ship "$CANDIDATE" "$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+
+      - name: Verify production
+        id: verify
+        if: steps.noop.outputs.skip != 'true'
+        env:
+          GDDY_PAT: ${{ secrets.GODADDY_PAT }}
+          EXPECTED_COMMIT: ${{ env.CANDIDATE }}
+          EXPECTED_STORAGE: ${{ steps.live.outputs.storage }}
+        run: |
+          set +e
+          node scripts/verify-production.mjs; code=$?
+          if [[ $code -eq 3 ]]; then
+            echo "::notice::Published release is standby; restarting PREVIEW to hand controller ownership to PUBLISH"
+            scripts/godaddy-release.sh handoff
+            TIMEOUT_SECONDS=300 node scripts/verify-production.mjs; code=$?
+          fi
+          exit $code
+
+      - name: Collect diagnostics
+        if: failure() && steps.record.outputs.id
+        env:
+          GDDY_PAT: ${{ secrets.GODADDY_PAT }}
+        run: scripts/godaddy-release.sh logs "$RUNNER_TEMP/diagnostics"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: failure() && steps.record.outputs.id
+        with:
+          name: deployment-diagnostics-${{ github.run_id }}
+          path: ${{ runner.temp }}/diagnostics
+          retention-days: 14
+
+      - name: Roll back to the previous release
+        id: rollback
+        # Safe only because the guard admitted no incompatible schema change.
+        if: failure() && steps.ship.outputs.publish_started == 'true' && steps.live.outputs.release != env.CANDIDATE
+        env:
+          GDDY_PAT: ${{ secrets.GODADDY_PAT }}
+          PREVIOUS: ${{ steps.live.outputs.release }}
+          PREVIOUS_SOURCE: ${{ steps.live.outputs.source }}
+          EXPECTED_STORAGE: ${{ steps.live.outputs.storage }}
+        run: |
+          scripts/godaddy-release.sh ship "$PREVIOUS" "$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          # Releases that predate release reporting are verified by readiness only.
+          if [[ "$PREVIOUS_SOURCE" == health ]]; then export EXPECTED_COMMIT="$PREVIOUS"; fi
+          set +e
+          node scripts/verify-production.mjs; code=$?
+          if [[ $code -eq 3 ]]; then scripts/godaddy-release.sh handoff; TIMEOUT_SECONDS=300 node scripts/verify-production.mjs; code=$?; fi
+          exit $code
+
+      - name: Record deployment result
+        if: always() && steps.record.outputs.id
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPLOYMENT_ID: ${{ steps.record.outputs.id }}
+          VERIFY: ${{ steps.verify.outcome }}
+          ROLLBACK: ${{ steps.rollback.outcome || 'not run' }}
+          BACKUP: ${{ steps.backup.outcome }}
+          GODADDY_DEPLOYMENT: ${{ steps.ship.outputs.godaddy_deployment }}
+          LIVE: ${{ steps.live.outputs.release }}
+          LIVE_SOURCE: ${{ steps.live.outputs.source }}
+          ACTION: ${{ steps.guard.outputs.action }}
+          MIGRATIONS: ${{ steps.guard.outputs.migrations }}
+        run: |
+          if [[ "$VERIFY" == success ]]; then state=success; else state=failure; fi
+          gh api "repos/$GITHUB_REPOSITORY/deployments/$DEPLOYMENT_ID/statuses" -f state="$state" -f log_url="$RUN_URL" -f environment_url="$PRODUCTION_URL" \
+            -f description="verify=$VERIFY rollback=$ROLLBACK godaddy=$GODADDY_DEPLOYMENT" >/dev/null
+          {
+            echo "### Production release"
+            echo "| | |"; echo "|---|---|"
+            echo "| Commit | \`$CANDIDATE\` |"
+            echo "| Previous | \`$LIVE\` ($LIVE_SOURCE) |"
+            echo "| Action | $ACTION, migrations: $MIGRATIONS |"
+            echo "| Backup | $BACKUP |"
+            echo "| GoDaddy deployment | $GODADDY_DEPLOYMENT |"
+            echo "| Result | $state (rollback: $ROLLBACK) |"
+            echo "| URL | $PRODUCTION_URL |"
+          } >> "$GITHUB_STEP_SUMMARY"

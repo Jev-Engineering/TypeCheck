@@ -129,6 +129,16 @@ export class ObjectStore {
         } finally { await unlink(temporary).catch(e => { if (e.code !== 'ENOENT') throw e; }); }
         return key;
     }
+    // A random identity created once per object volume. Deployment checks compare it
+    // before and after a release to detect a replaced or emptied volume.
+    async marker() {
+        const p = resolve(this.root, '.storage-id');
+        await mkdir(this.root, { recursive: true, mode: 0o700 });
+        await writeFile(p, randomUUID().replaceAll('-', ''), { mode: 0o600, flag: 'wx', flush: true }).catch(e => { if (e.code !== 'EEXIST') throw e; });
+        const id = (await readFile(p, 'utf8')).trim();
+        assert(/^[0-9a-f]{32}$/.test(id), 'invalid_storage_marker');
+        return id;
+    }
     async get(guildId: string, key: string) { assert(key.startsWith(guildId + '/'), 'cross_guild_object', 403); return readFile(this.path(key)); }
     async remove(guildId: string, key: string) { assert(key.startsWith(guildId + '/'), 'cross_guild_object', 403); await unlink(this.path(key)).catch(e => { if (e.code !== 'ENOENT')
         throw e; }); }

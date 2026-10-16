@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalize, attachmentURL, downloadAttachment, readBounded, supportedAttachment, MAX_IMAGE_BYTES } from '../server/images.js';
+import { normalize, attachmentURL, downloadAttachment, readBounded, supportedAttachment, MAX_IMAGE_BYTES, ObjectStore } from '../server/images.js';
 import { AppError } from '../shared/domain.js';
 import { fixture, message, PNG, G, G2, CHANNEL } from './helpers.js';
 test('small PNG becomes an upright baseline JPEG within Jev bounds', async () => { const n = await normalize(PNG); assert.equal(n.width, 768); assert.equal(n.height, 768); assert.equal(n.bytes[0], 0xff); assert.equal(n.bytes[1], 0xd8); assert.equal(n.sha256.length, 64); });
@@ -19,3 +19,11 @@ test('object storage isolates guilds and prevents path traversal', async (t) => 
 test('normalization is deterministic for identical inputs', async () => assert.equal((await normalize(PNG)).sha256, (await normalize(PNG)).sha256));
 
 test('PNG with corrupt IDAT checksum is rejected', async () => assert.rejects(normalize(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a9WQAAAAASUVORK5CYII=', 'base64'))));
+test('object storage marker is created once and survives reopening the volume', async t => {
+    const f = await fixture(t);
+    const id = await f.objects.marker();
+    assert.match(id, /^[0-9a-f]{32}$/);
+    assert.equal(await new ObjectStore(f.objects.root).marker(), id);
+    await f.objects.collect(G, new Set());
+    assert.equal(await f.objects.marker(), id);
+});
