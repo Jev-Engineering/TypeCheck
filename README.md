@@ -1,3 +1,5 @@
+![TypeCheck banner: the TypeCheck wordmark and the tagline "Image moderation for Discord" on an ink background inside a pink frame, beside a row of picture cards passing through a scanning frame. One card is struck through with a red bar; the matched card carries a pink check mark.](docs/assets/typecheck-banner.png)
+
 # TypeCheck
 
 *Formerly Jev Image Guard.* Image moderation for Discord, powered by Jev.
