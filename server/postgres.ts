@@ -1,3 +1,4 @@
+import { SqlDurable } from './durable.js';
 import { SqlAnalytics } from './usage-sql.js';
 import { randomUUID } from 'node:crypto';
 import { storedSettings, storedRecord, DEFAULT_SETTINGS, AppError, assert, type RecordBase, type Kind, type Settings, type ImageMessage, type Job, type Session } from '../shared/domain.js';
@@ -25,6 +26,11 @@ export async function openPool(connectionString: string): Promise<SqlPool> {
 }
 export class PostgresStore implements Store {
     constructor(readonly pool: SqlPool, private connection?: SqlClient, private defaultModel = DEFAULT_SETTINGS.model) { }
+    get durable() { return new SqlDurable(this.pool, false); }
+    async defer(id: string, until: number) {
+        await this.durable.change('job:'+id, {id:'job:'+id,guild:null,kind:'delay',due:until,data:{}}, r => { r.due=until; });
+        await this.query("UPDATE jobs SET status='queued' WHERE id=$1", [id]);
+    }
     get analytics(): SqlAnalytics { return new SqlAnalytics(this, (sql, values) => this.query(sql, values), 'postgres'); }
     private query(sql: string, values?: unknown[]) { return (this.connection ?? this.pool).query(sql, values); }
     async getSettings(guild: string): Promise<SettingsVersion> {
@@ -119,7 +125,7 @@ export class PostgresStore implements Store {
         return r.rowCount === 1;
     }
     async claim(): Promise<Job | null> {
-        const r = (await this.query("WITH q AS (SELECT id FROM jobs WHERE status='queued' ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1) UPDATE jobs SET status='processing',updated_at=now() FROM q WHERE jobs.id=q.id RETURNING jobs.*")).rows[0];
+        const r = (await this.query("WITH q AS (SELECT id FROM jobs WHERE status='queued' AND NOT EXISTS (SELECT 1 FROM durable_work d WHERE d.id=CONCAT('job:',jobs.id) AND d.due>EXTRACT(EPOCH FROM now())*1000) ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1) UPDATE jobs SET status='processing',updated_at=now() FROM q WHERE jobs.id=q.id RETURNING jobs.*")).rows[0];
         return r ? { id: r.id, guildId: r.guild_id, message: r.message, signature: r.signature, status: r.status, error: r.error, createdAt: r.created_at.toISOString() } : null;
     }
     async finish(id: string, error: string | null) { await this.query("UPDATE jobs SET status=$2,error=$3,message='{}'::jsonb,updated_at=now() WHERE id=$1", [id, error ? 'failed' : 'done', error]); }
@@ -138,6 +144,8 @@ export class PostgresStore implements Store {
     async deleteSession(hash: string) { await this.query('DELETE FROM sessions WHERE hash=$1', [hash]); }
     async maintenance() {
         await this.analytics.cleanup();
+        await this.query(`DELETE FROM durable_work WHERE guild_id IS NULL AND due<EXTRACT(EPOCH FROM now())*1000 AND updated_at<now()-interval '7 days'`);
+        await this.query(`DELETE FROM durable_work d USING guilds g WHERE d.guild_id=g.id AND d.updated_at<now()-make_interval(days=>(g.settings->>'logRetentionDays')::integer)`);
         await this.query('DELETE FROM auth_nonces WHERE expires_at<now()');
         await this.query('DELETE FROM sessions WHERE expires_at<now()');
         await this.query("DELETE FROM jobs WHERE status IN ('done','failed') AND updated_at<now()-interval '7 days'");

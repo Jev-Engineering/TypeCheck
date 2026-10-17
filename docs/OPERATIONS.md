@@ -63,3 +63,10 @@ Terminate TLS at an authorized proxy; forward to loopback port 3000, preserve th
 ## Content-analysis operations
 
 Additive versioned fields use existing PostgreSQL/MySQL JSON persistence; no SQL migration or saved-policy rewrite is needed. Disable content rules before rollback to older code. Cap failures suppress incomplete-message punishment. Preserve backups, retention and isolation. See [compatibility](CONTENT_ANALYSIS.md).
+
+
+## Historical image scanning
+
+See [Historical scans](HISTORICAL_SCANS.md) for administrator scope selection,
+review-only results, permissions, fixed cutoffs, shared quotas, recovery,
+coverage exclusions, migration 003, privacy and validation instructions.

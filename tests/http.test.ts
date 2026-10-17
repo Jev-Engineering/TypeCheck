@@ -9,7 +9,26 @@ import { createHttp, type Deployment } from '../server/http.js';
 import { digest } from '../server/security.js';
 import { fingerprint } from '../server/policy.js';
 import { fixture, rule, G, G2, ADMIN, MOD, ROLE, CHANNEL, API_KEY, PNG } from './helpers.js';
+import { BOT } from './helpers.js';
 const ORIGIN = 'http://localhost:3000';
+test('historical API previews scope, starts, lists, pauses, resumes and cancels with current administrator authority',async t=>{
+    const f=await setup(t);await f.store.put('rules',rule(f.ref),0);
+    f.discord.members.set(BOT,{guildId:G,userId:BOT,owner:false,administrator:false,roles:[]});
+    Object.assign(f.discord,{history:async()=>[]});
+    const login=await f.login(),token=login.data.sessionToken,base='/api/g/'+G+'/scans';
+    const payload={channels:'all',exclusions:[],budgets:{messages:10,images:10,requests:10}};
+    const preview=await f.request(base+'/preview','POST',payload,token);assert.equal(preview.status,200);assert.equal(preview.data.mode,'review_only');
+    assert.equal((await f.request(base,'GET',undefined,token)).data.length,0);
+    const started=await f.request(base,'POST',{...payload,to:preview.data.cutoff},token);assert.equal(started.status,200);assert.equal(started.data.cutoff,preview.data.cutoff);
+    const id=started.data.id;
+    for(const [action,status] of [['pause','paused'],['resume','running'],['cancel','cancelled']]) {
+        const response=await f.request(base+'/'+id+'/'+action,'POST',{},token);assert.equal(response.status,200);assert.equal(response.data.status,status);
+    }
+    await f.grant(['dashboard.view']);const mod=await f.login('moderator-code');
+    assert.equal((await f.request(base,'GET',undefined,mod.data.sessionToken)).status,403);
+    assert.equal((await f.request(base,'POST',{...payload,enforcement:true},token)).status,400);
+    const usage=await f.request('/api/g/'+G+'/analytics/summary?correlationId='+id,'GET',undefined,token);assert.equal(usage.status,200);
+});
 async function setup(t: TestContext, production = false, readiness?: () => Promise<boolean>, controllerState?: () => string, deployment?: Deployment) {
     const f = await fixture(t);
     const config = { port: 3000, production, publicOrigin: ORIGIN, clientId: G, clientSecret: 'fake-secret', botToken: 'fake-token', databaseUrl: 'not-used', masterKey: 'not-used', objectDir: 'not-used', model: 'jev-1.14.0', apiOnly: true };

@@ -12,6 +12,7 @@ async def main():
     domain=(root/'dist/shared/domain.js').read_text(encoding='utf-8')
     domain=re.sub(r'^import .*?;\n|^export ', '', domain, flags=re.M)
     content=re.sub(r'^import .*?;\n|^export ', '', (root/'dist/shared/content.js').read_text(encoding='utf-8'), flags=re.M)
+    connection=re.sub(r'^export ', '', (root/'dist/activity/src/connection.js').read_text(encoding='utf-8'), flags=re.M)
     frontend=(root/'dist/activity/src/main.js').read_text(encoding='utf-8')
     frontend=re.sub(r'^import .*?;\n','',frontend,flags=re.M)
     analytics=(root/'dist/shared/analytics.js').read_text(encoding='utf-8')
@@ -29,10 +30,11 @@ async def main():
         if(path==='/api/auth/start')return response({nonce:'offline'});
         if(path==='/api/auth/exchange')return response({sessionToken:'offline',accessToken:'offline',authority:d.authority});
         if(path.endsWith('/00000000-0000-4000-8000-000000000099/test'))return response({probability:.9,predicted:true,ruleThreshold:.7,actionFloor:.9,effectiveThreshold:.9,thresholdApplies:true,meetsThreshold:true,inputTokens:120,hashComparisons:0,accounting:{attempts:1,estimatedCostMicros:null,partial:true},policyOutcome:{action:'timeout',reason:'monitoring_only'},matches:[{model:'jev-1.14.0',content:{definition:contentDefinition,status:'detected',readability:'readable',context:'solicitation',promotionProbability:.95,depictedProbability:.98,blockedReasons:[],promptVersion:'image-content-v1',signals:{credentials:.9}}}]});
+        if(path.endsWith('/scans/preview'))return response({cutoff:'2026-10-17T00:00:00.000Z',budgets:JSON.parse(options.body).budgets,channels:[{name:'Synthetic history channel',status:'pending',reason:null}],threadCoverage:'Excluded: threads, archived threads and forum posts.'});
         if(options.method&&options.method!=='GET')return response({error:'offline_preview_is_read_only'},403);
         const r=path.split('/').slice(4).join('/');
         if(r.startsWith('analytics/'))return response(previewCosts(r,new URL(String(input),'https://preview.invalid').searchParams));
-        const map={'match-thresholds':d.settings.value.thresholds,me:d.authority,meta:d.metadata,settings:d.settings,images:d.images,groups:d.groups,rules:d.rules,grants:[],credentials:d.credential,
+        const map={'match-thresholds':d.settings.value.thresholds,me:d.authority,meta:d.metadata,settings:d.settings,scans:[],images:d.images,groups:d.groups,rules:d.rules,grants:[],credentials:d.credential,
           dashboard:{settings:d.settings,botOnline:false,credential:d.credential,usage:{calls:0,inputTokens:0},counts:{images:3,rules:3,evaluations:0,events:2,successful:0,suppressedOrFailed:2},recent:d.events}};
         if(r in map)return response(map[r]);
         if(r.endsWith('/content'))return new Response(Uint8Array.from(atob(d.png),c=>c.charCodeAt(0)),{headers:{'Content-Type':'image/png'}});
@@ -47,17 +49,29 @@ async def main():
             page=await browser.new_page(viewport={'width':w,'height':h},device_scale_factor=1)
             page.on('pageerror',lambda e:errors.append(str(e)))
             await page.set_content('<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+(root/'activity/style.css').read_text(encoding='utf-8')+'</style></head><body><div id="app"></div></body></html>')
-            await page.add_script_tag(content=domain+'\n'+content+'\n'+analytics+'\n'+mock+'\n'+frontend,type='module')
+            await page.add_script_tag(content=connection+'\n'+domain+'\n'+content+'\n'+analytics+'\n'+mock+'\n'+frontend,type='module')
             await page.get_by_role('button',name='Open read-only preview').click()
             await page.get_by_role('heading',name='Recent moderation events').wait_for()
             await page.screenshot(path=str(root/'evidence'/f'{prefix}preview-{label}.png'),full_page=True)
-            for title in ['Image library','Rules & tests','Cost & Usage','Activity log','Permissions','Settings','Overview']:
+            for title in ['Historical scans','Image library','Rules & tests','Cost & Usage','Activity log','Permissions','Settings','Overview']:
                 await page.get_by_role('navigation').get_by_role('button',name=title,exact=True).click()
                 await page.get_by_role('heading',name=title,exact=True).wait_for()
                 await page.wait_for_timeout(100)
                 overflow=await page.evaluate('document.documentElement.scrollWidth > window.innerWidth + 1')
                 notices=await page.locator('.notice.error').all_text_contents()
                 findings.append({'viewport':label,'screen':title,'horizontalOverflow':overflow,'errors':notices})
+                if title=='Historical scans':
+                    assert not notices, notices
+                    await page.get_by_label(re.compile(r'^Scope')).select_option('selected')
+                    assert await page.get_by_label('Message budget',exact=True).input_value()=='10000'
+                    await page.get_by_role('button',name='Preview scope and budgets',exact=True).click()
+                    dialog=page.get_by_role('dialog')
+                    await dialog.wait_for()
+                    assert 'Synthetic history channel' in await dialog.inner_text()
+                    assert await dialog.get_by_role('button',name='Start review-only scan',exact=True).is_visible()
+                    await page.screenshot(path=str(root/'evidence'/f'{prefix}historical-{label}.png'),full_page=True)
+                    await dialog.get_by_role('button',name='Close',exact=True).click()
+                    findings.append({'viewport':label,'historical':'scope, budgets, explicit coverage and review-only confirmation passed'})
                 if title=='Cost & Usage':
                     body=await page.locator('main').inner_text()
                     assert 'Estimated USD' in body and 'Estimated EUR' in body

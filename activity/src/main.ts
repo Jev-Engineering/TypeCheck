@@ -1,3 +1,4 @@
+import type { HistoricalScan } from '../../shared/historical.js';
 import { activityAuth, HttpError, serializeConnection } from './connection.js';
 import { timeoutPreset } from '../../shared/domain.js';
 import { CONTENT_PRESETS, CONTENT_VERSION, parseContent } from '../../shared/content.js';
@@ -131,7 +132,7 @@ function confirmAction(title: string, description: string): Promise<boolean> { r
     resolve(false); }); }); }
 function links() {
     return [
-        ['Overview', can('dashboard.view')], ['Cost & Usage', can('dashboard.view')], ['Image library', can('images.view') || can('images.add')], ['Rules & tests', can('rules.view') || can('rules.create')],
+        ['Overview', can('dashboard.view')], ['Historical scans', admin()], ['Cost & Usage', can('dashboard.view')], ['Image library', can('images.view') || can('images.add')], ['Rules & tests', can('rules.view') || can('rules.create')],
         ['Activity log', can('logs.view')], ['Permissions', admin() || can('moderators.delegate')], ['Settings', admin() || can('channels.configure')]
     ] as const;
 }
@@ -188,6 +189,8 @@ async function render() {
         authority = await api<Authority>('me');
         if (page === 'Overview')
             await overview(content);
+        else if (page === 'Historical scans')
+            await historicalPage(content);
         else if (page === 'Cost & Usage')
             await costsPage(content);
         else if (page === 'Image library')
@@ -617,3 +620,40 @@ async function costsPage(parent: HTMLElement) {
 }
 
 async function base64Preview(file: File): Promise<string> { return `data:${file.type};base64,${await base64(file)}`; }
+
+
+async function historicalPage(parent: HTMLElement) {
+    if(!admin()) throw new Error('administrator_required');
+    const scans=await api<HistoricalScan[]>('scans');
+    const scope=select([['all','All eligible channels'],['selected','Selected channels']],'all');
+    const selected=h('select',{multiple:true,size:8}), exclusions=h('select',{multiple:true,size:8});
+    for(const c of meta.channels.filter(c=>[0,5].includes(c.type))) {
+        selected.append(h('option',{value:c.id},c.name??c.id));
+        exclusions.append(h('option',{value:c.id},c.name??c.id));
+    }
+    const from=input('','datetime-local'),to=input('','datetime-local');
+    const messages=input('10000','number'),images=input('1000','number'),requests=input('1000','number');
+    const body=()=>({channels:scope.value==='all'?'all':Array.from(selected.selectedOptions,o=>o.value),exclusions:Array.from(exclusions.selectedOptions,o=>o.value),from:from.value?new Date(from.value).toISOString():null,to:to.value?new Date(to.value).toISOString():null,budgets:{messages:Number(messages.value),images:Number(images.value),requests:Number(requests.value)}});
+    parent.append(panel('Historical image scan','Review only. Existing messages are evaluated without deleting messages or punishing members. Threads, archived threads and forum/media posts are excluded.',
+        h('div',{class:'form-stack'},field('Scope',scope),field('Selected channels (multiple selection)',selected),field('Excluded channels',exclusions),
+        h('div',{class:'form-row'},field('From (optional, local time)',from),field('Before (optional, local time)',to)),
+        h('div',{class:'form-row'},field('Message budget',messages),field('Image budget',images),field('Provider attempt budget',requests))),
+        button('Preview scope and budgets',async()=>{
+            const input=body(),plan=await api<HistoricalScan>('scans/preview','POST',input);
+            let dialog: HTMLDialogElement;
+            dialog=modal('Review historical scope',plan.threadCoverage,h('div',{},h('p',{},'Upper cutoff: '+plan.cutoff),h('p',{},String(plan.budgets.messages)+' messages / '+plan.budgets.images+' images / '+plan.budgets.requests+' provider attempts'),table(['Channel','Coverage','Reason'],plan.channels.map(c=>[c.name,c.status,c.reason??'Eligible']))),[button('Start review-only scan',async()=>{await api('scans','POST',{...input,to:plan.cutoff});dialog.close();await render();})]);
+        })));
+    parent.append(h('p',{class:'muted'},'Progress survives closing this Activity. Refresh to update. Usage and estimated costs appear in Cost & Usage under moderation; scan attempt reservations include interrupted work. Unknown usage or missing pricing is never treated as free.'));
+    for(const scan of scans) {
+        const c=scan.counters;
+        parent.append(panel('Scan '+scan.id,pretty(scan.status),h('p',{},'Cutoff '+scan.cutoff+' · '+(scan.reason??'Review only')),
+            h('p',{},scan.threadCoverage),button('Scan usage and cost',async()=>{
+                const report=await api<AnalyticsReport>('analytics/summary?range=custom&start='+scan.createdAt.slice(0,10)+'&end='+new Date(Date.now()+86400000).toISOString().slice(0,10)+'&correlationId='+scan.id);
+                modal('Scan usage','Provider ledger for this scan. Estimates exclude unknown usage or missing prices; reservations are not proof of dispatch.',bucketTable(report.buckets),[]);
+            },'quiet'),h('p',{},c.messages+' messages · '+c.images+' images · '+c.matches+' matches · '+c.skipped+' skipped · '+c.failed+' failures · '+c.requests+' request reservations · '+c.reused+' reused results'),
+            h('p',{},'Next eligible retry: '+(scan.nextAttempt<8640000000000000?new Date(scan.nextAttempt).toISOString():'Paused or terminal')),
+            table(['Channel','Coverage','Reason','Before cursor'],scan.channels.map(c=>[c.name,c.status,c.reason??'',c.before])),
+            scan.failures.length?table(['Channel','Message','Failure'],scan.failures.map(f=>[f.channel,f.message??'',f.reason])):null,
+            h('div',{class:'actions'},...(['pause','resume','cancel'] as const).map(action=>button(pretty(action),async()=>{await api('scans/'+scan.id+'/'+action,'POST',{});await render();},action==='cancel'?'danger':'quiet')))));
+    }
+}

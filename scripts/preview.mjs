@@ -31,6 +31,7 @@ const server=createServer(async(req,res)=>{
     if(route==='credentials')return send(200,credential);
     if(route==='dashboard')return send(200,{settings,botOnline:false,credential,usage:{calls:0,inputTokens:0,day:'2026-10-15'},counts:{images:3,rules:3,evaluations:0,events:2,successful:0,suppressedOrFailed:2},recent:events});
     if(route==='images')return send(200,images);
+    if(route==='scans')return send(200,[]);
     if(route==='groups')return send(200,groups);
     if(route==='rules')return send(200,rules);
     if(route==='grants')return send(200,[]);

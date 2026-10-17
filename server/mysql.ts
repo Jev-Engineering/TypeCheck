@@ -1,3 +1,4 @@
+import { SqlDurable } from './durable.js';
 import { SqlAnalytics } from './usage-sql.js';
 import { randomUUID } from 'node:crypto';
 import { storedSettings, storedRecord, DEFAULT_SETTINGS, AppError, assert, type RecordBase, type Kind, type Settings, type ImageMessage, type Job, type Session } from '../shared/domain.js';
@@ -9,6 +10,11 @@ export { openMySqlPool } from './mysql-pool.js';
 const TABLES: Record<Kind, string> = { groups: 'image_groups', images: 'reference_images', rules: 'moderation_rules', grants: 'role_grants', credentials: 'guild_credentials', calibrations: 'calibration_trials', evaluations: 'image_evaluations', events: 'moderation_events', audit: 'audit_events' };
 export class MySqlStore implements Store {
     constructor(readonly pool: MySqlPool, private connection?: SqlClient, private defaultModel = DEFAULT_SETTINGS.model) { }
+    get durable() { return new SqlDurable(this.pool, true); }
+    async defer(id: string, until: number) {
+        await this.durable.change('job:'+id, {id:'job:'+id,guild:null,kind:'delay',due:until,data:{}}, r => { r.due=until; });
+        await this.query("UPDATE jobs SET status='queued' WHERE id=?", [id]);
+    }
     get analytics(): SqlAnalytics { return new SqlAnalytics(this, (sql, values) => this.query(sql, values), 'mysql'); }
     private query(sql: string, values?: unknown[]) { return (this.connection ?? this.pool).query(sql, values); }
     async getSettings(guild: string): Promise<SettingsVersion> {
@@ -108,7 +114,7 @@ export class MySqlStore implements Store {
         const c = await this.pool.connect();
         try {
             await c.query('BEGIN');
-            const selected = (await c.query("SELECT id FROM jobs WHERE status='queued' ORDER BY created_at LIMIT 1 FOR UPDATE SKIP LOCKED")).rows[0];
+            const selected = (await c.query("SELECT id FROM jobs WHERE status='queued' AND NOT EXISTS (SELECT 1 FROM durable_work d WHERE d.id=CONCAT('job:',jobs.id) AND d.due>UNIX_TIMESTAMP(NOW(3))*1000) ORDER BY created_at LIMIT 1 FOR UPDATE SKIP LOCKED")).rows[0];
             if (!selected) { await c.query('COMMIT'); return null; }
             await c.query("UPDATE jobs SET status='processing',updated_at=NOW(3) WHERE id=?", [selected.id]);
             const r = (await c.query('SELECT * FROM jobs WHERE id=?', [selected.id])).rows[0];
@@ -133,6 +139,8 @@ export class MySqlStore implements Store {
     async deleteSession(hash: string) { await this.query('DELETE FROM sessions WHERE hash=?', [hash]); }
     async maintenance() {
         await this.analytics.cleanup();
+        await this.query(`DELETE FROM durable_work WHERE guild_id IS NULL AND due<UNIX_TIMESTAMP(NOW(3))*1000 AND updated_at<NOW(3)-INTERVAL 7 DAY`);
+        await this.query(`DELETE d FROM durable_work d JOIN guilds g ON d.guild_id=g.id WHERE d.updated_at<NOW(3)-INTERVAL CAST(JSON_UNQUOTE(JSON_EXTRACT(g.settings,'$.logRetentionDays')) AS UNSIGNED) DAY`);
         await this.query('DELETE FROM auth_nonces WHERE expires_at<NOW(3)');
         await this.query('DELETE FROM sessions WHERE expires_at<NOW(3)');
         await this.query("DELETE FROM jobs WHERE status IN ('done','failed') AND updated_at<NOW(3)-INTERVAL 7 DAY");

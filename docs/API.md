@@ -115,3 +115,26 @@ The Activity Test dialog accepts local files, a same-guild Discord message link,
 `POST /api/g/{guildId}/rules/{id}/test` accepts exactly one of `base64`, `messageUrl`, or `imageIds` (1-20 UUIDs), plus optional boolean `expected` and `context` (up to 2,000 characters). Uploads retain the single-result response; message/library requests return `{results: [...]}`. Each result includes `calibrationNote` (an explicit `exact_hash` exclusion note or null). Library access also requires `images.view`; records and objects are guild scoped. Older normalization versions require re-upload.
 
 Message URLs use HTTPS on discord.com, canary.discord.com or ptb.discord.com with `/channels/guild/channel/message`. Requests check live `matching.test` and requester View Channel + Read Message History with channel overwrites before fetching. Threads use parent-channel permissions; private threads additionally require live membership or Manage Threads. Errors include `message_wrong_guild`, `message_not_found`, `message_read_permission_required`, `message_has_no_supported_images` and existing download/normalization byte and pixel limits. A batch can stop on a failed attachment after earlier samples completed; completed calls remain charged and labeled samples remain deduplicated on retry. Supported attachments use Gateway download/normalization limits. Raw sample bytes and message text are not stored. Message text is not automatically supplied to content rules: the explicit posting-context field and configured context gates still apply. Required Jev calls are charged normally; the existing exact-hash shortcut does not call Jev.
+
+
+## Historical image scanning
+
+See [Historical scans](HISTORICAL_SCANS.md) for administrator scope selection,
+review-only results, permissions, fixed cutoffs, shared quotas, recovery,
+coverage exclusions, migration 003, privacy and validation instructions.
+
+Administrator-only routes (normal guild session and Origin checks apply):
+
+- POST /api/g/:guild/scans/preview: validate {channels: "all" | string[],
+  exclusions: string[], from?: string | null, to?: string | null,
+  budgets: {messages: number, images: number, requests: number}}; returns scope
+  without starting work.
+- POST /api/g/:guild/scans: same input; durable start. Pass the preview's
+  cutoff as to to retain the reviewed upper bound.
+- GET /api/g/:guild/scans: up to 100 retained, guild-isolated scans.
+- POST /api/g/:guild/scans/:id/pause, /resume, /cancel: lifecycle controls.
+- GET /api/g/:guild/analytics/summary?correlationId=:scanId: existing usage/cost
+  report filtered to that scan. Normal date-window parameters apply.
+
+No enforcement flag is accepted. Deferred responses include Retry-After and
+nextAttempt; restarting does not reset a persistent cooldown.

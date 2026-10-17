@@ -1,3 +1,4 @@
+import type { DurableStore } from './durable.js';
 import type { AnalyticsStore } from '../shared/analytics.js';
 import type { RecordBase, Kind, Settings, Job, ImageMessage, Session } from '../shared/domain.js';
 export interface SettingsVersion {
@@ -20,6 +21,8 @@ export interface ActionRecord {
 }
 export interface Store {
     readonly analytics: AnalyticsStore;
+    readonly durable: DurableStore;
+    defer(id: string, until: number): Promise<void>;
     getSettings(guild: string): Promise<SettingsVersion>;
     putSettings(guild: string, value: Settings, revision: number): Promise<void>;
     guilds(): Promise<string[]>;

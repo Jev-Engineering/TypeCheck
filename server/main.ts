@@ -1,8 +1,9 @@
+import { Throttle } from './throttle.js';
 import { loadConfig } from './config.js';
 import { openDatabase, assertMigrated, migrateDatabase } from './database.js';
 import { Leadership } from './leadership.js';
 import { Vault, safeError } from './security.js';
-import { ObjectStore } from './images.js';
+import { ObjectStore, setAttachmentThrottle } from './images.js';
 import { JevClient } from './jev.js';
 import { DiscordRest } from './discord.js';
 import { Gateway } from './gateway.js';
@@ -33,9 +34,11 @@ async function main() {
     console.log('TYPECHECK_MIGRATION_RECEIPT_V1 ' + JSON.stringify({ event: 'database_migration', release: release?.commit ?? null,
         mode: migration ? 'migration' : 'schema_check', applied: migration?.applied ?? [], backup: migration?.before ?? null }));
     const discord = new DiscordRest(config.botToken, config.clientId, config.clientSecret);
+    discord.throttle = new Throttle(store.durable);
+    setAttachmentThrottle(discord.throttle);
     await discord.initialize();
     const objects = new ObjectStore(config.objectDir);
-    const services = new Services(store, objects, new Vault(config.masterKey), new JevClient(), discord);
+    const services = new Services(store, objects, new Vault(config.masterKey), new JevClient(undefined, undefined, new Throttle(store.durable)), discord);
     const storage = await objects.marker().catch(() => { report('object_storage_unavailable'); return null; });
     const leadership = new Leadership(store, () => {
         const worker = new Worker(services, undefined, !config.production || config.enforcementApproved === true);

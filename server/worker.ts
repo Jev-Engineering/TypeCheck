@@ -1,3 +1,4 @@
+import { Historical, deferred } from './historical.js';
 import { createHash } from 'node:crypto';
 import { randomUUID } from 'node:crypto';
 import { assert, baseRecord, AppError, type Evaluation, type ImageMessage, type Match, type ModerationEvent, type ReferenceImage, type Rule, type Settings, type Action } from '../shared/domain.js';
@@ -10,7 +11,10 @@ export function monitored(m: ImageMessage, s: Settings): boolean {
 }
 export class Worker {
     private stopRequested = false;
+    private liveTurns = 0;
+    private healthAt = 0;
     constructor(readonly services: Services, private download = downloadAttachment, private enforcementAllowed = true) { }
+    async historyStep() { return new Historical(this.services,this.download,()=>!this.stopRequested).step(); }
     stop() { this.stopRequested = true; }
     async ingest(m: ImageMessage) {
         if (this.stopRequested) return;
@@ -25,7 +29,14 @@ export class Worker {
     }
     async run() {
         while (!this.stopRequested) {
+            if(Date.now()-this.healthAt>10000) {
+                const id='gateway:'+this.services.discord.botId;
+                await this.services.store.durable.change(id,{id,guild:null,kind:'health',due:0,data:{}},r=>{r.data.online=this.services.discord.online;r.due=Date.now()+15000;}).catch(()=>{});
+                this.healthAt=Date.now();
+            }
             let job;
+            if(this.liveTurns>=8) { this.liveTurns=0; try { await this.historyStep(); } catch {} }
+
             try {
                 job = await this.services.store.claim();
             }
@@ -34,14 +45,25 @@ export class Worker {
                 continue;
             }
             if (!job) {
+                try { if(await this.historyStep()) continue; } catch {}
                 await new Promise(r => setTimeout(r, 500));
                 continue;
             }
+            this.liveTurns++;
             let error: string | null = null;
             try {
                 await this.process(job.message);
             }
             catch (e) {
+                const wait=deferred(e);
+                if(wait) {
+                    const key='job:'+job.id;
+                    const retries=await this.services.store.durable.change(key,{id:key,guild:null,kind:'delay',due:wait.until,data:{}},r=>{
+                        if(!['rate_limit_deferred','jev_account_budget_exhausted'].includes(wait.code)) r.data.retries=(r.data.retries??0)+1;
+                        return r.data.retries??0;
+                    });
+                    if(retries<3) { await this.services.store.defer(job.id,wait.until); continue; }
+                }
                 error = safeError(e);
                 await this.services.audit(job.guildId, 'system', 'job.failed', job.id, { code: error }).catch(() => { });
             }

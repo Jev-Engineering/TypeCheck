@@ -1,3 +1,6 @@
+import { Throttle, Deferred, retryAt } from './throttle.js';
+let attachmentThrottle: Throttle | undefined;
+export function setAttachmentThrottle(value: Throttle | undefined) { attachmentThrottle=value; }
 import sharpDecoder from 'sharp';
 import { mkdir, readFile, writeFile, unlink, readdir, stat, rename } from 'node:fs/promises';
 import { resolve, dirname, sep } from 'node:path';
@@ -105,15 +108,24 @@ export async function readBounded(response: Response, max: number): Promise<Buff
 export async function downloadAttachment(a: Attachment, channel: string, http: typeof fetch = fetch): Promise<NormalizedImage> {
     assert(a.size <= MAX_IMAGE_BYTES && a.size > 0, 'image_byte_limit');
     const url = attachmentURL(a, channel);
+    const release=await attachmentThrottle?.enter('cdn-download',0,30000);
+    try {
     let res: Response;
+    const scope='cdn:'+url.hostname;
+    await attachmentThrottle?.check(scope);
     try {
         res = await http(url, { redirect: 'error', signal: AbortSignal.timeout(12000) });
     }
     catch {
         throw new AppError('attachment_download_failed', 502);
     }
-    assert(res.ok, 'attachment_download_failed', 502);
-    return normalize(await readBounded(res, MAX_IMAGE_BYTES));
+    if(res.status===429||res.status===503) {
+        const until=retryAt(res.headers); await attachmentThrottle?.delay(scope,until);
+        await res.body?.cancel(); throw new Deferred(until,'cdn_rate_limit_deferred');
+    }
+    assert(res.ok, res.status===404?'attachment_unavailable':'attachment_download_failed', 502);
+    return await normalize(await readBounded(res, MAX_IMAGE_BYTES));
+    } finally {await release?.();}
 }
 export class ObjectStore {
     readonly root: string;
