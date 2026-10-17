@@ -16,6 +16,14 @@ Configure a Guild Install with the `bot` scope and Activity launch capability ap
 
 ## 2. Permissions and hierarchy
 
+### Homepage installation link
+
+The public homepage offers **Add to your server**, opening Discord's server installation flow in a new tab. It uses the configured application ID, `integration_type=0`, scopes `bot applications.commands`, and permission value `68608` (View Channels, Send Messages, Read Message History). It does not request Administrator or sanction permissions. The link is hidden in the offline preview and embedded Activity; the existing Activity connection flow remains available.
+
+Before public installation, enable **Public Bot** in the Developer Portal's Bot tab and keep **Requires OAuth2 Code Grant** disabled for this install flow. Under Installation, enable Guild Install and configure the Discord Provided Link with the same scopes and baseline permissions. Public Bot cannot be changed through the documented Edit Current Application bot API. The homepage supplies explicit scopes and permissions, so it does not depend on default install parameters.
+
+A member with Manage Server can install the bot, but TypeCheck configuration requires the server owner or an administrator (or explicitly delegated capabilities). After installation, launch the Activity, choose monitored channels, add the server's Jev API key, and configure rules. Grant additional bot permissions below only for selected moderation features. Installation does not enable automatic enforcement. Verify installation and Activity launch with a non-owner application user in a separate test server before treating public onboarding as accepted.
+
 Select only permissions needed by enabled features: View Channels and Read Message History for monitored channels; Manage Messages for deletion; Moderate Members for timeouts; Kick Members and Ban Members only when used. Send Messages is needed for warnings and configured log notifications. No bot Administrator permission is required. Place the bot's role above members it must sanction, and validate channel overwrites. Protected users/actions remain subject to Discord restrictions [D3].
 
 The application deliberately exempts guild owners and administrators from automatic moderation even where a particular Discord operation might otherwise be allowed. Other exemptions are configurable.
