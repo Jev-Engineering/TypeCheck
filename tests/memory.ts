@@ -49,7 +49,8 @@ export class MemoryStore implements Store {
         this.state = before; this.analytics.records = records; this.analytics.history = history;
         throw e;
     } }; const result = this.tail.then(run, run); this.tail = result.catch(() => { }); return result; }
-    async enqueue(message: ImageMessage) { const signature = digest(message.attachments.map(a => a.id).sort().join(',')); if ([...this.state.jobs.values()].some(j => j.guildId === message.guildId && j.message.messageId === message.messageId && j.signature === signature))
+    async messageEvaluations(guild:string,message:string) { return (await this.all<import('../shared/domain.js').Evaluation>('evaluations',guild)).filter(e=>e.messageId===message).sort((a,b)=>b.createdAt.localeCompare(a.createdAt)).slice(0,256); }
+    async enqueue(message: ImageMessage) { const signature = digest(message.attachments.map(a => a.id).sort().join(',') + (message.textDigest ? ':' + message.textDigest : '')); if ([...this.state.jobs.values()].some(j => j.guildId === message.guildId && j.message.messageId === message.messageId && j.signature === signature))
         return false; const job: Job = { id: randomUUID(), guildId: message.guildId, message: clone(message), signature, status: 'queued', error: null, createdAt: new Date().toISOString() }; this.state.jobs.set(job.id, job); return true; }
     async claim() { const job = [...this.state.jobs.values()].find(j => j.status === 'queued' && (this.durable.rows.get('job:'+j.id)?.due??0)<=Date.now()); if (job)
         job.status = 'processing'; return job ? clone(job) : null; }

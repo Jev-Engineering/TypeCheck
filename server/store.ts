@@ -1,6 +1,6 @@
 import type { DurableStore } from './durable.js';
 import type { AnalyticsStore } from '../shared/analytics.js';
-import type { RecordBase, Kind, Settings, Job, ImageMessage, Session } from '../shared/domain.js';
+import type { RecordBase, Kind, Settings, Job, ImageMessage, Session, Evaluation } from '../shared/domain.js';
 export interface SettingsVersion {
     value: Settings;
     revision: number;
@@ -31,6 +31,7 @@ export interface Store {
     put<T extends RecordBase>(kind: Kind, record: T, expectedRevision: number): Promise<void>;
     remove(kind: Kind, guild: string, id: string, revision: number): Promise<void>;
     withGuild<T>(guild: string, work: (store: Store) => Promise<T>): Promise<T>;
+    messageEvaluations(guild: string, message: string): Promise<Evaluation[]>;
     enqueue(message: ImageMessage): Promise<boolean>;
     claim(): Promise<Job | null>;
     finish(id: string, error: string | null): Promise<void>;

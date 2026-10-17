@@ -13,6 +13,8 @@ async def main():
     domain=re.sub(r'^import .*?;\n|^export ', '', domain, flags=re.M)
     content=re.sub(r'^import .*?;\n|^export ', '', (root/'dist/shared/content.js').read_text(encoding='utf-8'), flags=re.M)
     connection=re.sub(r'^export ', '', (root/'dist/activity/src/connection.js').read_text(encoding='utf-8'), flags=re.M)
+    text_module=re.sub(r'^import .*?;\n|^export ', '', (root/'dist/shared/text.js').read_text(encoding='utf-8'), flags=re.M)
+    text_starters=re.sub(r'^import .*?;\n|^export ', '', (root/'dist/shared/text-starters.js').read_text(encoding='utf-8'), flags=re.M)
     frontend=(root/'dist/activity/src/main.js').read_text(encoding='utf-8')
     frontend=re.sub(r'^import .*?;\n','',frontend,flags=re.M)
     analytics=(root/'dist/shared/analytics.js').read_text(encoding='utf-8')
@@ -23,6 +25,7 @@ async def main():
     mock='''(() => {const d=DATA;
       const contentDefinition=CONTENT_PRESETS[0].definition;
       d.rules.push({...d.rules[0],id:'00000000-0000-4000-8000-000000000099',name:'Synthetic content test',type:'content',referenceId:null,groupId:null,content:contentDefinition,threshold:.7,action:'timeout'});
+      d.rules.push({...d.rules[0],id:'00000000-0000-4000-8000-000000000098',name:'Synthetic native text test',type:'text',referenceId:null,groupId:null,text:TEXT_STARTERS[0].definition,threshold:.9,action:'warn'});
       globalThis.__PreviewSDK=class{guildId=d.guild;async ready(){};commands={authorize:async()=>({code:'offline'}),authenticate:async()=>({})}};
       globalThis.fetch=async (input,options={})=>{const path=String(input).split('?')[0];
         const response=(value,status=200)=>new Response(JSON.stringify(value),{status,headers:{'Content-Type':'application/json'}});
@@ -31,6 +34,7 @@ async def main():
         if(path==='/api/auth/exchange')return response({sessionToken:'offline',accessToken:'offline',authority:d.authority});
         if(path.endsWith('/00000000-0000-4000-8000-000000000099/test'))return response({probability:.9,predicted:true,ruleThreshold:.7,actionFloor:.9,effectiveThreshold:.9,thresholdApplies:true,meetsThreshold:true,inputTokens:120,hashComparisons:0,accounting:{attempts:1,estimatedCostMicros:null,partial:true},policyOutcome:{action:'timeout',reason:'monitoring_only'},matches:[{model:'jev-1.14.0',content:{definition:contentDefinition,status:'detected',readability:'readable',context:'solicitation',promotionProbability:.95,depictedProbability:.98,blockedReasons:[],promptVersion:'image-content-v1',signals:{credentials:.9}}}]});
         if(path.endsWith('/scans/preview'))return response({cutoff:'2026-10-17T00:00:00.000Z',budgets:JSON.parse(options.body).budgets,channels:[{name:'Synthetic history channel',status:'pending',reason:null}],threadCoverage:'Excluded: threads, archived threads and forum posts.'});
+        if(path.endsWith('/00000000-0000-4000-8000-000000000098/test'))return response({status:'detected',expected:true,probability:.98,ruleThreshold:.9,actionFloor:.7,effectiveThreshold:.9,inputTokens:80,verification:null,executed:false,policyOutcome:{action:'warn',reason:'monitoring_only'},matches:[{text:{sampleSha256:'a'.repeat(64),promptVersion:'message-text-v1',context:'solicitation',blockedReasons:[]}}]});
         if(options.method&&options.method!=='GET')return response({error:'offline_preview_is_read_only'},403);
         const r=path.split('/').slice(4).join('/');
         if(r.startsWith('analytics/'))return response(previewCosts(r,new URL(String(input),'https://preview.invalid').searchParams));
@@ -49,7 +53,7 @@ async def main():
             page=await browser.new_page(viewport={'width':w,'height':h},device_scale_factor=1)
             page.on('pageerror',lambda e:errors.append(str(e)))
             await page.set_content('<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+(root/'activity/style.css').read_text(encoding='utf-8')+'</style></head><body><div id="app"></div></body></html>')
-            await page.add_script_tag(content=connection+'\n'+domain+'\n'+content+'\n'+analytics+'\n'+mock+'\n'+frontend,type='module')
+            await page.add_script_tag(content=connection+'\n'+domain+'\n'+content+'\n'+text_module+'\n'+text_starters+'\n'+analytics+'\n'+mock+'\n'+frontend,type='module')
             await page.get_by_role('button',name='Open read-only preview').click()
             await page.get_by_role('heading',name='Recent moderation events').wait_for()
             await page.screenshot(path=str(root/'evidence'/f'{prefix}preview-{label}.png'),full_page=True)
@@ -129,7 +133,7 @@ async def main():
             assert await dialog.get_by_label(re.compile(r'^Threshold preset')).input_value()=='custom'
             await dialog.get_by_role('button',name='Close',exact=True).click()
             findings.append({'viewport':label,'existingCustomRule':'saved 0.82 preserved and displayed as Custom'})
-            await page.get_by_role('button',name='Test',exact=True).last.click()
+            await page.get_by_role('row').filter(has_text='Synthetic content test').get_by_role('button',name='Test',exact=True).click()
             dialog=page.get_by_role('dialog')
             await dialog.get_by_label('Sample images',exact=True).set_input_files(str(root/'fixtures/reference.png'))
             await dialog.get_by_role('button',name='Run tests',exact=True).click()
@@ -140,6 +144,35 @@ async def main():
             assert await dialog.locator('.content-sample').count()==1
             await dialog.locator('.content-result').screenshot(path=str(root/'evidence'/f'{prefix}test-result-{label}.png'))
             findings.append({'viewport':label,'contentResults':'synthetic typed result, inclusive threshold, readability, blocked enforcement, unknown cost, preview and label controls passed'})
+            await dialog.get_by_role('button',name='Close',exact=True).click()
+            await page.get_by_label(re.compile(r'^Preview a text starter')).select_option('text_conduct')
+            assert 'Concrete community configuration' in await page.locator('.text-starter-preview').inner_text()
+            await page.screenshot(path=str(root/'evidence'/f'{prefix}text-starters-{label}.png'),full_page=True)
+            await page.get_by_role('button',name='Customize selected starter',exact=True).click()
+            dialog=page.get_by_role('dialog')
+            assert not await dialog.get_by_label('Enable this text rule',exact=True).is_checked()
+            assert not await dialog.get_by_label('I have supplied concrete observable criteria and all required community context',exact=True).is_checked()
+            assert 'REPLACE' in await dialog.get_by_label('Positive inclusion criteria',exact=True).input_value()
+            assert await dialog.get_by_label(re.compile(r'^Action')).input_value()=='review'
+            assert not await dialog.get_by_label('Allow automatic enforcement after text calibration and approval',exact=True).is_checked()
+            await page.screenshot(path=str(root/'evidence'/f'{prefix}text-editor-{label}.png'),full_page=True)
+            await dialog.get_by_role('button',name='Close',exact=True).click()
+            await page.get_by_role('row').filter(has_text='Synthetic native text test').get_by_role('button',name='Test',exact=True).click()
+            dialog=page.get_by_role('dialog')
+            pasted=dialog.get_by_label(re.compile(r'^Complete message text'))
+            await pasted.fill('Pay a processing fee at https://prize.example/ to claim a guaranteed reward.')
+            await dialog.get_by_label(re.compile(r'^Expected label')).select_option('positive')
+            await dialog.get_by_role('button',name='Analyze text',exact=True).click()
+            await dialog.get_by_role('heading',name='detected',exact=True).wait_for()
+            assert await pasted.input_value()==''
+            assert 'No action executed' in await dialog.inner_text()
+            assert 'message-text-v1' in await dialog.inner_text()
+            await dialog.get_by_label(re.compile(r'^Text sample source')).select_option('message')
+            assert await pasted.is_hidden()
+            assert await dialog.get_by_label('Discord message link',exact=True).is_visible()
+            assert not await page.evaluate('document.documentElement.scrollWidth > window.innerWidth + 1')
+            await page.screenshot(path=str(root/'evidence'/f'{prefix}text-test-{label}.png'),full_page=True)
+            findings.append({'viewport':label,'nativeText':'ten starter previews, required concrete configuration, disabled/nonautomatic defaults, pasted test, expected labels, digest-only results, clearing input, authorized-link selection and no overflow passed; synthetic transport only'})
             await page.close()
         await browser.close()
     result={'scope':'Offline compiled UI, synthetic SDK/fetch; no network or live Discord authentication','checks':findings,'pageErrors':errors,'passed':not errors and all(not c.get('horizontalOverflow') and not c.get('errors') for c in findings)}

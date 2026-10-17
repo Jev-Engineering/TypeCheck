@@ -121,3 +121,8 @@ Create an Image content analysis rule, edit one preset or custom predicate, and 
 See [Historical scans](HISTORICAL_SCANS.md) for administrator scope selection,
 review-only results, permissions, fixed cutoffs, shared quotas, recovery,
 coverage exclusions, migration 003, privacy and validation instructions.
+
+
+## Native text moderation (October 17, 2026)
+
+Native text is a separate explicit opt-in from contentMessageContext. Enable MESSAGE_CONTENT in the Developer Portal and obtain Discord approval where required. Gateway requests GUILDS (1), GUILD_MESSAGES (512), MESSAGE_CONTENT (32768). Missing access can close Gateway with 4014; HTTP may return empty/redacted content. Empty/unavailable text requires review, never a safe classification. Keep View Channel and Read Message History for refetches; test links also check the requesting member. Enforcement permissions/hierarchy remain action-specific. Choose channels, configure disabled starters, enable selected rules and server text switch, test labeled examples, then obtain administrator approval. Existing schema 001–003 is sufficient. No automatic installation. See [text setup/recovery](TEXT_MODERATION.md).

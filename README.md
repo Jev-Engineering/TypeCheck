@@ -1,24 +1,24 @@
-![TypeCheck banner: the TypeCheck wordmark and the tagline "Image moderation for Discord" on an ink background inside a pink frame, beside a row of picture cards passing through a scanning frame. One card is struck through with a red bar; the matched card carries a pink check mark.](docs/assets/typecheck-banner.png)
+![TypeCheck: text and image moderation for Discord, with separate text and image cards flowing through a pink policy frame.](docs/assets/typecheck-banner.svg)
 
 # TypeCheck
 
 Cost analytics: Overview and **Cost & Usage** report guild-scoped attempts, reported input tokens and **estimated** Jev input-token spend. Retries, verification and credential tests are tracked separately. Administrators supply revisioned rates; missing rates and unknown usage produce coverage warnings, never an invented full bill. Legacy daily totals remain separate. See [cost accounting](docs/COSTS.md), [API](docs/API.md) and [validation](VALIDATION.md). Existing installations require forward migration 002; no deployment or production acceptance is implied.
 
-*Formerly Jev Image Guard.* Image moderation for Discord, powered by Jev.
+*Formerly Jev Image Guard.* Text and image moderation for Discord, powered by Jev.
 
-**Version 0.1.0 Â· implementation candidate Â· October 15, 2026**
+**Version 0.1.0 · implementation candidate · October 17, 2026**
 
-A Discord image-only moderation bot with an embedded management Activity. A member posts an attachment; compatible exact normalized-image hashes are checked before Jev compares remaining references; the policy engine chooses an action; the continuously running backend executes eligible actions. Text-only messages are ignored.
+A Discord text and image moderation bot with an embedded management Activity. Native text rules analyze the complete message through Jev’s JSON text API. Image-content rules analyze an image; reference rules compare images, checking compatible normalized hashes before Jev. One deterministic policy engine resolves mixed messages with at most one user sanction. **Text moderation starts disabled**, requires explicit administrator configuration, separate text calibration approval and the existing enforcement gates.
 
-**Not production ready.** Fresh dependency installation, type checking, the official SDK bundle, 155 automated tests, isolated PostgreSQL and MySQL integration, and an offline Compose recovery/restore drill passed. Real Discord/Activity acceptance, representative Jev accuracy, public TLS, and independent operational/security sign-off remain open. See [VALIDATION.md](VALIDATION.md) for scope and evidence.
+**Live acceptance remains open.** Fresh dependency installation, type checking, the official SDK bundle, automated tests, isolated PostgreSQL and MySQL integration, and an offline Compose recovery/restore drill passed. Real Discord/Activity acceptance, representative Jev accuracy, public TLS, and independent operational/security sign-off remain open. See [VALIDATION.md](VALIDATION.md) for scope and evidence.
 
 ## Included implementation
 
 | Area | Implementation |
 |---|---|
-| Bot | Gateway v10 ingestion, image-bearing edits, reconnect/resume, durable jobs, REST actions |
+| Bot | Gateway v10 ingestion, text/image creates and edits, reconnect/resume, durable jobs, REST actions |
 | Matching | Versioned exact normalized-content SHA-256 evidence, official Jev multipart image requests, strict Noul answers, pinned model, per-action thresholds, second verification |
-| Rules | Individual, group, any-reference, explicit any-image; deterministic priority; one user sanction per message |
+| Rules | Native text, image content, individual, group, any-reference, explicit any-image; deterministic priority; one user sanction per message |
 | Actions | Log only, review, delete, warn, timeout, kick, ban; optional delete alongside a user sanction |
 | Activity | Overview, private image previews/uploads/bulk changes, graphical rules and tests, logs, permissions, settings, credential rotation |
 | Security | Live Discord authority, delegated capabilities, guild isolation, encrypted write-only credentials, origin checks, bounded image decoding |
@@ -62,7 +62,7 @@ Compose publishes the app/database on loopback only. Put an HTTPS reverse proxy 
 
 ## First-server workflow
 
-Open the Activity from a guild, connect, select monitored text channels, and add a Jev API key under Settings. Upload a reference, create a rule, and test labeled matching/nonmatching samples. An administrator approves the current configuration before enabling automatic enforcement. New installations have no monitored channels and enforcement off. Kick/ban additionally require the high-impact switch and second verification. Closing the Activity does not stop the backend.
+Open the Activity from a guild, connect, select monitored text channels, and add a Jev API key under Settings. Choose native text or image moderation. For text, preview/customize a starter in Rules & tests or explicitly install ten disabled review-only starters; enable native text analysis under Settings, then test pasted messages or authorized same-guild message links. For images, upload a reference and test labeled samples. An administrator approves the current configuration before enabling automatic enforcement. New installations have no monitored channels and enforcement off. Kick/ban additionally require the high-impact switch and second verification. Closing the Activity does not stop the backend.
 
 An explicit any-image rule is a separate opt-in policy and does not use Jev. Semantic matching remains review-only. Approval requirements and their statistical limitations are documented in [docs/MATCHING.md](docs/MATCHING.md).
 
@@ -131,3 +131,9 @@ New rules use Standard (0.70). The Activity also offers Strict (0.90) and Custom
 ## Configurable image content analysis
 
 Use **Image content analysis** for a reference-free administrator-defined Noul question about visible text and imagery. Editable presets, explicit context/readability gates and existing thresholds/approvals are described in [Content analysis](docs/CONTENT_ANALYSIS.md). New rules start with automatic enforcement off. Model quality and production acceptance remain separate from mocked tests and CI.
+
+## Native text policies
+
+See [native text architecture, boundaries and privacy](docs/TEXT_MODERATION.md), [starter inventory and examples](docs/TEXT_STARTERS.md), [labeled synthetic dataset](fixtures/text/README.md), and [repository validation](evidence/issue39-validation.md). Starters cover scams, phishing, impersonation, suspicious software, harassment, threats, sensitive information, prohibited promotion, community conduct and custom observable predicates. Installation grants no approval and never modifies existing rules. The original 33 user-reviewed scam images and their provenance remain separate and unchanged.
+
+Text tests never moderate Discord. Submitted text is not retained in jobs, logs, notifications, exports or decision evidence. Empty, unavailable, over-limit or insufficient evidence routes to review without punishment. Links, Markdown, Unicode and code blocks are evidence; linked sites, DMs and history are not fetched. Model probabilities are estimates, not measured accuracy or verified wrongdoing. Live provider/Discord acceptance and production deployment require separate authorization.

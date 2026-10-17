@@ -1,10 +1,10 @@
-# Build a Complete Discord Image Moderation Bot Powered by TypeSafe Jev
+# Build a Complete Discord Text and Image Moderation Bot Powered by TypeSafe Jev
 
 ## 1. Project Objective
 
 Design, implement, test, and document a fully functional Discord moderation bot with an embedded Discord Activity management interface.
 
-**The bot has exactly one purpose: automatically moderate Discord users based on images they post.**
+**The bot moderates configured observable text and image policies through one deterministic enforcement engine.**
 
 Use **Jev, TypeSafe AI's image-capable decision model**, to compare posted images against a configurable library of reference images and determine whether a moderation rule has been triggered.
 
@@ -16,19 +16,19 @@ The bot must operate continuously without requiring the Discord Activity to rema
 
 ### Strict Project Scope
 
-The application performs only image-based moderation.
+The application supports opt-in native text moderation alongside image content analysis and reference-image matching. See [native text specification](TEXT_MODERATION.md).
 
 Do not implement:
-- General text moderation.
-- Profanity detection.
-- Spam detection based on message text.
+- Conversation-wide or historical text analysis.
+- Unconfigured generic profanity judgments.
+- Inferring repetition from a single text message.
 - Conversation analysis.
 - Chatbot responses or conversational AI.
 - Voice moderation.
 - Unrelated AI assistants.
 - Unnecessary social or entertainment features.
 
-All functionality must directly support image detection, matching, moderation, administration, permissions, or operational monitoring.
+All functionality must directly support text analysis, image detection, matching, moderation, administration, permissions, or operational monitoring.
 
 ---
 
@@ -950,7 +950,7 @@ Include a concise explanation of operational costs, including Jev image-token us
 The implementation is complete only when all of the following are satisfied:
 
 - [ ] The bot automatically detects image attachments posted to configured Discord channels.
-- [ ] The bot ignores text-only messages.
+- [ ] Native text moderation is disabled by default, explicitly configured and independently calibrated; text-only messages are evaluated only when applicable text rules exist.
 - [ ] Jev is integrated using the official image-capable API.
 - [ ] Administrators can upload reference images.
 - [ ] Jev can compare submitted images against registered references.

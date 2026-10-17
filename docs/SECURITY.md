@@ -68,3 +68,8 @@ Only server-derived compatible normalization hashes qualify. Eligibility and gui
 ## Content-analysis boundary
 
 Posting context requires server/rule opt-in and is not retained in jobs or evaluation records. Evidence contains its digest, typed judgments and moderator policy. No extraction, URL visits or command execution is performed. Incomplete assessments cannot authorize punishment. See [privacy](CONTENT_ANALYSIS.md#context-and-privacy).
+
+
+## Native text moderation (October 17, 2026)
+
+Submitted text is transmitted transiently for configured opt-in rules or authorized tests. Jobs retain a digest; audits, evidence, usage, notifications and exports exclude raw submitted text. Policies/reasons/approval notes remain administrator configuration and must not contain real secrets. Trust separation, attribution and sufficient-context/promotion gates mitigate injection; failures and unavailable text require review. These safeguards do not certify model accuracy or injection resistance. Digests reveal equality. See [privacy, retention and downgrade constraints](TEXT_MODERATION.md).

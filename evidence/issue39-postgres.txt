@@ -1,0 +1,8 @@
+Migrations 001–002 applied or already present.
+npm notice run typecheck@0.1.0 test:postgres
+npm notice run node scripts/test-postgres.mjs
+PASS native text JSON persistence, concurrent starter installation, deletion, digest edit deduplication and rollback
+postgres: threshold defaults, legacy/custom persistence and missing-only fallback passed
+PostgreSQL integration passed: revisions, tenant FKs, rollback, durable jobs, concurrent idempotency, reconnect persistence, leader recovery, unknown no-replay, quotas, nonces, payload erasure.
+PostgreSQL: repeat migrations, versioned/legacy reference and nullable evidence round trips, tenant isolation, hash-only zero quota/tokens, revision invalidation passed
+postgres: historical restart/checkpoints, exact hash, review-only, lifecycle, isolation, permission/policy loss, partial-failure accounting, shared cooldown races and live deferral passed

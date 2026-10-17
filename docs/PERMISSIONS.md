@@ -29,3 +29,8 @@ Role edits/revocations take effect on the next API authority check. Sessions are
 ## Content-analysis permissions
 
 Content rules reuse rules.create, rules.edit, actions.change, matching.test, administrator approval and high-impact restrictions. Preset listing requires rules.view. Context opt-in uses existing Settings authorization. Preset/threshold edits do not grant enforcement. See [approvals](CONTENT_ANALYSIS.md#approvals-and-persistence).
+
+
+## Native text moderation (October 17, 2026)
+
+Native text creation/editing and starter installation require administrator. Preview uses rules.view. Tests reuse matching.test, current membership and same-channel read checks for links. Approval and server text switch remain administrator operations. Global enforcement, deployment acceptance, exemptions, bot/webhook opt-ins and high-impact safeguards apply. Text tests never moderate. See [API](API.md).

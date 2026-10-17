@@ -116,11 +116,14 @@ export class PostgresStore implements Store {
             c.release?.();
         }
     }
+    async messageEvaluations(guild: string, message: string): Promise<import('../shared/domain.js').Evaluation[]> {
+        return (await this.query("SELECT data FROM image_evaluations WHERE guild_id=$1 AND data->>'messageId'=$2 ORDER BY updated_at DESC,id LIMIT 256", [guild,message])).rows.map(r=>typeof r.data==='string'?JSON.parse(r.data):r.data);
+    }
     async enqueue(message: ImageMessage) {
         await this.getSettings(message.guildId);
         const queued = await this.query("SELECT count(*)::integer AS n FROM jobs WHERE guild_id=$1 AND status IN ('queued','processing')", [message.guildId]);
         assert(queued.rows[0].n < 1000, 'guild_queue_limit', 429);
-        const sig = digest(message.attachments.map(a => a.id).sort().join(','));
+        const sig = digest(message.attachments.map(a => a.id).sort().join(',') + (message.textDigest ? ':' + message.textDigest : ''));
         const r = await this.query('INSERT INTO jobs(id,guild_id,message,message_id,signature) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING', [randomUUID(), message.guildId, message, message.messageId, sig]);
         return r.rowCount === 1;
     }

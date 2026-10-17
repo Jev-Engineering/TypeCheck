@@ -54,3 +54,8 @@ Questions batch per selected rule. Each attempt, retry and verification is count
 See [Historical scans](HISTORICAL_SCANS.md) for administrator scope selection,
 review-only results, permissions, fixed cutoffs, shared quotas, recovery,
 coverage exclusions, migration 003, privacy and validation instructions.
+
+
+## Native text moderation (October 17, 2026)
+
+Native attempts use analysisKind:text in the same guild ledger with administrator rates, quota reservations, unknown outcomes, retries and verification costs. No applicable enabled text rules means no text request. Successful test tokens appear in results; Cost & Usage includes every attempt and unknown usage. Estimates are not invoices. Paid provider evaluations require separate authorization. See [resource bounds](TEXT_MODERATION.md).

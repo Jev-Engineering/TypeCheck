@@ -1,0 +1,169 @@
+{
+  "scope": "Offline compiled UI, synthetic SDK/fetch; no network or live Discord authentication",
+  "checks": [
+    {
+      "viewport": "desktop",
+      "screen": "Historical scans",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "desktop",
+      "historical": "scope, budgets, explicit coverage and review-only confirmation passed"
+    },
+    {
+      "viewport": "desktop",
+      "screen": "Image library",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "desktop",
+      "screen": "Rules & tests",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "desktop",
+      "screen": "Cost & Usage",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "desktop",
+      "costs": "mixed currencies, legacy coverage and pagination passed"
+    },
+    {
+      "viewport": "desktop",
+      "screen": "Activity log",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "desktop",
+      "screen": "Permissions",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "desktop",
+      "screen": "Settings",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "desktop",
+      "screen": "Overview",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "desktop",
+      "dialog": "Create rule",
+      "visible": true
+    },
+    {
+      "viewport": "desktop",
+      "contentEditor": "preset search, editable criteria, explicit context, no reference and monitoring default passed"
+    },
+    {
+      "viewport": "desktop",
+      "thresholdControls": "defaults, presets, custom precision, override, validation, any-image passed"
+    },
+    {
+      "viewport": "desktop",
+      "existingCustomRule": "saved 0.82 preserved and displayed as Custom"
+    },
+    {
+      "viewport": "desktop",
+      "contentResults": "synthetic typed result, inclusive threshold, readability, blocked enforcement, unknown cost, preview and label controls passed"
+    },
+    {
+      "viewport": "desktop",
+      "nativeText": "ten starter previews, required concrete configuration, disabled/nonautomatic defaults, pasted test, expected labels, digest-only results, clearing input, authorized-link selection and no overflow passed; synthetic transport only"
+    },
+    {
+      "viewport": "mobile",
+      "screen": "Historical scans",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "historical": "scope, budgets, explicit coverage and review-only confirmation passed"
+    },
+    {
+      "viewport": "mobile",
+      "screen": "Image library",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "screen": "Rules & tests",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "screen": "Cost & Usage",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "costs": "mixed currencies, legacy coverage and pagination passed"
+    },
+    {
+      "viewport": "mobile",
+      "screen": "Activity log",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "screen": "Permissions",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "screen": "Settings",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "screen": "Overview",
+      "horizontalOverflow": false,
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "dialog": "Create rule",
+      "visible": true
+    },
+    {
+      "viewport": "mobile",
+      "contentEditor": "preset search, editable criteria, explicit context, no reference and monitoring default passed"
+    },
+    {
+      "viewport": "mobile",
+      "thresholdControls": "defaults, presets, custom precision, override, validation, any-image passed"
+    },
+    {
+      "viewport": "mobile",
+      "existingCustomRule": "saved 0.82 preserved and displayed as Custom"
+    },
+    {
+      "viewport": "mobile",
+      "contentResults": "synthetic typed result, inclusive threshold, readability, blocked enforcement, unknown cost, preview and label controls passed"
+    },
+    {
+      "viewport": "mobile",
+      "nativeText": "ten starter previews, required concrete configuration, disabled/nonautomatic defaults, pasted test, expected labels, digest-only results, clearing input, authorized-link selection and no overflow passed; synthetic transport only"
+    }
+  ],
+  "pageErrors": [],
+  "passed": true
+}

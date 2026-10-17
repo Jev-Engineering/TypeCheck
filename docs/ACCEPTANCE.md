@@ -12,7 +12,7 @@ The attached specification is preserved in USER_SPECIFICATION.md. “Implemented
 
 | Specification area | Candidate implementation | Remaining acceptance |
 |---|---|---|
-| Image-only automatic monitoring | Gateway, worker, channel settings, ignore text, supported edits | Real intents, channel permissions, event/reconnect soak test |
+| Text and image monitoring | Gateway/worker, channel settings, opt-in text rules, supported edits | Real intents, channel permissions, event/reconnect soak test |
 | Jev image matching | Pinned official multipart/Noul adapter, four prompt modes | Real account compatibility and representative accuracy |
 | Reference library and rule modes | Private uploads, groups, individual/library/any-image policies | Real provider matching and deployed storage |
 | Moderation actions | Delete/warn/timeout/kick/ban/review/log-only, combinations | Real consenting test accounts, permission/hierarchy/rate tests |
@@ -55,3 +55,8 @@ Runtime-image security is also OPEN: the final scan has 43 high package findings
 ## Content-analysis acceptance
 
 Mocked tests and offline desktop/mobile rendering validate software behavior only. Paid held-out model evaluation, dedicated Discord validation and operational acceptance remain separate. Report false positives/negatives, precision, recall and coverage by category/language, separating tuning from held-out samples. Merge does not certify accuracy or deployment acceptance. See [acceptance](CONTENT_ANALYSIS.md#testing-and-acceptance).
+
+
+## Native text moderation (October 17, 2026)
+
+See [issue39 validation](../evidence/issue39-validation.md). Separately authorize live native JSON provider tests and dedicated-guild checks for intent redaction, creates/edits/deletes/reconnects, link permissions, bot/webhook safeguards, stale suppression, calibration and severe verification. Adjudicate tuning/held-out cases including quotations/warnings/injection/lookalikes. Verify no raw text in jobs/logs/exports/notifications. Mocked scores establish software behavior only. Deployment acceptance stays disabled until required live gates and independent review pass. See [text boundaries](TEXT_MODERATION.md).

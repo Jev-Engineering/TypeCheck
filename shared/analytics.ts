@@ -4,7 +4,7 @@ export const OUTCOMES = ['reserved', 'dispatching', 'success', 'failure', 'uncer
 export type Purpose = typeof PURPOSES[number];
 export interface Rate { model: string; revision: number; currency: string; perMillion: string; effectiveAt: string; note: string }
 export interface Attempt {
-    ruleIds?: string[]; analysisKind?: 'content';
+    ruleIds?: string[]; analysisKind?: 'content' | 'text';
     id: string; correlationId: string; guildId: string; model: string; purpose: Purpose; mode: Mode;
     verification: boolean; retry: number; startedAt: string; completedAt: string | null;
     outcome: typeof OUTCOMES[number]; error: string | null; inputTokens: number | null;
