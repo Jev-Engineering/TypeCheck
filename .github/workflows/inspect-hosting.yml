@@ -1,0 +1,27 @@
+name: Inspect hosting source
+on:
+  workflow_dispatch:
+    inputs:
+      import_id:
+        description: Existing source import to inspect (read-only)
+        required: true
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment:
+      name: production
+      deployment: false
+    steps:
+      - name: Read source provenance without publishing
+        env:
+          GDDY_PAT: ${{ secrets.GODADDY_PAT }}
+          APP_ID: ${{ vars.GODADDY_APP_ID }}
+          IMPORT_ID: ${{ inputs.import_id }}
+        run: |
+          [[ "$APP_ID" =~ ^NODEJS-[A-Za-z0-9_-]+$ && "$IMPORT_ID" =~ ^[A-Za-z0-9_-]{1,100}$ ]] || exit 1
+          base="https://api.godaddy.com/v1/hosting/apps/$APP_ID"
+          curl -fsS --max-time 30 -H "Authorization: Bearer $GDDY_PAT" "$base" | jq '{id,source,sourceDetails,status}'
+          curl -fsS --max-time 30 -H "Authorization: Bearer $GDDY_PAT" "$base/imports/$IMPORT_ID" | jq '{importId,importType,status,gitHash,fields:keys}'
