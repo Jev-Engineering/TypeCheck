@@ -77,6 +77,32 @@ Replace `verifiedAt` with the actual observation timestamp and preserve the sour
 
 Offline checks run in CI: `node --test scripts/kaggle-benchmark.test.mjs` and `python scripts/benchmark_costs_test.py`. They cover resume behavior, pricing backfill, per-attempt rounding, retries, unknown/pending usage, preserved rate snapshots and model mismatch. No dataset download or paid evaluation runs in CI.
 
+### Evidence and label-alignment experiments
+
+The benchmark-only v2 helpers keep production text/content requests, the versioned exact hash pipeline, approval bindings and enforcement thresholds unchanged. `scripts/benchmark-variants.mjs` rephrases answerability to include clear negatives and compares a conservative three-way decision band against the existing gate. Positive candidates still require the existing positive gate. Unreadable or ambiguous inputs never become clear negatives merely because their primary score is low.
+
+`python scripts/benchmark-label-audit.py prepare` creates a frozen, balanced 300-case diagnostic set under `BENCHMARK_ROOT/experiments/evidence-v2`. It copies blinded inputs into two reviewer packets and keeps dataset labels/model scores in a separate source map. The diagnostic sample is selected from already observed baseline cases and is **not** held-out evidence or representative prevalence. The original benchmark continues unchanged.
+
+After freezing a matching runtime snapshot as described above, copy the original run's `policies.json` as the experiment's `baseline-policies.json`, its pricing as `pricing.json`, and record source/runtime hashes. With explicit `ALLOW_PAID_BENCHMARK_EXPERIMENTS=true` and `TYPESAFE_EVAL_KEY`, `node --env-file=.env scripts/run-benchmark-experiment.mjs` evaluates 100 text and 100 image wording/gate cases, 50 image-detail comparisons at 1536 pixels, 50 descriptive credential-request questions, and 50 controlled matching cases. Ten exact-hash controls make no provider call; at most 340 initial calls are planned, capped at 600 attempts/10 million reported input tokens including retries. Receipts contain hashes and typed outputs, not raw message text. Source spam labels remain proxies for scam policy labels; the credential observation has no accuracy metric until independently annotated and does not establish phishing.
+
+`node scripts/analyze-benchmark-experiment.mjs` writes paired results for wording only, gate logic only, and both changes on the same cases. It also reports exploratory matching threshold sweeps, controlled resize/crop/collage outcomes, coverage, unconditional positive detection and Wilson confidence intervals. Lower cutoffs are diagnostic review candidates; no threshold sweep changes an action threshold or approves enforcement. `status.json` records per-attempt estimated input-token spend.
+
+For new evaluation inputs, `external-holdout` downloads Phish-Iris screenshots and DISC21 queries/references from a different reference shard. `deduplicate-external-holdout` uses the **unchanged production normalizer** to exclude normalized duplicates against the entire baseline, and reserves fresh normalized text groups outside the baseline corpus slice. These operations preserve their raw-source and deduplication receipts. The canonical reservation contains 1,000 new text cases, 200 new screenshots and up to 40 reference pairs. Near-template duplication and possible public-model pretraining exposure remain limitations. The earlier reservation of not-yet-completed baseline cases is explicitly provisional and is not the canonical holdout.
+
+Use `export-holdout-reviews` to create blind packets for the canonical reservation. Each reviewer can run:
+
+```text
+python scripts/benchmark-label-audit.py review <packet.json> --reviewer <name> --open-images
+```
+
+Review is interactive, saves after each case and resumes without discarding completed work. The packet supplies observable-policy rubrics; unknown labels stay null. Reviewer identities/independence are self-attested, not authenticated. No labels are fabricated by the helper.
+
+`reconcile <first.json> <second.json> --output <annotations.json>` requires distinct human reviewer attestations, matching inputs, complete schemas and reviewed cases. Disagreements remain unresolved rather than becoming negative labels. The diagnostic report can use reconciled annotations saved as `audit/reconciled.json`; proxy metrics remain separately identified.
+
+Before requesting any canonical held-out predictions, choose a variant and acceptance limits in `candidate-template.json`. `assemble-holdout <first.json> <second.json> --candidate <candidate.json> --output <new-file.json>` validates both reviews, the canonical manifest digest, candidate binding, fixed positive threshold and preregistered coverage/detection/false-flag limits. It refuses a missing review, unspecified limits or existing holdout results, and never overwrites a frozen candidate. The diagnostic runner rejects protected holdout cases. This handoff does not itself execute a held-out run or grant production approval; independent annotations and the chosen candidate must exist first.
+
+Offline variant, transport, gate-invariant, receipt/resume and annotation/freeze tests are wired to CI. They make no paid calls and download no datasets. Experimental results alone do not authorize changing a production prompt, image normalization or enforcement policy.
+
 
 ## Historical image scanning
 
