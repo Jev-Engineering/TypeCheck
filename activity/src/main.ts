@@ -1,3 +1,4 @@
+import { setupPanel } from './onboarding.js';
 import { TEXT_STARTERS } from '../../shared/text-starters.js';
 import { TEXT_LIMITS, parseText } from '../../shared/text.js';
 import type { HistoricalScan } from '../../shared/historical.js';
@@ -48,6 +49,22 @@ type Child = Node | string | number | false | null | undefined;
 const app = document.querySelector<HTMLDivElement>('#app')!;
 let session = '', guild = '', authority: Authority | null = null, sdk: SDK | null = null, meta: Metadata = { name: '', roles: [], channels: [] }, settings: SettingsVersion | null = null, page = 'Overview', preview = false;
 let status: HTMLDivElement;
+let browserDashboardUrl='/setup';
+let agentSetup: ReturnType<typeof setupPanel> | undefined;
+function clearAgentSetup() { agentSetup?.stop(); agentSetup = undefined; }
+function initializeAgentSetup() {
+    clearAgentSetup();
+    if (!admin() || preview) return;
+    const expectedGuild=guild, expectedSession=session;
+    agentSetup=setupPanel(async (...args)=>{
+        if(guild!==expectedGuild||session!==expectedSession)throw new HttpError('session_changed',401);
+        const result=await api(...args);
+        if(args[0]==='onboarding/apply'&&result.receipt) settings={value:result.after,revision:result.receipt.settingsRevision};
+        if(args[0]==='pause'){settings=await api<SettingsVersion>('settings');void render().catch(fail);}
+        return result;
+    },()=>{page='Agent setup';void render().catch(fail);},browserDashboardUrl);
+}
+window.addEventListener('pagehide',clearAgentSetup);
 const can = (cap: Capability) => authority?.capabilities.includes(cap) ?? false;
 const admin = () => !!(authority?.owner || authority?.administrator);
 const pretty = (s: string) => s === 'severe_threshold_must_not_be_lower' ? 'Action floors must satisfy timeout <= kick <= ban.' : s === 'match_threshold_must_be_a_finite_number_from_0.5_to_1.0' ? 'Match threshold must be a finite number from 0.5 to 1.0 (inclusive).' : s.replaceAll('_', ' ').replaceAll('.', ' / ');
@@ -109,8 +126,8 @@ async function api<T = any>(path: string, method = 'GET', body?: unknown, global
     const response = await fetch(global ? path : `/api/g/${guild}/${path}`, { method, headers: { ...(session ? { Authorization: `Bearer ${session}` } : {}), ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
     const data = await response.json();
     if (!response.ok) {
-        if (response.status === 401)
-            session = '';
+        if ([401,403].includes(response.status)) clearAgentSetup();
+        if (response.status === 401) session = '';
         throw new HttpError(data.error ?? 'Request failed', response.status);
     }
     return data as T;
@@ -134,7 +151,7 @@ function confirmAction(title: string, description: string): Promise<boolean> { r
     resolve(false); }); }); }
 function links() {
     return [
-        ['Overview', can('dashboard.view')], ['Historical scans', admin()], ['Cost & Usage', can('dashboard.view')], ['Image library', can('images.view') || can('images.add')], ['Rules & tests', can('rules.view') || can('rules.create')],
+        ['Agent setup', admin() && !preview], ['Overview', can('dashboard.view')], ['Historical scans', admin()], ['Cost & Usage', can('dashboard.view')], ['Image library', can('images.view') || can('images.add')], ['Rules & tests', can('rules.view') || can('rules.create')],
         ['Activity log', can('logs.view')], ['Permissions', admin() || can('moderators.delegate')], ['Settings', admin() || can('channels.configure')]
     ] as const;
 }
@@ -166,6 +183,7 @@ const connectOnce = serializeConnection(async () => {
         settings = await api<SettingsVersion>('settings');
     const first = links().find(([, allowed]) => allowed);
     page = first?.[0] ?? 'Overview';
+    initializeAgentSetup();
     await render();
 });
 async function connect(clientId: string) { connectionClientId = clientId; return connectOnce(); }
@@ -179,7 +197,7 @@ async function render() {
     status = h('div', { class: 'notice', role: 'status' });
     status.hidden = true;
     const enforcement = settings?.value.enforcement;
-    const header = h('header', { class: 'topbar' }, h('div', {}, h('p', { class: 'eyebrow' }, 'DISCORD ACTIVITY'), h('strong', {}, meta.name)), h('div', { class: 'actions' }, badge(enforcement ? 'ENFORCEMENT ON' : 'MONITOR ONLY', enforcement ? 'green' : 'amber'), button('Refresh', () => render(), 'quiet'), button('Reconnect', async () => { session = ''; authority = null; settings = null; await start(false); }, 'quiet'), can('enforcement.pause') ? button('Pause enforcement', async () => { await api('pause', 'POST', {}); if (settings)
+    const header = h('header', { class: 'topbar' }, h('div', {}, h('p', { class: 'eyebrow' }, location.pathname === '/setup' ? 'BROWSER DASHBOARD' : 'DISCORD ACTIVITY'), h('strong', {}, meta.name)), h('div', { class: 'actions' }, badge(enforcement ? 'ENFORCEMENT ON' : 'MONITOR ONLY', enforcement ? 'green' : 'amber'), button('Refresh', () => render(), 'quiet'), button('Log out / reconnect', async () => { clearAgentSetup(); await api('/api/auth/logout', 'POST', {}, true).catch(()=>{}); session = ''; authority = null; settings = null; await start(false); }, 'quiet'), can('enforcement.pause') ? button('Pause enforcement', async () => { await api('pause', 'POST', {}); if (settings)
         settings.value.enforcement = false; await render(); message('Automatic enforcement paused. Requests already in flight may still finish.'); }, 'danger') : null));
     const content = h('main', { class: 'content' }, h('div', { class: 'page-heading' }, h('div', {}, h('p', { class: 'eyebrow' }, 'CONTROL PANEL'), h('h1', {}, page)), badge('GUILD ' + guild)), status);
     if (preview)
@@ -189,7 +207,8 @@ async function render() {
     content.append(loading);
     try {
         authority = await api<Authority>('me');
-        if (page === 'Overview')
+        if (page === 'Agent setup') { const setup=h('section', {class:'form-stack'}); content.append(setup); agentSetup?.mount(setup); }
+        else if (page === 'Overview')
             await overview(content);
         else if (page === 'Historical scans')
             await historicalPage(content);
@@ -559,7 +578,21 @@ async function settingsPage(parent: HTMLElement) {
     } }, 'danger') : null)));
 }
 async function start(autoConnect = true) {
+    clearAgentSetup();
     const config = await api('/api/config', 'GET', undefined, true);
+    browserDashboardUrl=config.dashboardUrl ?? '/setup';
+    if (location.pathname === '/setup') {
+        app.replaceChildren();
+        const server=input(new URLSearchParams(location.search).get('guild') ?? '');
+        const login=async()=>{const b=await api('/api/auth/browser/start','POST',{guildId:server.value.trim()},true);location.assign(b.authorizeUrl);};
+        app.append(h('main',{class:'login'},h('h1',{},'Browser-assisted setup'),h('p',{},'Sign in with Discord for this guild. Administrator authority is checked live. WebMCP support is experimental; the same manual planner works without it.'),field('Discord server ID',server),button('Sign in with Discord',login),h('a',{href:'/'},'Activity and installation help')));
+        try {
+            const auth=await api('/api/auth/browser/session','POST',{},true);
+            guild=auth.guildId;session=auth.sessionToken;authority=auth.authority;
+            meta=await api<Metadata>('meta');settings=await api<SettingsVersion>('settings');page='Agent setup';initializeAgentSetup();await render();
+        } catch(e) {if (!(e instanceof HttpError && e.status===401))fail(e);}
+        return;
+    }
     preview = config.preview === true;
     app.replaceChildren();
     status = h('div', { class: 'notice', role: 'status' });
@@ -574,6 +607,7 @@ async function start(autoConnect = true) {
             button(preview ? 'Open read-only preview' : 'Connect in Discord', () => connect(config.clientId), showInstall ? 'quiet' : 'primary')),
         showInstall ? h('p', { class: 'install-help', id: 'install-help' }, 'Opens Discord in a new tab. You need Manage Server permission to install. Then open the TypeCheck Activity in your server; an administrator can choose channels, add a Jev API key, and configure rules. Automatic moderation stays off until approved and enabled.') : null,
         status, h('p', { class: 'muted' }, 'Launch from a server Activity. Administrators have access automatically; moderators require an explicit role grant.'),
+        showInstall ? h('a', { class:'button quiet', href:'/setup' }, 'Browser-assisted setup') : null,
         showInstall ? h('p', { class: 'legal-links' }, h('a', { href: '/terms' }, 'Terms of Service'), h('a', { href: '/privacy' }, 'Privacy Policy')) : null));
     if (autoConnect && new URLSearchParams(location.search).has('frame_id'))
         await connect(config.clientId);

@@ -20,3 +20,9 @@ Every starter has a yes/no predicate, inclusions, exclusions, exceptions, within
 Installation holds the guild transaction lock, writes all ten rules and an immutable settings marker atomically, and is idempotent under concurrent requests. Existing rules are preserved. Deleting a starter never reinstalls it; pressing Install again is a no-op. New versions never silently overwrite customization. Every installed rule is disabled, nonautomatic, unapproved and review-only. Installation is not calibration or acceptance.
 
 The 33 project-owner-reviewed scam reference images and manifest in `data/scams` are unchanged. Text samples are separately synthetic, with no inherited user-review or accuracy claims. See [text boundaries/privacy](TEXT_MODERATION.md) and [evaluation procedure](../fixtures/text/README.md).
+
+## Onboarding compositions and repeat installation
+
+[Agent setup](AGENT_ONBOARDING.md) composes this same inventory into scam/phishing, community and custom presets; the image preset uses the existing scam-reference group. Overlapping/repeated selections union stable component IDs. Preview/customization precedes installation; rules remain disabled, nonautomatic, review-only and unapproved, with global enforcement off. Conduct/custom definitions still require concrete administrator configuration. Requirements, provider costs, limitations, remaining actions and screenshots are in the guide.
+
+Per-component `onboardingStarters` markers preserve local edits and deletion tombstones. The all-text installer skips components installed through onboarding; the historical `textStartersInstalled` marker suppresses all-text reinstallation in onboarding. Deletion never silently reinstalls a component. No automatic upgrades/replacements. Both markers are read-only through ordinary Settings. Portable packs in issue #41 must preserve them.

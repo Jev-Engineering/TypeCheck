@@ -34,3 +34,7 @@ Content rules reuse rules.create, rules.edit, actions.change, matching.test, adm
 ## Native text moderation (October 17, 2026)
 
 Native text creation/editing and starter installation require administrator. Preview uses rules.view. Tests reuse matching.test, current membership and same-channel read checks for links. Approval and server text switch remain administrator operations. Global enforcement, deployment acceptance, exemptions, bot/webhook opt-ins and high-impact safeguards apply. Text tests never moderate. See [API](API.md).
+
+## Agent setup boundaries
+
+Agent setup and standalone sign-in require live Discord owner/administrator authority. Delegated rule editing alone is insufficient. Ordinary manual pages retain their capability checks. Server checks apply on every request; tools also recheck authority and invalidate on observed permission/session/guild changes. Presets grant no permissions, install no sanctions and approve no rules. Review needs readable monitored channels and a log destination with bot View Channel/Send Messages; message-link testing additionally needs Read Message History. Administrators must verify actual bot/channel permissions in Discord. Pause cannot resume. See [browser onboarding](AGENT_ONBOARDING.md).

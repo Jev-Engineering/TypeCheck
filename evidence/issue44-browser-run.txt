@@ -1,0 +1,47 @@
+{
+  "scope": "Offline compiled UI, real isolated HTTP service and in-memory transactions; synthetic Discord/provider/registry. Discord embedding and real OAuth/provider unverified; native in-page agent evidence is scoped per result.",
+  "results": [
+    {
+      "viewport": "desktop",
+      "browser": "145.0.7632.6",
+      "nativeWebMCP": {
+        "documentAPI": "undefined",
+        "navigatorAPI": "undefined"
+      },
+      "flow": "synthetic OAuth redirect through real state/cookie/session endpoints; manual starter/plan/accept/apply/receipt; no overflow",
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "browser": "145.0.7632.6",
+      "nativeWebMCP": {
+        "documentAPI": "undefined",
+        "navigatorAPI": "undefined"
+      },
+      "flow": "synthetic OAuth redirect through real state/cookie/session endpoints; manual starter/plan/accept/apply/receipt; no overflow",
+      "errors": []
+    },
+    {
+      "contractDouble": "eight registered tools; structured context invocation; logout removes tools. Synthetic registry, not native agent discovery."
+    },
+    {
+      "nativeChrome": "155.0.8059.82",
+      "flags": [
+        "--enable-features=WebMCP"
+      ],
+      "agent": "in-page agent using native document.modelContext.getTools/executeTool; no polyfill",
+      "tools": [
+        "typecheck_apply_plan",
+        "typecheck_context",
+        "typecheck_inspect_plan",
+        "typecheck_inventory",
+        "typecheck_pause",
+        "typecheck_plan",
+        "typecheck_starters",
+        "typecheck_test_rule"
+      ],
+      "verified": "context discovery/invocation; preview; refused unaccepted apply; human UI acceptance; application; receipt; live authority revocation rejects callback and aborts registry; logout cleanup",
+      "limits": "Fake Discord and provider, top-level browser only. Does not verify built-in browser agents or Discord embedding."
+    }
+  ]
+}

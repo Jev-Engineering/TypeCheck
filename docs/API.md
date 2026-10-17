@@ -143,3 +143,23 @@ nextAttempt; restarting does not reset a persistent cooldown.
 ## Native text moderation (October 17, 2026)
 
 `GET /api/g/:guild/text-starters` requires rules.view. `POST .../text-starters/install` with `{}` requires administrator and installs disabled rules transactionally once. Text RuleInput uses type:text, mode:exact, null referenceId/groupId and a text definition (version:message-text-v1, preset, presetVersion:1, question, positive, negative, exceptions, contextRequirements, requirePromotion, configured). Creation/editing requires administrator; new/conversion rules force automatic:false. Maximum eight enabled text rules. settings.textModerationEnabled defaults false; textStartersInstalled is read-only. `POST .../rules/:id/test` accepts exactly one of text:string or messageUrl:string, plus optional expected:boolean (omitted means unlabeled/ambiguous). Links must be same-guild and currently readable. Returns status, probability, thresholds, verification, expected label, matches with digest evidence, inputTokens, policyOutcome and executed:false. No moderation occurs. Usage labels analysisKind:text. See [bounds and evidence](TEXT_MODERATION.md).
+
+## Browser onboarding API
+
+`POST /api/auth/browser/start {guildId}` requires the public Origin, binds state to browser/guild/origin for five minutes and returns a Discord authorize URL. `GET /api/auth/browser/callback?code=...&state=...` consumes state, exchanges the code with the exact registered redirect, checks live administrator authority and redirects to `/setup` using a 60-second HttpOnly bootstrap cookie. `POST /api/auth/browser/session` requires the public Origin, rechecks authority and returns a 15-minute in-memory management session while clearing the cookie. No OAuth tokens are returned. Existing logout revokes the session; Activity SDK auth remains separate.
+
+All routes below are under `/api/g/:guild/onboarding/` and require a guild-bound session plus live administrator authority:
+
+| Method/suffix | Input/result |
+|---|---|
+| GET `context` | User/guild, safe credential status, advisory readiness/blockers/remaining actions |
+| GET `inventory?offset=0` | Up to 50 channels/roles/rules/groups each, individual next offsets, settings/reference count, no paths |
+| GET `starters` | Four compositions, canonical text definitions and requirements/cost notice |
+| POST `plans` | Strict `{presets,channels,excludedChannels,exemptRoles,logChannel,customizations}`; returns ten-minute exact before/after plan with additions/skips/digest |
+| POST `plan` | `{planId,digest}`; fresh plan or persisted applied receipt |
+| POST `accept` | Same identity; user/session/guild/digest/revision-bound acceptance, deliberately absent from WebMCP |
+| POST `apply` | Same identity; accepted state required, atomic policy/audit receipt commit |
+
+Customizations are keyed by selected text component ID; only `name`, `question`, `positive`, `negative`, `exceptions` are allowed. Destinations must exist in Discord metadata. Channels/exclusions/exemptions union with current settings; a supplied log destination replaces the current value. No arbitrary settings, grants, removals or activation. Both starter marker fields are read-only in ordinary Settings. Snapshot revisions cover settings, rules, groups, reference metadata and grants. Errors include `plan_binding_mismatch` (403), `plan_stale`, `plan_expired`, `explicit_acceptance_required`, `discord_inventory_changed` (409). Reprepare/review as applicable. Applied-plan receipt recovery works after plan expiry while its original management session is valid.
+
+Browser tools: `typecheck_context`, `typecheck_inventory`, `typecheck_starters`, `typecheck_plan`, `typecheck_inspect_plan`, `typecheck_apply_plan`, `typecheck_test_rule`, `typecheck_pause`. Test reuses `POST rules/:id/test`, accepts one supplied text/image sample and optional expected boolean, requires `providerUseAccepted: true`, and executes no sanctions. Context-dependent image tests use the manual UI. No accept/credential/approval/grant/activation/generic HTTP or command tool. See [schemas](../activity/src/onboarding.ts) and [onboarding](AGENT_ONBOARDING.md).

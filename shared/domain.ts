@@ -14,6 +14,7 @@ export type RuleType = 'individual' | 'group' | 'any_match' | 'any_image' | 'con
 export interface Settings {
     textModerationEnabled?: boolean;
     textStartersInstalled?: boolean;
+    onboardingStarters?: string[];
     contentMessageContext?: boolean;
     monitoring: boolean;
     enforcement: boolean;
@@ -37,7 +38,7 @@ export interface Settings {
 export const MATCH_THRESHOLDS = { standard: 0.70, strict: 0.90, min: 0.5, max: 1.0 } as const;
 export const DEFAULT_RULE_THRESHOLD = MATCH_THRESHOLDS.standard;
 export const DEFAULT_SETTINGS: Settings = {
-    textModerationEnabled: false, textStartersInstalled: false, contentMessageContext: false, monitoring: true, enforcement: false, anyImageEnabled: false, semanticEnabled: false,
+    onboardingStarters: [], textModerationEnabled: false, textStartersInstalled: false, contentMessageContext: false, monitoring: true, enforcement: false, anyImageEnabled: false, semanticEnabled: false,
     channels: [], excludedChannels: [], exemptRoles: [], processBots: false, processWebhooks: false,
     logChannel: null, dmNotify: false,
     thresholds: { none: MATCH_THRESHOLDS.standard, delete: MATCH_THRESHOLDS.standard, warn: MATCH_THRESHOLDS.standard, timeout: MATCH_THRESHOLDS.strict, kick: MATCH_THRESHOLDS.strict, ban: MATCH_THRESHOLDS.strict, review: MATCH_THRESHOLDS.standard },
@@ -253,6 +254,10 @@ export function parseSettings(value: unknown, defaults: Settings = DEFAULT_SETTI
     const v = object(value);
     onlyKeys(v, Object.keys(DEFAULT_SETTINGS));
     const s = structuredClone(defaults);
+    if ('onboardingStarters' in v) {
+        assert(Array.isArray(v.onboardingStarters) && v.onboardingStarters.length <= 32 && v.onboardingStarters.every(k => typeof k === 'string' && /^[a-z_]{1,40}$/.test(k)), 'invalid_onboarding_starters');
+        s.onboardingStarters = [...new Set(v.onboardingStarters as string[])];
+    }
     for (const k of ['textModerationEnabled', 'textStartersInstalled', 'contentMessageContext', 'monitoring', 'enforcement', 'anyImageEnabled', 'semanticEnabled', 'processBots', 'processWebhooks', 'dmNotify', 'highImpactEnabled'] as const)
         if (k in v)
             s[k] = bool(v[k]);

@@ -1042,3 +1042,7 @@ Do not expand beyond this purpose.## Historical image scanning
 See [Historical scans](HISTORICAL_SCANS.md) for administrator scope selection,
 review-only results, permissions, fixed cutoffs, shared quotas, recovery,
 coverage exclusions, migration 003, privacy and validation instructions.
+
+## Browser-assisted onboarding
+
+Administrators can independently authenticate to the browser dashboard or connect to the Activity, inspect structured tools where supported, preview four reusable starter compositions, customize/review an exact revision-bound plan, explicitly accept it and apply it with a receipt. New rules are disabled/review-only; enforcement activation retains existing separate gates. Unsupported browsers use the same manual planner. [The guide](AGENT_ONBOARDING.md) describes scope, browser support and unverified Discord iframe/OAuth/provider gates.
