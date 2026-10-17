@@ -41,6 +41,7 @@ export interface DiscordAdapter {
         accessToken: string;
         userId: string;
     }>;
+    oauthIdentity(accessToken: string): Promise<string>;
     memberInfo(guild: string, user: string): Promise<MemberInfo>;
     metadata(guild: string): Promise<{
         name: string;
@@ -108,7 +109,7 @@ export class DiscordRest implements DiscordAdapter {
             return { __rateLimit: wait };
         }
         if (!response.ok)
-            throw new AppError(`discord_http_${response.status}`, response.status === 403 ? 403 : 502);
+            throw new AppError(`discord_http_${response.status}`, response.status === 401 ? 401 : response.status === 403 ? 403 : 502);
         return data;
     }
     async request(path: string, method = 'GET', body?: unknown, reason?: string): Promise<any> {
@@ -149,6 +150,11 @@ export class DiscordRest implements DiscordAdapter {
         assert(snowflake(me?.id), 'oauth_identity_invalid', 401);
         // Refresh token is intentionally discarded. Short-lived app sessions re-authorize.
         return { accessToken: result.access_token as string, userId: me.id as string };
+    }
+    async oauthIdentity(accessToken: string): Promise<string> {
+        const auth = await this.json(API + '/oauth2/@me', { headers: { Authorization: `Bearer ${accessToken}` } });
+        assert(auth?.application?.id === this.clientId && auth?.scopes?.includes('identify') && snowflake(auth?.user?.id) && Date.parse(auth.expires) > Date.now(), 'oauth_identity_invalid', 401);
+        return auth.user.id;
     }
     async memberInfo(guild: string, user: string): Promise<MemberInfo> {
         const g: DiscordGuild = await this.request(`/guilds/${guild}`);

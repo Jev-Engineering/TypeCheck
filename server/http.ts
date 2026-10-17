@@ -86,13 +86,14 @@ export function createHttp(services: Services, config: Config, root = process.cw
             await store.createNonce(digest(nonce), origin);
             return { body: { nonce } };
         }
-        if (url.pathname === '/api/auth/exchange' && method === 'POST') {
+        if (['/api/auth/exchange', '/api/auth/renew'].includes(url.pathname) && method === 'POST') {
             rate('auth:' + req.socket.remoteAddress, 20);
             const b = await jsonBody(req);
-            onlyKeys(b, ['code', 'nonce', 'guildId']);
+            const renewing = url.pathname === '/api/auth/renew';
+            onlyKeys(b, renewing ? ['accessToken', 'nonce', 'guildId'] : ['code', 'nonce', 'guildId']);
             assert(snowflake(b.guildId), 'invalid_guild');
             assert(typeof b.nonce === 'string' && await store.consumeNonce(digest(b.nonce), origin), 'invalid_or_expired_nonce', 401);
-            const auth = await discord.exchange(text(b.code, 2048));
+            const auth = renewing ? { userId: await discord.oauthIdentity(text(b.accessToken, 2048)), accessToken: undefined } : await discord.exchange(text(b.code, 2048));
             await store.getSettings(b.guildId);
             const a = await services.authority(b.guildId, auth.userId);
             assert(a.capabilities.length > 0, 'no_delegated_access', 403);

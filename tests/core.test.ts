@@ -65,3 +65,13 @@ test('message parser does not persist message text', () => { const m = parseDisc
 test('Discord 204 mutation is a successful empty response', async () => { const rest = new DiscordRest('token', 'id', 'secret', (async () => new Response(null, { status: 204 })) as typeof fetch); assert.equal(await rest.request('/channels/1/messages/2', 'DELETE'), null); });
 test('production rejects HTTP origin', () => throwsCode(() => loadConfig({ NODE_ENV: 'production', PUBLIC_ORIGIN: 'http://localhost', DISCORD_CLIENT_ID: G }), 'production_requires_https'));
 test('objects default to durable Private Storage when the host provides it', () => { assert.equal(defaultObjectDir(true), '/private/objects'); assert.equal(defaultObjectDir(false), './objects'); });
+
+
+test('OAuth renewal validates application binding, identify scope and token expiration', async () => {
+    let application = G, expires = new Date(Date.now() + 3600000).toISOString(), scopes = ['identify'];
+    const rest = new DiscordRest('bot', G, 'secret', (async () => Response.json({application: {id: application}, user: {id: MOD}, scopes, expires})) as typeof fetch);
+    assert.equal(await rest.oauthIdentity('oauth'), MOD);
+    application = G2; await assert.rejects(rest.oauthIdentity('oauth'), /oauth_identity_invalid/);
+    application = G; scopes = []; await assert.rejects(rest.oauthIdentity('oauth'), /oauth_identity_invalid/);
+    scopes = ['identify']; expires = new Date(0).toISOString(); await assert.rejects(rest.oauthIdentity('oauth'), /oauth_identity_invalid/);
+});

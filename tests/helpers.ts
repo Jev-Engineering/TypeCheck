@@ -34,6 +34,7 @@ export class FakeDiscord implements DiscordAdapter {
     allow = true;
     async exchange(code: string) { const userId = code === 'admin-code' ? ADMIN : code === 'moderator-code' ? MOD : null; if (!userId)
         throw new AppError('oauth_invalid', 401); return { accessToken: 'fake-oauth-token', userId }; }
+    async oauthIdentity(accessToken: string) { if (accessToken !== 'fake-oauth-token') throw new AppError('oauth_identity_invalid', 401); return ADMIN; }
     async memberInfo(guild: string, user: string) { const m = this.members.get(user); if (!m || m.guildId !== guild)
         throw new AppError('not_a_guild_member', 403); return structuredClone(m); }
     async metadata(_guild: string) { return { name: 'Test server', roles: [{ id: G, name: '@everyone', position: 0, permissions: '0' }, { id: ROLE, name: 'Image moderator', position: 1, permissions: '0' }], channels: [{ id: CHANNEL, name: 'images', type: 0, guild_id: G }] }; }

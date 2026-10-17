@@ -101,3 +101,8 @@ Exact-hash rule-test summaries set `thresholdApplies: false`, `effectiveThreshol
 ## Content-analysis API
 
 Rule POST/PUT accepts type content, null reference/group IDs, compatibility mode exact and a versioned content definition. Creation forces automatic enforcement off; edits clear approval. GET /api/g/:guild/content-presets requires rules.view. Tests accept optional context (maximum 2,000 characters), used only with server and rule opt-in. Responses include content evidence, thresholds, policy outcome and partial/unknown costs. Settings accept contentMessageContext (missing-only default false). See [schema and decision mapping](CONTENT_ANALYSIS.md).
+
+
+### Activity session renewal
+
+`POST /api/auth/renew` accepts `{accessToken, nonce, guildId}` with the same trusted-origin and one-use nonce checks as code exchange. The server validates the bearer token through Discord `/oauth2/@me`, including application ID, identify scope and expiration, then checks live guild membership and delegated authority. It issues a fresh 900-second application session; OAuth tokens are neither stored nor returned. The Activity keeps its OAuth token only in memory and renews after application session expiry, avoiding repeat SDK authorization while Discord remains authenticated. Expired OAuth credentials trigger fresh authorization with a new nonce. Connection attempts are serialized and errors identify setup, authorization, exchange, authentication or renewal with retry instructions. No refresh token is stored and no session lifetime or enforcement permission changes.
