@@ -74,7 +74,7 @@ curl -s https://mxa13say2y.c24.airoapp.ai/api/health   # {"status":"leader",...}
 
 ## Persistent storage
 
-Reference images live in `OBJECT_DIR` (default `./objects` inside the app directory). GoDaddy's Hosted Database guide states that uploaded files persist across deploys and that re-uploading code never deletes them. Each process creates a random `.storage-id` marker in `OBJECT_DIR`, and `/api/health` reports it. The workflow fails a release whose marker differs from the pre-deployment marker, which means the volume was replaced. The first pipeline release creates the marker, and later releases prove persistence. The same guide says PREVIEW and PUBLISH share files; until a release confirms that for `OBJECT_DIR`, treat PUBLISH as the source of truth for reference images.
+Reference images, the storage marker and pre-migration backups live in `OBJECT_DIR`. GoDaddy's File Manager states that the app directory (`/app`) is rebuilt from code on every deploy and that only `public/assets` and **Private Storage** (`/private`) are durable, so when `/private` exists and `OBJECT_DIR` is unset the app uses `/private/objects` (`defaultObjectDir` in `server/config.ts`). Releases before this change wrote to `./objects`, which deploys discard. Each process creates a random `.storage-id` marker in `OBJECT_DIR`, and `/api/health` reports it. The workflow fails a release whose marker differs from the pre-deployment marker, which means the storage was replaced. The first release on `/private` creates the marker, and later releases prove persistence. The File Manager shows the PREVIEW app's files; whether PUBLISH sees the same `/private` is confirmed by the marker matching across a release.
 
 If a release reports a changed marker, the reference images from before that release are not on the new volume. Restore them from an object backup, or re-upload them through the Activity, before enabling enforcement.
 
@@ -96,7 +96,7 @@ Data written by the newer release stays in the database. For example, usage rows
 
 Each migration release writes `OBJECT_DIR/backups/<time>-pre-migration.sql` (mode 600) on the volume of the process that migrated; the run summary names the file, its SHA-256 and the variant. It is plain MySQL SQL: one `CREATE TABLE` per table, then one `INSERT` per row, with every value hex-encoded so JSON, text and binary data survive exactly. It contains guild settings and encrypted guild credentials, so keep any copy private.
 
-To check a backup, download it from the dashboard's **Files** page, compare its SHA-256 with the run summary, and load it into a disposable MySQL:
+To check a backup, download it from the dashboard's **Files** page (**Private Storage** → `objects/backups/`), compare its SHA-256 with the run summary, and load it into a disposable MySQL:
 
 ```bash
 sha256sum 2026-…-pre-migration.sql
@@ -129,7 +129,7 @@ PRODUCTION_URL=https://mxa13say2y.c24.airoapp.ai DISCORD_CLIENT_ID=1560495911358
 | `candidate_older_than_live_release` | A newer release is live. Use `rollback: true` deliberately. |
 | `migration_requires_maintenance_window` | The migration is not expand-only. Follow the incompatible-migration procedure above. |
 | `release not serving` on a migration release | The release backs up before migrating. Check the PREVIEW log for `operational_error` during startup (for example a full or read-only volume); nothing was migrated. |
-| `no database_migration log line found` (warning) | Platform logs lagged or rotated. The backup is still listed on the **Files** page under `objects/backups/`. |
+| `no database_migration log line found` (warning) | Platform logs lagged or rotated. The backup is still listed on the **Files** page → **Private Storage** → `objects/backups/`. |
 | `AUTH_REQUIRED` from `gddy` | The PAT is missing one of the scopes above, or has expired |
 | Import or publish `FAILED` | `deployment-diagnostics-<run>` artifact. GoDaddy build output is in the PREVIEW log. |
 | `release not serving before timeout` | Startup failure on PUBLISH (for example `migration_002_required` or a missing secret). Check the PUBLISH log. |

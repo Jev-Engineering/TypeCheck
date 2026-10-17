@@ -6,7 +6,7 @@ import { Vault, csvCell } from '../server/security.js';
 import { resolvePolicy, fingerprint } from '../server/policy.js';
 import { parseJev, makeComparison, JevClient } from '../server/jev.js';
 import { channelPermissions, guildPermissions, DiscordRest, parseDiscordMessage } from '../server/discord.js';
-import { loadConfig } from '../server/config.js';
+import { loadConfig, defaultObjectDir } from '../server/config.js';
 import { fixture, rule, enable, G, G2, MOD, ROLE, CHANNEL, USER, PNG } from './helpers.js';
 const throwsCode = (f: () => unknown, code: string) => assert.throws(f, (e: unknown) => e instanceof AppError && e.code === code);
 test('defaults are monitoring-only, no channels, no semantic or any-image rules', () => { assert.equal(DEFAULT_SETTINGS.enforcement, false); assert.deepEqual(DEFAULT_SETTINGS.channels, []); assert.equal(DEFAULT_SETTINGS.anyImageEnabled, false); assert.equal(DEFAULT_SETTINGS.semanticEnabled, false); });
@@ -64,3 +64,4 @@ test('member-specific deny takes precedence over role allow', () => { const g = 
 test('message parser does not persist message text', () => { const m = parseDiscordMessage({ guild_id: G, channel_id: CHANNEL, id: '100000000000000099', author: { id: USER }, attachments: [], content: 'not stored' }); assert.equal(JSON.stringify(m).includes('not stored'), false); });
 test('Discord 204 mutation is a successful empty response', async () => { const rest = new DiscordRest('token', 'id', 'secret', (async () => new Response(null, { status: 204 })) as typeof fetch); assert.equal(await rest.request('/channels/1/messages/2', 'DELETE'), null); });
 test('production rejects HTTP origin', () => throwsCode(() => loadConfig({ NODE_ENV: 'production', PUBLIC_ORIGIN: 'http://localhost', DISCORD_CLIENT_ID: G }), 'production_requires_https'));
+test('objects default to durable Private Storage when the host provides it', () => { assert.equal(defaultObjectDir(true), '/private/objects'); assert.equal(defaultObjectDir(false), './objects'); });
