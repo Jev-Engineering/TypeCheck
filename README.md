@@ -20,7 +20,7 @@ A Discord text and image moderation bot with an embedded management Activity. Na
 | Matching | Versioned exact normalized-content SHA-256 evidence, official Jev multipart image requests, strict Noul answers, pinned model, per-action thresholds, second verification |
 | Rules | Native text, image content, individual, group, any-reference, explicit any-image; deterministic priority; one user sanction per message |
 | Actions | Log only, review, delete, warn, timeout, kick, ban; optional delete alongside a user sanction |
-| Activity | Overview, private image previews/uploads/bulk changes, graphical rules and tests, logs, permissions, settings, credential rotation |
+| Activity | Moderation packs with export selection and validated import previews, Overview, private image previews/uploads/bulk changes, graphical rules and tests, logs, permissions, settings, credential rotation |
 | Security | Live Discord authority, delegated capabilities, guild isolation, encrypted write-only credentials, origin checks, bounded image decoding |
 | Persistence | PostgreSQL/MySQL migrations, private filesystem object storage, audit/evaluation records, persistent action ledger |
 | Delivery | Docker/Compose, CI workflow, setup/security/API/operations guides, tests, synthetic evaluation fixtures |
@@ -62,7 +62,7 @@ Compose publishes the app/database on loopback only. Put an HTTPS reverse proxy 
 
 ## First-server workflow
 
-Open the Activity from a guild, connect, select monitored text channels, and add a Jev API key under Settings. Choose native text or image moderation. For text, preview/customize a starter in Rules & tests or explicitly install ten disabled review-only starters; enable native text analysis under Settings, then test pasted messages or authorized same-guild message links. For images, upload a reference and test labeled samples. An administrator approves the current configuration before enabling automatic enforcement. New installations have no monitored channels and enforcement off. Kick/ban additionally require the high-impact switch and second verification. Closing the Activity does not stop the backend.
+Open the Activity from a guild, connect, select monitored text channels, and add a Jev API key under Settings. Choose native text or image moderation. For text, preview/customize a starter in Rules & tests or explicitly install ten disabled review-only starters; enable native text analysis under Settings, then test pasted messages or authorized same-guild message links. For images, open Moderation packs to choose reviewed references, an editable image-analysis starter, a combined setup or a custom template; alternatively upload your own reference. Validate and preview imports before applying, resolve conflicts and destination mappings, then test labeled samples. An administrator approves the current configuration before enabling automatic enforcement. New installations have no monitored channels and enforcement off. Kick/ban additionally require the high-impact switch and second verification. Closing the Activity does not stop the backend.
 
 An explicit any-image rule is a separate opt-in policy and does not use Jev. Semantic matching remains review-only. Approval requirements and their statistical limitations are documented in [docs/MATCHING.md](docs/MATCHING.md).
 
@@ -107,7 +107,7 @@ docs/           Setup, security, permissions, API, operations and acceptance
 
 No user credentials, dependencies, or private Discord data are included. The source lives in the public repository [Jev-Engineering/TypeCheck](https://github.com/Jev-Engineering/TypeCheck); production releases are deployed only by the CI-gated workflow described in [deployment](docs/DEPLOYMENT.md). TypeCheck is released under the [MIT License](LICENSE).
 
-New guilds receive the [33 starter scam references](data/scams/README.md) on first authorized sign-in. Administrators can edit or delete them; no moderation rules are enabled automatically.
+New guilds receive the [33 starter scam references](data/scams/README.md) on first authorized sign-in. Administrators can edit or delete them; no moderation rules are enabled automatically. Existing guilds can explicitly select the same reference starter without duplicating present assets or silently restoring tracked deletions. The image-analysis, combined and custom packs add editable disabled rules. Human labels are not model evaluations; none of these packs is certified as verified. See [moderation packs and workflow images](docs/MODERATION_PACKS.md).
 
 ## MySQL and GoDaddy Node.js Hosting
 
@@ -137,3 +137,7 @@ Use **Image content analysis** for a reference-free administrator-defined Noul q
 See [native text architecture, boundaries and privacy](docs/TEXT_MODERATION.md), [starter inventory and examples](docs/TEXT_STARTERS.md), [labeled synthetic dataset](fixtures/text/README.md), and [repository validation](evidence/issue39-validation.md). Starters cover scams, phishing, impersonation, suspicious software, harassment, threats, sensitive information, prohibited promotion, community conduct and custom observable predicates. Installation grants no approval and never modifies existing rules. The original 33 user-reviewed scam images and their provenance remain separate and unchanged.
 
 Text tests never moderate Discord. Submitted text is not retained in jobs, logs, notifications, exports or decision evidence. Empty, unavailable, over-limit or insufficient evidence routes to review without punishment. Links, Markdown, Unicode and code blocks are evidence; linked sites, DMs and history are not fetched. Model probabilities are estimates, not measured accuracy or verified wrongdoing. Live provider/Discord acceptance and production deployment require separate authorization.
+
+## Portable moderation policy
+
+Export individual references/groups/prompts/rules, dependency-complete selections or a complete portable setup. Import self-contained, checksummed image packs through an administrator dry run with safe conflict defaults, destination mappings, atomic persistence and destination approval. Complete policy excludes secrets, history, jobs and operational state. Schema migration **004** is required for this version. [Pack format, starters and compatibility](docs/MODERATION_PACKS.md) · [validation and limitations](docs/PACK_VALIDATION.md). Publication does not authorize production deployment.

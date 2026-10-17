@@ -1,0 +1,1 @@
+Reviewed 96 lockfile license declarations; native LGPL components require retained notices and distribution review.

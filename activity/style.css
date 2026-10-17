@@ -341,3 +341,10 @@ input::file-selector-button{background:var(--inverse);border:1px solid var(--lin
 .content-sample { width: 100%; max-height: 320px; object-fit: contain; background: #171b1c; border-radius: 8px; }
 .content-result { padding: 1rem; border: 1px solid #56605b; border-radius: 8px; overflow-wrap: anywhere; }
 @media (max-width: 600px) { .content-policy { padding: .65rem; } .content-result { padding: .65rem; } }
+
+.pack-starter{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 0;border-bottom:1px solid var(--border)}
+.pack-component-list{max-height:22rem;overflow:auto;padding:.5rem}.pack-component-list .check{margin-bottom:.5rem}
+.panel pre{max-width:100%;white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:650px){.pack-starter{align-items:flex-start;flex-direction:column}.pack-starter .button{width:100%}}
+
+.packs-page .panel{overflow-wrap:anywhere}.pack-starter{border-color:var(--line)}

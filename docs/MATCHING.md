@@ -114,3 +114,7 @@ Message URLs use HTTPS on discord.com, canary.discord.com or ptb.discord.com wit
 ## Native text moderation (October 17, 2026)
 
 Native text uses an exact domain-separated UTF-8 digest and no image rendering/reference comparison. Existing image fingerprints remain unchanged by the text switch. Text approvals bind modality, prompt/policy/model/thresholds; calibration cannot cross modalities. Default precedence adds native text after image content and before any-image. The same message user-action slot prevents duplicate sanctions across all modalities. See [text composition](TEXT_MODERATION.md).
+
+## Portable reference policy
+
+Reference/group/rule pack exports automatically close required image dependencies and embed exact asset bytes plus SHA-256 checksums. Compatible normalized JPEG exports are retained byte-for-byte after decoding and metadata/dimension validation; source assets and incompatible normalization builds use the existing normalization pipeline. Imported rules lose source approvals and begin disabled. Any-reference rules still mean all eligible destination references, including unrelated destination images; review that destination behavior before approval. Content-analysis rules remain independent of reference matching. See [format and compatibility](MODERATION_PACKS.md).

@@ -73,3 +73,11 @@ Posting context requires server/rule opt-in and is not retained in jobs or evalu
 ## Native text moderation (October 17, 2026)
 
 Submitted text is transmitted transiently for configured opt-in rules or authorized tests. Jobs retain a digest; audits, evidence, usage, notifications and exports exclude raw submitted text. Policies/reasons/approval notes remain administrator configuration and must not contain real secrets. Trust separation, attribution and sufficient-context/promotion gates mitigate injection; failures and unavailable text require review. These safeguards do not certify model accuracy or injection resistance. Digests reveal equality. See [privacy, retention and downgrade constraints](TEXT_MODERATION.md).
+
+## Untrusted moderation packs
+
+Treat uploaded manifests, prompt text, provenance and verification declarations as untrusted data. The JSON container has no archive extraction, network asset fetching or executable payload. Strict existing domain parsers, portable identifiers, dependency/type checks, bounded JSON/assets/decoding, checksum checks and unsupported-version rejection run before writes. Live administrator authority is required; mapping checks member/bot channel access and notification send permission. Administrator-only capabilities cannot be delegated by a pack.
+
+Preview MACs bind actor/guild/full input/decisions/snapshot and expire after ten minutes. Concurrent policy edits, expiry and vault-key rotation require a new preview. Both SQL backends atomically commit configuration and receipts. File failures roll back policy; safe content-addressed orphan recovery retains young objects for 24 hours to avoid deleting concurrent uploads. Imported approvals confer no authority: imported rules are disabled/unapproved, and applied global policy has enforcement/high-impact off. Existing execution and acceptance gates remain intact.
+
+Packs exclude credentials, identity/history/ledger/job state and database/object paths. Review administrator-authored free text before sharing. Digest-bound evidence can detect changed input but cannot authenticate a third-party accuracy claim; imported evidence is historical, never destination approval. See [exact boundaries and limits](MODERATION_PACKS.md).

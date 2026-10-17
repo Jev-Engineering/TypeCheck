@@ -50,6 +50,7 @@ export interface DiscordAdapter {
         channels: DiscordChannel[];
     }>;
     assertCanReadMessage(guild: string, user: string, channel: string): Promise<void>;
+    assertCanNotify?(guild: string, channel: string): Promise<void>;
     history?(guild: string, channel: string, before: string): Promise<ImageMessage[]>;
     currentMessage(channel: string, message: string): Promise<ImageMessage>;
     preflight(message: ImageMessage, action: Action, settings: Settings): Promise<void>;
@@ -206,6 +207,12 @@ export class DiscordRest implements DiscordAdapter {
             assert(membership?.user_id === user, 'message_read_permission_required', 403);
         }
         assert((permissions & 1024n) !== 0n && (permissions & 65536n) !== 0n, 'message_read_permission_required', 403);
+    }
+    async assertCanNotify(guild: string, channelId: string) {
+        const [g,bot,channel]: [DiscordGuild,DiscordMember,DiscordChannel] = await Promise.all([this.request(`/guilds/${guild}`),this.request(`/guilds/${guild}/members/${this.botId}`),this.request(`/channels/${channelId}`)]);
+        assert(channel.guild_id === guild,'channel_guild_mismatch',403);
+        const permissions=channelPermissions(g,bot,channel);
+        assert((permissions & P.VIEW)!==0n && (permissions & P.SEND)!==0n,'bot_missing_send_messages',403);
     }
     async history(guild: string, channel: string, before: string): Promise<ImageMessage[]> {
         const rows=await this.request('/channels/'+channel+'/messages?limit=1&before='+before);

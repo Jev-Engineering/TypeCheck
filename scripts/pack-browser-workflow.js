@@ -1,0 +1,62 @@
+async (page) => {
+    const results=[],errors=[];page.on('pageerror',e=>errors.push(String(e)));
+    await page.setViewportSize({width:1440,height:1050});
+    await page.goto('http://host.docker.internal:4181');
+    await page.getByRole('button',{name:'Open offline integration test',exact:true}).click();
+    await page.getByRole('button',{name:'Moderation packs',exact:true}).click();
+    await page.getByRole('heading',{name:'Start with a pack',exact:true}).waitFor();
+    await page.screenshot({path:'/output/starters-desktop.png',fullPage:true});
+    results.push('Configured guild: starter selection and export component controls rendered');
+    await page.getByRole('button',{name:'Select Image scam analysis',exact:true}).click();
+    await page.getByText(/loaded. Validate before applying/).waitFor();
+    await page.getByRole('button',{name:'Validate and preview import',exact:true}).click();
+    try { await page.getByRole('heading',{name:'Import preview',exact:true}).waitFor(); } catch(e) {throw Error('Preview missing: '+await page.locator('body').innerText());}
+    await page.screenshot({path:'/output/import-preview-desktop.png',fullPage:true});
+    await page.getByRole('button',{name:'Apply this preview',exact:true}).click();
+    await page.getByRole('heading',{name:'Import complete',exact:true}).waitFor();
+    if(!await page.getByText('2 added · 0 replaced · 0 kept',{exact:true}).count())throw Error('Expected prompt and rule import: '+await page.locator('body').innerText());
+    results.push('Configured guild: real preview and apply added definition and disabled rule');
+    await page.getByRole('button',{name:'Validate and preview import',exact:true}).click();
+    await page.getByText('already imported',{exact:true}).first().waitFor();
+    await page.getByRole('button',{name:'Apply this preview',exact:true}).click();
+    await page.getByText('0 added · 0 replaced · 2 kept',{exact:true}).waitFor();
+    results.push('Repeat import kept both components');
+    await page.getByRole('checkbox',{name:'Complete configuration',exact:false}).check();
+    await page.getByRole('button',{name:'Preview export',exact:true}).click();
+    await page.getByRole('button',{name:'Download pack file',exact:true}).waitFor();
+    const downloadPromise=page.waitForEvent('download');await page.getByRole('button',{name:'Download pack file',exact:true}).click();const downloaded=await downloadPromise;
+    await downloaded.saveAs('/output/roundtrip.typecheck.json');
+    await page.locator('input[type=file]').setInputFiles('/output/roundtrip.typecheck.json');
+    await page.getByRole('button',{name:'Validate and preview import',exact:true}).click();
+    try { await page.getByRole('heading',{name:'Import preview',exact:true}).waitFor(); } catch(e) {throw Error('Preview missing: '+await page.locator('body').innerText());}
+    results.push('Complete export downloaded and uploaded through the file input, dependencies reconstructed');
+    await page.setViewportSize({width:390,height:844});await page.screenshot({path:'/output/import-preview-mobile.png',fullPage:true});
+    const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth);if(overflow)throw Error('Mobile page overflow');
+    results.push('390px mobile layout has no document overflow');
+    await page.getByRole('checkbox',{name:/^Apply portable policy settings and delegated permissions/}).check();
+    await page.getByLabel(/^channels /).selectOption('100000000000000021');
+    await page.getByLabel(/^exemptRoles /).selectOption('100000000000000031');
+    await page.getByRole('button',{name:'Validate and preview import',exact:true}).click();
+    await page.getByRole('button',{name:'Apply this preview',exact:true}).click();
+    await page.getByText('2 added · 0 replaced · 1 kept',{exact:true}).waitFor();
+    results.push('Complete uploaded pack applied with explicit channel and exempt-role mappings; existing reference kept');
+    await page.getByRole('checkbox',{name:'Complete configuration',exact:false}).uncheck();
+    await page.getByText('Select individual components or a collection',{exact:true}).click();
+    await page.getByRole('checkbox',{name:'images: Reference',exact:true}).check();
+    await page.getByRole('button',{name:'Preview export',exact:true}).click();
+    await page.getByText('1 components · 1 bundled images. Dependencies resolved.',{exact:true}).waitFor();
+    results.push('Individual image export selection resolved one embedded asset');
+    await page.goto('http://host.docker.internal:4181/?fresh=1');
+    await page.getByRole('button',{name:'Open offline integration test',exact:true}).click();
+    await page.getByRole('button',{name:'Moderation packs',exact:true}).click();
+    await page.getByRole('button',{name:'Select Scam references',exact:true}).click();
+    await page.getByText(/loaded. Validate before applying/).waitFor();
+    await page.getByRole('button',{name:'Validate and preview import',exact:true}).click();
+    try { await page.getByRole('heading',{name:'Import preview',exact:true}).waitFor(); } catch(e) {throw Error('Preview missing: '+await page.locator('body').innerText());}
+    await page.getByRole('button',{name:'Apply this preview',exact:true}).click();
+    await page.getByText('0 added · 0 replaced · 34 kept',{exact:true}).waitFor();
+    results.push('Fresh guild: first-login 33 references adopted without duplicates');
+    await page.setViewportSize({width:1440,height:1050});await page.screenshot({path:'/output/fresh-guild-result.png',fullPage:true});
+    if(errors.length)throw Error(errors.join('\n'));
+    return {results,pageErrors:errors,limitations:'Offline real UI/HTTP test with synthetic guild metadata and faked Discord/model transports; no live deployment or model evaluation.'};
+}

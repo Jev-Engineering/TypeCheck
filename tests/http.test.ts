@@ -1,4 +1,23 @@
 import { TEXT_STARTERS } from '../shared/text-starters.js';
+test('pack API enforces live administrator/guild boundary and preview-before-apply with recorded results',async t=>{
+    const f=await setup(t),login=await f.login(),token=login.data.sessionToken,base='/api/g/'+G+'/packs';
+    const starters=await f.request(base+'/starters','GET',undefined,token);assert.equal(starters.data.length,4);
+    const pack=(await f.request(base+'/starter/image-scam-analysis','GET',undefined,token)).data;
+    assert.equal((await f.request(base+'/apply','POST',{pack,options:{},token:'forged'},token)).status,409);
+    const preview=await f.request(base+'/preview','POST',{pack,options:{}},token);assert.equal(preview.status,200);
+    const applied=await f.request(base+'/apply','POST',{pack,options:{},token:preview.data.token},token);assert.equal(applied.status,200);assert.equal(applied.data.added,2);
+    assert.equal((await f.request(base+'/apply','POST',{pack,options:{},token:preview.data.token},token)).status,409);
+    const history=await f.request(base+'/history','GET',undefined,token);assert.equal(history.data.length,1);assert.match(history.data[0].status,/historical/);
+    const definition=(await f.request(base+'/definitions','GET',undefined,token)).data[0];
+    const edit=await f.request(base+'/definitions/'+definition.id,'PUT',{revision:definition.revision,name:'Locally edited',content:{...definition.content,positive:'Different observable policy'}},token);assert.equal(edit.status,200);
+    assert.match((await f.request(base+'/history','GET',undefined,token)).data[0].status,/stale/);
+    const exported=await f.request(base+'/export','POST',{complete:true},token);assert.equal(exported.status,200);assert.ok(exported.data.components.some((c:any)=>c.kind==='definitions'));
+    assert.equal((await f.request('/api/g/'+G2+'/packs/starters','GET',undefined,token)).status,403);
+    await f.grant(['dashboard.view']);const moderator=(await f.login('moderator-code')).data.sessionToken;
+    assert.equal((await f.request(base+'/starters','GET',undefined,moderator)).status,403);
+    assert.equal((await f.request(base+'/preview','POST',{pack},moderator)).status,403);
+    assert.equal(f.control.calls,0);
+});
 import { test, type TestContext } from 'node:test';
 import { CONTENT_PRESETS } from '../shared/content.js';
 import assert from 'node:assert/strict';
