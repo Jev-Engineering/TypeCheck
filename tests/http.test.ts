@@ -327,3 +327,65 @@ test('retesting a negative sample cannot hide a false positive from approval', a
         }
     }
 });
+
+
+test('message calibration rejects cross-guild links and missing live permissions', async t => {
+    const f = await setup(t), r = rule(f.ref); await f.store.put('rules', r, 0);
+    const admin = (await f.login()).data.sessionToken;
+    const path = `/api/g/${G}/rules/${r.id}/test`;
+    assert.equal((await f.request(path, 'POST', {messageUrl: `https://discord.com/channels/${G2}/${CHANNEL}/100000000000000201`}, admin)).data.error, 'message_wrong_guild');
+    await f.grant(['images.view']); const mod = (await f.login('moderator-code')).data.sessionToken;
+    assert.equal((await f.request(path, 'POST', {messageUrl: `https://discord.com/channels/${G}/${CHANNEL}/100000000000000201`}, mod)).status, 403);
+    f.discord.allow = false;
+    assert.equal((await f.request(path, 'POST', {messageUrl: `https://discord.com/channels/${G}/${CHANNEL}/100000000000000201`}, admin)).data.error, 'message_read_permission_required');
+});
+
+test('message calibration reports not found, no images and oversized attachments without Jev calls', async t => {
+    const f = await setup(t), r = rule(f.ref); await f.store.put('rules', r, 0);
+    const session = (await f.login()).data.sessionToken, m = message();
+    const path = `/api/g/${G}/rules/${r.id}/test`, body = {messageUrl: `https://discord.com/channels/${G}/${CHANNEL}/${m.messageId}`, expected: true};
+    assert.equal((await f.request(path, 'POST', body, session)).data.error, 'message_not_found');
+    f.discord.messages.set(m.messageId, {...m, attachments: []});
+    assert.equal((await f.request(path, 'POST', body, session)).data.error, 'message_has_no_supported_images');
+    f.discord.messages.set(m.messageId, {...m, attachments: [{...m.attachments[0]!, size: 8 * 1024 * 1024 + 1}]});
+    assert.equal((await f.request(path, 'POST', body, session)).data.error, 'image_byte_limit');
+    assert.equal(f.control.calls, 0);
+});
+
+test('library calibration is guild scoped, permission checked and explains exact_hash exclusion', async t => {
+    const f = await setup(t);
+    const ref = {...f.ref, hashVersion: f.image.hashVersion, revision: 2}; await f.store.put('images', ref, 1);
+    const r = rule(ref); await f.store.put('rules', r, 0);
+    const path = `/api/g/${G}/rules/${r.id}/test`, session = (await f.login()).data.sessionToken;
+    const other = {...ref, ...baseRecord(G2, randomUUID())}; await f.store.put('images', other, 0);
+    assert.equal((await f.request(path, 'POST', {imageIds: [other.id]}, session)).status, 404);
+    await f.grant(['matching.test']); const mod = (await f.login('moderator-code')).data.sessionToken;
+    assert.equal((await f.request(path, 'POST', {imageIds: [ref.id]}, mod)).status, 403);
+    const result = await f.request(path, 'POST', {imageIds: [ref.id, ref.id], expected: true}, session);
+    assert.equal(result.status, 200); assert.equal(result.data.results.length, 1);
+    assert.match(result.data.results[0].calibrationNote, /exact_hash.*do not count/);
+    assert.equal(f.control.calls, 0);
+    assert.equal((await f.store.all<Calibration>('calibrations', G))[0]!.sampleSha256, ref.sha256);
+    await assert.rejects(f.services.approveRule(G, ADMIN, r.id, 'Reviewed representative examples.'), /more_labeled_examples_required/);
+});
+
+
+test('message attachments use real normalization, calibration and provider accounting', async t => {
+    const f = await setup(t), r = rule(f.ref); await f.store.put('rules', r, 0);
+    const m = message(); f.discord.messages.set(m.messageId, m);
+    const session = (await f.login()).data.sessionToken;
+    const originalFetch = globalThis.fetch;
+    t.mock.method(globalThis, 'fetch', (async (url: Parameters<typeof fetch>[0], init?: RequestInit) => {
+        if (String(url).startsWith('https://cdn.discordapp.com/')) {
+            assert.equal(init?.redirect, 'error'); assert.ok(init?.signal);
+            return new Response(new Uint8Array(PNG));
+        }
+        return originalFetch(url, init);
+    }) as typeof fetch);
+    const result = await f.request(`/api/g/${G}/rules/${r.id}/test`, 'POST', {messageUrl: `https://discord.com/channels/${G}/${CHANNEL}/${m.messageId}`, expected: true}, session);
+    assert.equal(result.status, 200); assert.equal(result.data.results.length, 1);
+    assert.equal(f.control.calls, 1); assert.equal((await f.store.usage(G)).calls, 1);
+    const samples = await f.store.all<Calibration>('calibrations', G);
+    assert.equal(samples[0]!.sampleSha256, f.image.sha256);
+    assert.equal(f.discord.performed.length, 0);
+});
