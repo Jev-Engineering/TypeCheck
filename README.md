@@ -99,12 +99,15 @@ db/             Explicit SQL migration
 scripts/        SDK bundle, isolated preview, live evaluation/database helpers
 tests/          Unit, native-decoder, HTTP, Gateway and worker tests
 fixtures/       Original synthetic images and labeled evaluation manifest
+data/scams/     Default user-reviewed scam references and original SHA-256 sums
 evidence/       Actual local test output and offline browser screenshots
 .github/        Proposed CI workflow
 docs/           Setup, security, permissions, API, operations and acceptance
 ```
 
 No user credentials, dependencies, or private Discord data are included. The source lives in the private repository [Jev-Engineering/TypeCheck](https://github.com/Jev-Engineering/TypeCheck); production releases are deployed only by the CI-gated workflow described in [deployment](docs/DEPLOYMENT.md). `UNLICENSED` marks this private delivery; no unsolicited open-source license or third-party ownership assignment is imposed.
+
+New guilds receive the [33 starter scam references](data/scams/README.md) on first authorized sign-in. Administrators can edit or delete them; no moderation rules are enabled automatically.
 
 ## MySQL and GoDaddy Node.js Hosting
 

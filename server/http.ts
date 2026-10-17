@@ -1,3 +1,4 @@
+import { seedStarterReferences } from './starter-references.js';
 import { analyticsQuery, parseRate } from '../shared/analytics.js';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -94,6 +95,7 @@ export function createHttp(services: Services, config: Config, root = process.cw
             await store.getSettings(b.guildId);
             const a = await services.authority(b.guildId, auth.userId);
             assert(a.capabilities.length > 0, 'no_delegated_access', 403);
+            await seedStarterReferences(services, b.guildId, root);
             const sessionToken = token();
             await store.createSession(digest(sessionToken), { userId: auth.userId, guildId: b.guildId, expiresAt: Date.now() + 15 * 60000 });
             await services.audit(b.guildId, auth.userId, 'session.created', 'session');
