@@ -10,6 +10,8 @@ import { Services } from './services.js';
 import { Worker } from './worker.js';
 import { createHttp } from './http.js';
 import { loadRelease } from './release.js';
+import { backupMySql, BACKUP_SUBDIR } from './backup.js';
+import { resolve } from 'node:path';
 import { type ReferenceImage } from '../shared/domain.js';
 const report = (code: string) => console.error(JSON.stringify({ event: 'operational_error', code }));
 async function main() {
@@ -18,8 +20,13 @@ async function main() {
     pool.on?.('error', () => report('database_pool_error'));
     const release = await loadRelease(process.cwd());
     // Production database credentials exist only inside the GoDaddy runtime, so admitted
-    // migrations run here, once, under the migrator's named lock.
-    if (config.migrateOnStart || release?.migrate) await migrateDatabase(pool, kind);
+    // migrations run here, once, under the migrator's named lock. A release-admitted migration
+    // first writes a full backup to persistent storage; if that fails, nothing is migrated.
+    if (config.migrateOnStart || release?.migrate) {
+        const backup = release?.migrate ? () => backupMySql(pool, resolve(config.objectDir, BACKUP_SUBDIR), 'pre-migration') : undefined;
+        const result = await migrateDatabase(pool, kind, backup);
+        console.log(JSON.stringify({ event: 'database_migration', release: release?.commit ?? null, applied: result.applied, backup: result.before ?? null }));
+    }
     await assertMigrated(pool, kind);
     const discord = new DiscordRest(config.botToken, config.clientId, config.clientSecret);
     await discord.initialize();

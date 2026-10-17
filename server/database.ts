@@ -19,8 +19,14 @@ export async function assertMigrated(pool: SqlPool, kind: 'mysql' | 'postgres') 
     const placeholder = kind === 'mysql' ? '?' : '$1';
     assert((await pool.query(`SELECT version FROM schema_migrations WHERE version=${placeholder}`, ['002'])).rowCount === 1, 'migration_002_required');
 }
-export async function migrateDatabase(pool: SqlPool, kind: 'mysql' | 'postgres') {
+// `beforeChange` (MySQL only) runs while the migration lock is held and only when a
+// migration is pending, so concurrent starters back up once, before the first schema change.
+// `applied` lists the MySQL migrations this call performed.
+export async function migrateDatabase<T = never>(pool: SqlPool, kind: 'mysql' | 'postgres', beforeChange?: () => Promise<T>): Promise<{ applied: string[]; before?: T }> {
+    assert(!beforeChange || kind === 'mysql', 'backup_requires_mysql');
     const c = await pool.connect();
+    const applied: string[] = [];
+    let before: T | undefined;
     let locked = false;
     try {
         const file = kind === 'mysql' ? 'db/mysql/001_initial.sql' : 'db/001_initial.sql';
@@ -39,11 +45,13 @@ export async function migrateDatabase(pool: SqlPool, kind: 'mysql' | 'postgres')
             // each statement is restartable and the version receipt is written last.
             const statements = sql.split(';').map(s => s.trim()).filter(Boolean);
             await c.query(statements[0]!);
-            if (!(await c.query("SELECT version FROM schema_migrations WHERE version='001'")).rowCount)
-                for (const statement of statements.slice(1)) await c.query(statement);
-            if (!(await c.query("SELECT version FROM schema_migrations WHERE version='002'")).rowCount)
-                for (const statement of upgrade.split(';').map(s => s.trim()).filter(Boolean)) await c.query(statement);
+            const pending = async (version: string) => !(await c.query('SELECT version FROM schema_migrations WHERE version=?', [version])).rowCount;
+            const need001 = await pending('001'), need002 = await pending('002');
+            if ((need001 || need002) && beforeChange) before = await beforeChange();
+            if (need001) { for (const statement of statements.slice(1)) await c.query(statement); applied.push('001'); }
+            if (need002) { for (const statement of upgrade.split(';').map(s => s.trim()).filter(Boolean)) await c.query(statement); applied.push('002'); }
         }
+        return { applied, before };
     } catch (e) {
         if (kind === 'postgres') await c.query('ROLLBACK');
         throw e;
