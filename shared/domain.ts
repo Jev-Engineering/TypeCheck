@@ -315,3 +315,8 @@ export function effectiveAuthority(member: MemberInfo, grants: RoleGrant[]): Aut
     return { ...member, capabilities: admin ? [...CAPABILITIES] : [...new Set(grants.filter(g => g.guildId === member.guildId && roles.has(g.roleId)).flatMap(g => g.capabilities).filter(c => !ADMIN_ONLY.includes(c)))] };
 }
 export function requireCapability(a: Authority, c: Capability) { assert(a.capabilities.includes(c), 'forbidden', 403); }
+
+
+export function timeoutPreset(seconds: number): string {
+    return [60, 300, 600, 3600, 86400, 604800, 2419200].includes(seconds) ? String(seconds) : 'custom';
+}
