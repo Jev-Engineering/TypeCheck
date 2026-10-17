@@ -235,3 +235,7 @@ While the repaired head was in CI (one complete run green), main advanced to a80
 ## Native text repository validation — October 17, 2026
 
 See [issue39 validation](evidence/issue39-validation.md) for 320 software tests, 32 offline browser checks, isolated PostgreSQL/MySQL and Compose recovery/restore results, dataset provenance and remaining external acceptance. Native text is disabled by default, with modality-specific approval and no retained raw submitted text. The source contract was verified against official TypeSafe documentation; no paid provider evaluation or live Discord acceptance was performed. Production publication requires separately authorized manual workflow dispatch. Earlier dated results in this file remain historical evidence, not claims of current production acceptance.
+
+## Reusable moderation packs
+
+See [the feature validation record](docs/PACK_VALIDATION.md) for exact local test commands, isolated PostgreSQL/MySQL persistence, real offline UI workflow/screenshots, CI links and limitations. Owner-reviewed starter images are not a negative/held-out evaluation dataset. No paid model evaluation or production deployment is authorized or claimed.

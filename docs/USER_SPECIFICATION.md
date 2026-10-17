@@ -1042,3 +1042,9 @@ Do not expand beyond this purpose.## Historical image scanning
 See [Historical scans](HISTORICAL_SCANS.md) for administrator scope selection,
 review-only results, permissions, fixed cutoffs, shared quotas, recovery,
 coverage exclusions, migration 003, privacy and validation instructions.
+
+## Reusable moderation packs (implemented scope, migration 004)
+
+Administrators can export individual reference images, image groups, standalone image-analysis prompts, individual rules with automatic dependency closure, selected combinations and complete portable moderation policy. The Activity supports file upload, bounded validation, dry-run previews, explicit keep/replace conflicts, destination mappings, atomic application and audit receipts. Unrelated and locally edited records are preserved by default. Repeat imports, upgrades and deletion restoration follow the identity/baseline rules in [MODERATION_PACKS.md](MODERATION_PACKS.md).
+
+Complete policy includes image/text rules, reference assets, saved prompts, policy settings and delegated permissions; destination bindings require mapping. Credentials, personal history, jobs, sanctions/usage ledgers and operational state are excluded. Imported rules are disabled and unapproved regardless of source approval. Four editable starters use the same import path: owner-reviewed scam references, image scam analysis, a combined setup and a custom template. Reference matching and content analysis remain separate. Historical evidence, software compatibility, measured accuracy and live validation must remain distinct; see [acceptance evidence](PACK_VALIDATION.md).

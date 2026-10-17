@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, randomBytes, createHash } from 'node:crypto';
+import { createCipheriv, createDecipheriv, randomBytes, createHash, createHmac } from 'node:crypto';
 import { AppError, assert, type CipherEnvelope } from '../shared/domain.js';
 export const digest = (value: string | Buffer) => createHash('sha256').update(value).digest('hex');
 export const token = () => randomBytes(32).toString('base64url');
@@ -7,6 +7,9 @@ const AAD_PREFIX = 'jev-image-guard:v1';
 export class Vault {
     private key: Buffer;
     constructor(base64: string) { this.key = Buffer.from(base64, 'base64'); assert(this.key.length === 32, 'master_key_must_be_32_bytes'); }
+    packPreviewMac(value: string): string {
+        return createHmac('sha256',this.key).update('typecheck:pack-preview:v1\0').update(value).digest('hex');
+    }
     encrypt(guildId: string, value: string): CipherEnvelope {
         const iv = randomBytes(12);
         const c = createCipheriv('aes-256-gcm', this.key, iv);

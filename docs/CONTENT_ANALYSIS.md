@@ -69,3 +69,7 @@ Message URLs use HTTPS on discord.com, canary.discord.com or ptb.discord.com wit
 ## Native text moderation (October 17, 2026)
 
 The content rule remains image analysis with optional posting context. Ordinary text uses separate text rules and native JSON, without visual readability gates. Image calibration never authorizes text. Mixed-message results resolve once through deterministic precedence. See [native text](TEXT_MODERATION.md) and [starters](TEXT_STARTERS.md).
+
+## Portable definitions and starters
+
+Moderation packs export/import standalone editable definitions or content rules with their embedded prompt snapshots, criteria, exclusions and readability/context gates. The image-scam starter uses the existing scam criteria; the combined starter adds a separate reference-match rule. Reference images never condition the content prompt. Imported rules are disabled, automatic enforcement is off and destination approval is required. Changes invalidate digest-bound historical evidence; reviewed examples or compatibility tests are not measured accuracy. See [packs](MODERATION_PACKS.md).

@@ -43,3 +43,7 @@ Older executables may reject new JSON setting keys. Before a separately authoriz
 ## Remaining acceptance
 
 Automated tests assert software behavior using mocked scores. Separately authorize dedicated-guild testing of creates/edits/deletes, restricted channels, bots/webhooks, intent redaction, reconnect gaps, permissions, stale reads and moderation. Independently adjudicate tuning/held-out text cases against the pinned provider. Public hosting, security review and deployment remain separate gates. Keep `ACCEPTANCE_APPROVED=0` until applicable gates pass.
+
+## Complete policy packs
+
+Complete packs include native text rules and their parsed, versioned text definitions. Image-only starters do not install text rules. Text imports always begin disabled/unapproved; the destination text-mode opt-in, community configuration, calibration approval and enforcement/permission gates still apply. Exported policy contains prompts, not submitted member messages, evaluation history or action ledgers. Migration 004 is required by the pack-enabled application. See [packs](MODERATION_PACKS.md).

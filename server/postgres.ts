@@ -18,7 +18,7 @@ export interface SqlPool extends SqlClient {
     connect(): Promise<SqlClient>;
     end(): Promise<void>;
 }
-const TABLES: Record<Kind, string> = { groups: 'image_groups', images: 'reference_images', rules: 'moderation_rules', grants: 'role_grants', credentials: 'guild_credentials', calibrations: 'calibration_trials', evaluations: 'image_evaluations', events: 'moderation_events', audit: 'audit_events' };
+const TABLES: Record<Kind, string> = { definitions: 'pack_definitions', packs: 'moderation_packs', groups: 'image_groups', images: 'reference_images', rules: 'moderation_rules', grants: 'role_grants', credentials: 'guild_credentials', calibrations: 'calibration_trials', evaluations: 'image_evaluations', events: 'moderation_events', audit: 'audit_events' };
 export async function openPool(connectionString: string): Promise<SqlPool> {
     const driverName = 'pg';
     const { Pool } = await import(driverName);

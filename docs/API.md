@@ -143,3 +143,22 @@ nextAttempt; restarting does not reset a persistent cooldown.
 ## Native text moderation (October 17, 2026)
 
 `GET /api/g/:guild/text-starters` requires rules.view. `POST .../text-starters/install` with `{}` requires administrator and installs disabled rules transactionally once. Text RuleInput uses type:text, mode:exact, null referenceId/groupId and a text definition (version:message-text-v1, preset, presetVersion:1, question, positive, negative, exceptions, contextRequirements, requirePromotion, configured). Creation/editing requires administrator; new/conversion rules force automatic:false. Maximum eight enabled text rules. settings.textModerationEnabled defaults false; textStartersInstalled is read-only. `POST .../rules/:id/test` accepts exactly one of text:string or messageUrl:string, plus optional expected:boolean (omitted means unlabeled/ambiguous). Links must be same-guild and currently readable. Returns status, probability, thresholds, verification, expected label, matches with digest evidence, inputTokens, policyOutcome and executed:false. No moderation occurs. Usage labels analysisKind:text. See [bounds and evidence](TEXT_MODERATION.md).
+
+## Moderation packs (administrator only)
+
+All routes below use the existing authenticated `/api/g/:guildId/` boundary, live owner/administrator authority and origin checks. Members with delegated capabilities alone cannot import/export packs.
+
+| Method and route | Request / response |
+|---|---|
+| GET `packs/starters` | Four selectable starter descriptions |
+| GET `packs/starter/:id` | Self-contained pack, including actual embedded source image bytes |
+| GET `packs/definitions` | Saved standalone image-analysis definitions |
+| PUT `packs/definitions/:uuid` | `{revision,name,content}`; parsed content, revision check, audit; no implicit rule edits |
+| GET `packs/history` | Import identities/versions, source digest, historical evidence and stale destination status |
+| POST `packs/export` | `{complete?,components?:[{kind,id}],name?,version?}` → immutable snapshot pack with dependency closure |
+| POST `packs/preview` | `{pack,options?}` → token, digest, component additions/conflicts/skips, mappings, policy differences, grants, warnings, intended rules/settings and evidence status |
+| POST `packs/apply` | `{pack,options,token}` → `{added,replaced,kept,digest,version}`; atomic records/settings/audit |
+
+`options` supports `choices: {componentId: "keep" | "replace"}`, `policy: boolean`, `mappings: {bindingId: destinationSnowflake}`, `restoreDeleted: boolean`. Keep is the conflict default. Policy and deleted-component restoration default off. Include identical options/input at preview and apply. Mapping is mandatory for every binding when policy application is selected. Existing conflicting grants block application and require explicit reconciliation in Permissions.
+
+The ten-minute MAC binds full input, actor, guild, decisions and destination snapshot. Concurrent edits, expiry or vault-key rotation yield `pack_preview_stale_retry` (409); preview again. Source approvals are forbidden and imported rule authority is always reset. Applying global settings forces enforcement/high-impact off. Pack routes accept at most 48 MiB container plus 256 KiB request wrapper; other routes retain their 12 MiB bound. Parsing depth is bounded at 32. See [format, resource limits and recovery](MODERATION_PACKS.md). No model evaluation is dispatched by these endpoints.

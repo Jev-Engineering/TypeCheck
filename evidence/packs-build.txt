@@ -1,0 +1,3 @@
+npm notice run typecheck@0.1.0 build
+npm notice run tsc && node scripts/bundle-sdk.mjs
+Official Discord Embedded App SDK bundled.

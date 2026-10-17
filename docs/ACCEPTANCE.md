@@ -16,7 +16,7 @@ The attached specification is preserved in USER_SPECIFICATION.md. “Implemented
 | Jev image matching | Pinned official multipart/Noul adapter, four prompt modes | Real account compatibility and representative accuracy |
 | Reference library and rule modes | Private uploads, groups, individual/library/any-image policies | Real provider matching and deployed storage |
 | Moderation actions | Delete/warn/timeout/kick/ban/review/log-only, combinations | Real consenting test accounts, permission/hierarchy/rate tests |
-| Activity UI | Six screens, rule/test dialogs, credential/RBAC controls | SDK bundle passed; real OAuth, proxy and Activity launch remain open |
+| Activity UI | Administration screens including moderation packs, rule/test dialogs, credential/RBAC controls | SDK bundle passed; real OAuth, proxy and Activity launch remain open |
 | Administrator/moderator permissions | Live role-derived capabilities and restricted delegation | Real role revoke/change tests and independent review |
 | Credential management | Encrypted, write-only, validated replacement and removal | Real TypeSafe key lifecycle and recovery test |
 | Tenant isolation | Guild queries/constraints, encrypted AAD, object prefixes | Isolated PostgreSQL constraints/read isolation passed; live adversarial integration remains open |
@@ -60,3 +60,7 @@ Mocked tests and offline desktop/mobile rendering validate software behavior onl
 ## Native text moderation (October 17, 2026)
 
 See [issue39 validation](../evidence/issue39-validation.md). Separately authorize live native JSON provider tests and dedicated-guild checks for intent redaction, creates/edits/deletes/reconnects, link permissions, bot/webhook safeguards, stale suppression, calibration and severe verification. Adjudicate tuning/held-out cases including quotations/warnings/injection/lookalikes. Verify no raw text in jobs/logs/exports/notifications. Mocked scores establish software behavior only. Deployment acceptance stays disabled until required live gates and independent review pass. See [text boundaries](TEXT_MODERATION.md).
+
+## Moderation packs acceptance
+
+The local implementation and evidence boundaries are recorded in [PACK_VALIDATION.md](PACK_VALIDATION.md). The feature covers component/complete exports, dependency closure, bounded validation, previews/conflicts/mapping, atomic imports, deletion/repeat/upgrade behavior, source-approval invalidation and four editable starters. Imported claims remain untrusted historical evidence; software tests and owner-reviewed images do not establish model accuracy or live acceptance. Offline desktop/mobile screenshots exercise real UI/HTTP handlers with temporary state and faked Discord/model transports. Real Discord permission/proxy acceptance and representative model accuracy remain unperformed. No production deployment is included.

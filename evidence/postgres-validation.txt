@@ -1,1 +1,3 @@
+PASS native text JSON persistence, concurrent starter installation, deletion, digest edit deduplication and rollback
+postgres: threshold defaults, legacy/custom persistence and missing-only fallback passed
 PostgreSQL integration passed: revisions, tenant FKs, rollback, durable jobs, concurrent idempotency, reconnect persistence, leader recovery, unknown no-replay, quotas, nonces, payload erasure.

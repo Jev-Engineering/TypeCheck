@@ -19,6 +19,7 @@ export async function seedStarterReferences(services: Services, guild: string, r
         assert(manifest.images.length === 33, 'invalid_starter_manifest');
         const group: Group = { ...baseRecord(guild, randomUUID()), name: 'Starter scams (user-reviewed)' };
         await tx.put('groups', group, 0);
+        const components: Record<string,string> = {'scam-references':group.id};
         for (const entry of manifest.images) {
             assert(/^images\/scam_[a-z0-9_]+\.(jpg|png)$/.test(entry.file), 'invalid_starter_path');
             const source = await readFile(resolve(directory, entry.file));
@@ -31,7 +32,9 @@ export async function seedStarterReferences(services: Services, guild: string, r
                 hashVersion: image.hashVersion, bytes: image.bytes.length, width: image.width, height: image.height
             };
             await tx.put('images', record, 0);
+            components['reference-'+entry.sha256.slice(0,32)] = record.id;
         }
+        await tx.put('packs',{...baseRecord(guild,randomUUID()),pack:'reviewed-scam-references',versions:['1.0.0'],components},0);
         await tx.putSettings(guild, settings.value, settings.revision);
         await services.audit(guild, 'system', 'starter_references.created', group.id,
             { count: manifest.images.length, reviewSource: 'project-owner', reviewedAt: '2026-10-17' }, tx);
