@@ -38,6 +38,7 @@ export class FakeDiscord implements DiscordAdapter {
     async memberInfo(guild: string, user: string) { const m = this.members.get(user); if (!m || m.guildId !== guild)
         throw new AppError('not_a_guild_member', 403); return structuredClone(m); }
     async metadata(_guild: string) { return { name: 'Test server', roles: [{ id: G, name: '@everyone', position: 0, permissions: '0' }, { id: ROLE, name: 'Image moderator', position: 1, permissions: '0' }], channels: [{ id: CHANNEL, name: 'images', type: 0, guild_id: G }] }; }
+    async assertCanReadMessage(guild: string, user: string, _channel: string) { await this.memberInfo(guild, user); if (!this.allow) throw new AppError('message_read_permission_required', 403); }
     async currentMessage(_channel: string, id: string) { const m = this.messages.get(id); if (!m)
         throw new AppError('discord_http_404', 502); return structuredClone(m); }
     async preflight(_m: ImageMessage, _a: Action, _s: Settings) { if (!this.allow)

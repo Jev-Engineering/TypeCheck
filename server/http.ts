@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { ADMIN_ONLY, CAPABILITIES, assert, AppError, baseRecord, bool, ids, number, object, onlyKeys, parseRule, parseSettings, requireCapability, snowflake, text, uuid, type Authority, type Calibration, type Group, type ModerationEvent, type RecordBase, type ReferenceImage, type RoleGrant, type Rule, type RuleInput, type Evaluation } from '../shared/domain.js';
 import { Services } from './services.js';
 import { digest, token, safeError, csvCell } from './security.js';
-import { normalize } from './images.js';
+import { normalize, downloadAttachment, supportedAttachment, NORMALIZATION_HASH_VERSION } from './images.js';
 import type { Config } from './config.js';
 import { fingerprint } from './policy.js';
 import { assetVersion, type Release } from './release.js';
@@ -354,9 +354,42 @@ export function createHttp(services: Services, config: Config, root = process.cw
             if (p[5] === 'test' && method === 'POST') {
                 requireCapability(a, 'matching.test');
                 const b = await jsonBody(req);
-                onlyKeys(b, ['base64', 'expected', 'context']);
+                onlyKeys(b, ['base64', 'messageUrl', 'imageIds', 'expected', 'context']);
+                assert([b.base64, b.messageUrl, b.imageIds].filter(v => v !== undefined).length === 1, 'choose_one_sample_source');
                 assert(b.context === undefined || typeof b.context === 'string' && b.context.length <= 2000, 'content_context_over_limit');
                 const expected = b.expected === undefined ? undefined : bool(b.expected);
+                if (b.messageUrl !== undefined) {
+                    assert(typeof b.messageUrl === 'string', 'invalid_message_url');
+                    const link = /^https:\/\/(?:discord\.com|canary\.discord\.com|ptb\.discord\.com)\/channels\/(\d{6,22})\/(\d{6,22})\/(\d{6,22})$/.exec(b.messageUrl);
+                    assert(link, 'invalid_message_url');
+                    assert(link[1] === guild, 'message_wrong_guild', 403);
+                    await discord.assertCanReadMessage(guild, a.userId, link[2]!);
+                    let message;
+                    try { message = await discord.currentMessage(link[2]!, link[3]!); }
+                    catch (e) { if (e instanceof AppError && e.code === 'discord_http_404') throw new AppError('message_not_found', 404); throw e; }
+                    assert(message.guildId === guild && message.channelId === link[2] && message.messageId === link[3], 'message_wrong_guild', 403);
+                    const attachments = message.attachments.filter(supportedAttachment);
+                    assert(attachments.length, 'message_has_no_supported_images');
+                    const results = [];
+                    for (const attachment of attachments) {
+                        const image = await downloadAttachment(attachment, message.channelId);
+                        results.push(await services.testRule(guild, a.userId, id, image, expected, b.context as string | undefined));
+                    }
+                    return { body: { results } };
+                }
+                if (b.imageIds !== undefined) {
+                    requireCapability(a, 'images.view');
+                    assert(Array.isArray(b.imageIds) && b.imageIds.length > 0 && b.imageIds.length <= 20 && b.imageIds.every(uuid), 'invalid_image_ids');
+                    const images = await Promise.all([...new Set(b.imageIds as string[])].map(async imageId => {
+                        const image = await store.get<ReferenceImage>('images', guild, imageId);
+                        assert(image, 'image_not_found', 404);
+                        assert(image.hashVersion === NORMALIZATION_HASH_VERSION, 'library_image_requires_reupload');
+                        return { bytes: await services.objects.get(guild, image.objectKey), sha256: image.sha256, hashVersion: image.hashVersion, width: image.width, height: image.height };
+                    }));
+                    const results = [];
+                    for (const image of images) results.push(await services.testRule(guild, a.userId, id, image, expected, b.context as string | undefined));
+                    return { body: { results } };
+                }
                 return { body: await services.testRule(guild, a.userId, id, await normalize(decodeImage(b.base64)), expected, b.context as string | undefined) };
             }
             if (p[5] === 'calibration' && method === 'GET') {

@@ -75,3 +75,20 @@ test('OAuth renewal validates application binding, identify scope and token expi
     application = G; scopes = []; await assert.rejects(rest.oauthIdentity('oauth'), /oauth_identity_invalid/);
     scopes = ['identify']; expires = new Date(0).toISOString(); await assert.rejects(rest.oauthIdentity('oauth'), /oauth_identity_invalid/);
 });
+
+test('message reader permission checks apply live channel overwrites and private thread membership', async () => {
+    let deny = '0', privateThread = false, joined = true;
+    const rest = new DiscordRest('test-token', G, 'secret');
+    rest.request = async (path: string) => {
+        if (path === `/guilds/${G}`) return {id: G, owner_id: USER, roles: [{id: G, permissions: String(1024 + 65536)}]};
+        if (path.includes('/members/')) return {user: {id: MOD}, roles: []};
+        if (path.includes('/thread-members/')) return {user_id: joined ? MOD : USER};
+        if (path === `/channels/${CHANNEL}` && privateThread) return {id: CHANNEL, guild_id: G, type: 12, parent_id: ROLE};
+        return {id: privateThread ? ROLE : CHANNEL, guild_id: G, type: 0, permission_overwrites: [{id: MOD, type: 1, deny, allow: '0'}]};
+    };
+    await rest.assertCanReadMessage(G, MOD, CHANNEL);
+    deny = '65536'; await assert.rejects(rest.assertCanReadMessage(G, MOD, CHANNEL), /message_read_permission_required/);
+    deny = '1024'; await assert.rejects(rest.assertCanReadMessage(G, MOD, CHANNEL), /message_read_permission_required/);
+    deny = '0'; privateThread = true; await rest.assertCanReadMessage(G, MOD, CHANNEL);
+    joined = false; await assert.rejects(rest.assertCanReadMessage(G, MOD, CHANNEL), /message_read_permission_required/);
+});
