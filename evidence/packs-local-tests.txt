@@ -346,3 +346,13 @@ npm notice run tsc && node --test --test-concurrency=1 dist/tests/*.test.js
 ✔ daily budget exhaustion stops comparisons safely (18.6368ms)
 ✔ group rule selects only references from its own group (15.9527ms)
 ✔ pause after evaluation but before dispatch suppresses the action (13.1033ms)
+✔ deployment acceptance blocks persisted approved enforcement settings (15.8362ms)
+✔ below-default-review and ignore results retain evaluations without opening review or actions (25.8143ms)
+ℹ tests 348
+ℹ suites 0
+ℹ pass 348
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 17531.0321
