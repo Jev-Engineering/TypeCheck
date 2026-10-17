@@ -14,6 +14,10 @@ Enable the Guilds, Guild Messages and privileged Message Content intents. The im
 
 Configure a Guild Install with the `bot` scope and Activity launch capability appropriate to the current portal. Enable Activities and its launch/Entry Point configuration. Use Discord's provided launcher behavior for the initial deployment; the project does not implement a custom interaction webhook or slash-command launch handler. Follow [D1] if the portal requires an application-command scope or Entry Point setup for your installation.
 
+### Terms, privacy and portal fields
+
+The server serves `/terms` and `/privacy` from `activity/legal/`. Set the Developer Portal's **Terms of Service URL** and **Privacy Policy URL** to those paths on `PUBLIC_ORIGIN`. Keep the privacy page's retention figures in step with the code when retention changes. Leave **Interactions Endpoint URL** empty: TypeCheck receives events over the Gateway and has no HTTP interactions route, and Discord rejects an endpoint that cannot answer its signed PING.
+
 ## 2. Permissions and hierarchy
 
 ### Homepage installation link

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><title>TypeCheck Privacy Policy</title><link rel="stylesheet" href="/legal.css"></head>
+<body><main>
+<p class="eyebrow">JEV / TYPECHECK</p>
+<h1>Privacy Policy</h1>
+<p class="updated">Effective October 17, 2026</p>
+
+<p>TypeCheck is a Discord bot and Activity, operated by Jev Engineering ("we"), that checks images posted in Discord servers against reference images chosen by each server's administrators. This policy explains what TypeCheck processes, why, and for how long.</p>
+
+<h2>What we process</h2>
+<ul>
+<li><strong>Images posted in monitored channels.</strong> When a member posts or edits a message with an image attachment in a channel an administrator chose to monitor, TypeCheck downloads that image to compare it. Text-only messages are ignored.</li>
+<li><strong>Discord identifiers.</strong> Server, channel, message, attachment and user IDs connected to each check and any moderation action.</li>
+<li><strong>Reference images.</strong> Images that administrators or delegated moderators upload into TypeCheck as references.</li>
+<li><strong>Activity sign-in.</strong> When you open the TypeCheck Activity, Discord tells us your user ID, your membership in the server and your permissions there. We use this only to decide what you may see and change.</li>
+<li><strong>Server settings and records.</strong> Rules, monitored channels, role grants, moderation logs, audit entries, usage counts and the server's Jev API key (stored encrypted and never shown back).</li>
+</ul>
+<p>We do not store message text. A rule can optionally use a message's text as context during a check; that text is not kept afterward.</p>
+
+<h2>How images are compared</h2>
+<p>Each posted image is resized and normalized, then compared against the server's reference images. Exact matches are found locally. Remaining comparisons are sent to Jev, the image model provided by <a href="https://docs.typesafe.ai">TypeSafe</a>, using the server's own Jev API key. TypeSafe processes those requests under its own terms. Based on the result and the server's rules, TypeCheck may log the message, flag it for review, delete it, warn the member or time them out.</p>
+
+<h2>How long we keep it</h2>
+<ul>
+<li>Posted images are discarded once the check finishes.</li>
+<li>Moderation logs, evaluations and audit entries are kept for the period each server sets, between 1 and 365 days (30 days by default).</li>
+<li>Background job records are deleted after 7 days. Detailed usage records are deleted after 100 days and daily usage totals after 400 days.</li>
+<li>Reference images are kept until an administrator removes them.</li>
+<li>Attachment and action identifiers that prevent the same message from being processed or punished twice may be kept for as long as the server uses TypeCheck.</li>
+<li>Activity sessions expire after 15 minutes.</li>
+</ul>
+
+<h2>What we don't do</h2>
+<ul>
+<li>We don't sell or rent data, show ads, or use data for profiling or advertising.</li>
+<li>We don't use cookies or browser storage for tracking.</li>
+<li>We don't share data except with the providers needed to run TypeCheck: Discord, TypeSafe (Jev), and our hosting provider (GoDaddy, United States). We may also disclose data when the law requires it.</li>
+</ul>
+
+<h2>Security</h2>
+<p>Each server's data is kept separate, Jev API keys are encrypted at rest, reference images are kept in private storage, and access in the Activity is checked against your live Discord permissions. No system is perfectly secure, and TypeCheck is still experimental software.</p>
+
+<h2>Your choices</h2>
+<ul>
+<li>Server administrators choose which channels are monitored, set retention, and can delete reference images. Removing TypeCheck from a server stops all new processing there.</li>
+<li>To have a server's stored data deleted, or for questions about data about you, contact the server's administrators. They can reach Jev Engineering to request deletion, which we complete together with our backup schedule.</li>
+<li>TypeCheck is for use in Discord, which requires users to meet its minimum age. We don't knowingly collect data from children below that age.</li>
+</ul>
+
+<h2>Changes</h2>
+<p>We'll update the date above when this policy changes. Continued use of TypeCheck after a change means the updated policy applies.</p>
+
+<footer><a href="/">TypeCheck</a><a href="/terms">Terms of Service</a><span>&copy; 2026 Jev Engineering</span></footer>
+</main></body></html>

@@ -491,7 +491,12 @@ export function createHttp(services: Services, config: Config, root = process.cw
             const html = await readFile(resolve(root, 'activity/index.html'), 'utf8');
             return { bytes: Buffer.from(html.replace(/(href|src)="\/(style\.css|activity\/src\/main\.js)"/g, `$1="/r/${version}/$2"`)), type: 'text/html; charset=utf-8' };
         }
-        const fixed: Record<string, string> = { '/style.css': 'activity/style.css', '/vendor/discord-sdk.js': 'dist/activity/vendor/discord-sdk.js', '/vendor/THIRD_PARTY_NOTICES.txt': 'dist/activity/vendor/THIRD_PARTY_NOTICES.txt', '/shared/analytics.js':'dist/shared/analytics.js','/shared/content.js':'dist/shared/content.js','/shared/domain.js': 'dist/shared/domain.js' };
+        const legal: Record<string, string> = { '/terms': 'activity/legal/terms.html', '/privacy': 'activity/legal/privacy.html' };
+        if (legal[pathname]) {
+            const html = await readFile(resolve(root, legal[pathname]), 'utf8');
+            return { bytes: Buffer.from(html.replace('href="/legal.css"', `href="/r/${version}/legal.css"`)), type: 'text/html; charset=utf-8' };
+        }
+        const fixed: Record<string, string> = { '/style.css': 'activity/style.css', '/legal.css': 'activity/legal/legal.css', '/vendor/discord-sdk.js': 'dist/activity/vendor/discord-sdk.js', '/vendor/THIRD_PARTY_NOTICES.txt': 'dist/activity/vendor/THIRD_PARTY_NOTICES.txt', '/shared/analytics.js':'dist/shared/analytics.js','/shared/content.js':'dist/shared/content.js','/shared/domain.js': 'dist/shared/domain.js' };
         const fonts: Record<string, string> = { '/fonts/schibsted-grotesk-400.woff2': 'activity/fonts/schibsted-grotesk-400.woff2', '/fonts/schibsted-grotesk-500.woff2': 'activity/fonts/schibsted-grotesk-500.woff2', '/fonts/vt323-400.woff2': 'activity/fonts/vt323-400.woff2', '/fonts/jetbrains-mono-400.woff2': 'activity/fonts/jetbrains-mono-400.woff2' };
         if (fonts[pathname]) {
             let bytes: Buffer;

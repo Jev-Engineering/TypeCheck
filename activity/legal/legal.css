@@ -1,0 +1,22 @@
+/* TypeCheck legal pages: same paper/ink palette and self-hosted fonts as the Activity. */
+
+@font-face{font-family:"Schibsted Grotesk";font-style:normal;font-weight:400;font-display:swap;src:url("/fonts/schibsted-grotesk-400.woff2") format("woff2")}
+@font-face{font-family:"Schibsted Grotesk";font-style:normal;font-weight:500;font-display:swap;src:url("/fonts/schibsted-grotesk-500.woff2") format("woff2")}
+@font-face{font-family:"VT323";font-style:normal;font-weight:400;font-display:swap;src:url("/fonts/vt323-400.woff2") format("woff2")}
+
+:root{--ink:#1E1E1E;--paper:#FEFEFE;--pink:#F386A1;--bg:var(--paper);--text:var(--ink);--muted:rgba(30,30,30,.74);--line:var(--ink);--link:#B8325A}
+@media (prefers-color-scheme:dark){:root{--bg:var(--ink);--text:var(--paper);--muted:rgba(254,254,254,.72);--line:var(--paper);--link:var(--pink)}}
+
+*{box-sizing:border-box}
+html{background:var(--bg);color:var(--text)}
+body{margin:0;font:400 1rem/1.65 "Schibsted Grotesk",system-ui,sans-serif;border-top:8px solid var(--pink)}
+main{max-width:720px;margin:0 auto;padding:48px 16px 64px}
+.eyebrow{font-family:"VT323",ui-monospace,monospace;font-size:1.15rem;letter-spacing:.08em;color:var(--pink);margin:0 0 8px}
+h1{font-size:clamp(2rem,6vw,2.75rem);line-height:1.1;margin:0 0 8px;font-weight:500}
+h2{font-size:1.2rem;font-weight:500;margin:40px 0 8px;padding-top:16px;border-top:1px solid var(--line)}
+.updated{color:var(--muted);margin:0 0 32px}
+ul{padding-left:1.25rem}
+li{margin:4px 0}
+a{color:var(--link);text-underline-offset:3px}
+a:hover{color:var(--text)}
+footer{margin-top:48px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:.9rem;display:flex;flex-wrap:wrap;gap:16px}
