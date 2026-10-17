@@ -274,6 +274,9 @@ input::file-selector-button{background:var(--inverse);border:1px solid var(--lin
 .login>p:not([class]){color:var(--ink-soft)}
 .login .primary{background:var(--ink);color:var(--paper);border-color:var(--ink);font-size:.9rem;padding:11px 20px}
 .login .primary:hover{background:var(--pink);color:var(--ink)}
+.login-actions{flex-wrap:wrap}
+.login-actions a.button{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+.login .install-help{font-size:.85rem;line-height:1.6;color:var(--ink-soft);max-width:600px;margin-top:18px}
 .login>.muted{font-family:var(--font-mono);font-size:.7rem;color:var(--ink-soft);max-width:540px;margin-top:32px}
 .login>.notice{margin-top:20px}
 .login .badge.amber{border-color:var(--ink)}

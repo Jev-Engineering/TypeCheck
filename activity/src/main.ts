@@ -554,7 +554,16 @@ async function start(autoConnect = true) {
     app.replaceChildren();
     status = h('div', { class: 'notice', role: 'status' });
     status.hidden = true;
-    app.append(h('main', { class: 'login' }, h('div', { class: 'login-brand' }, h('span', { class: 'brand-mark' }, 'J'), h('p', { class: 'eyebrow' }, 'JEV / TYPECHECK')), badge(preview ? 'OFFLINE PREVIEW' : 'EXPERIMENTAL IMAGE MATCHING', 'amber'), h('h1', {}, 'Image moderation.\nUnder your control.'), h('p', { class: 'login-copy' }, 'Manage reference images, rules, permissions, and credentials inside Discord. The backend bot handles continuous monitoring.'), button(preview ? 'Open read-only preview' : 'Connect in Discord', () => connect(config.clientId)), status, h('p', { class: 'muted' }, 'Launch from a server Activity. Administrators have access automatically; moderators require an explicit role grant.')));
+    const inDiscord = new URLSearchParams(location.search).has('frame_id');
+    const showInstall = !preview && !inDiscord;
+    const installUrl = new URL('https://discord.com/oauth2/authorize');
+    installUrl.search = new URLSearchParams({ client_id: config.clientId, scope: 'bot applications.commands', permissions: '68608', integration_type: '0' }).toString();
+    app.append(h('main', { class: 'login' }, h('div', { class: 'login-brand' }, h('span', { class: 'brand-mark' }, 'J'), h('p', { class: 'eyebrow' }, 'JEV / TYPECHECK')), badge(preview ? 'OFFLINE PREVIEW' : 'EXPERIMENTAL IMAGE MATCHING', 'amber'), h('h1', {}, 'Image moderation.\nUnder your control.'), h('p', { class: 'login-copy' }, 'Manage reference images, rules, permissions, and credentials inside Discord. The backend bot handles continuous monitoring.'),
+        h('div', { class: 'actions login-actions' },
+            showInstall ? h('a', { class: 'button primary', href: installUrl.href, target: '_blank', rel: 'noopener noreferrer', 'aria-describedby': 'install-help' }, 'Add to your server') : null,
+            button(preview ? 'Open read-only preview' : 'Connect in Discord', () => connect(config.clientId), showInstall ? 'quiet' : 'primary')),
+        showInstall ? h('p', { class: 'install-help', id: 'install-help' }, 'Opens Discord in a new tab. You need Manage Server permission to install. Then open the TypeCheck Activity in your server; an administrator can choose channels, add a Jev API key, and configure rules. Automatic moderation stays off until approved and enabled.') : null,
+        status, h('p', { class: 'muted' }, 'Launch from a server Activity. Administrators have access automatically; moderators require an explicit role grant.')));
     if (autoConnect && new URLSearchParams(location.search).has('frame_id'))
         await connect(config.clientId);
 }
