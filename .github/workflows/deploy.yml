@@ -30,7 +30,7 @@ jobs:
   deploy:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
-    # Worst case: ship <=20, verify <=16, rollback ship+verify <=36 minutes.
+    # Worst case: ship <=20, verify <=19 (incl. PREVIEW restart retries), rollback ship+verify <=39 minutes.
     timeout-minutes: 80
     environment:
       name: production

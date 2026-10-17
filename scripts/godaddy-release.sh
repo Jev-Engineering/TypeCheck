@@ -52,6 +52,18 @@ ship() {
     jq -s '.' <(printf '%s' "$published") <(printf '%s' "$app") | node scripts/verify-provider-source.mjs deployment "$deployment_id" "$GITHUB_REPOSITORY" "$branch" "$oid" "$head" "$receipt_hash"
 }
 
+restart_preview() { # GoDaddy rejects restarts (404 "failed to restart") while PREVIEW is still settling after publish
+    local try out
+    for try in 1 2 3 4; do
+        if out="$(gddy hosting app restart --app-id "$APP_ID" --variant PREVIEW --output json 2>&1)"; then
+            return 0
+        fi
+        echo "::warning::PREVIEW restart attempt $try failed: $(jq -c '.error // .' <<<"$out" 2>/dev/null || printf '%s' "$out" | head -c 300)"
+        (( try < 4 )) && sleep $(( try * 15 ))
+    done
+    return 1
+}
+
 verify() {
     local code=0 attempt
     node scripts/verify-production.mjs || code=$?
@@ -60,7 +72,8 @@ verify() {
         # PUBLISH has finished its startup delay. Restarting PREVIEW drains its controllers,
         # then its 30s election delay gives the running PUBLISH's 5s retries time to acquire.
         echo "::notice::PUBLISH is standby; restarting PREVIEW (attempt $attempt)"
-        gddy hosting app restart --app-id "$APP_ID" --variant PREVIEW --output json >/dev/null
+        # A failed restart is not fatal by itself: re-verify so a handoff that still happened is recognized.
+        restart_preview || echo "::warning::PREVIEW restart unavailable after retries; re-verifying controller ownership"
         code=0; TIMEOUT_SECONDS=180 node scripts/verify-production.mjs || code=$?
     done
     if [[ $code -eq 3 ]]; then
