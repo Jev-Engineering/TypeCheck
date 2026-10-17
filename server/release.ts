@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 export interface Release { commit: string; run: string | null; migrate: boolean }
-// release.json is written into the deployment archive by the production workflow;
+// release.json is added to the release artifact branch by the production workflow;
 // development and container builds have none and report a null release. `migrate` is set
 // only for a release the workflow admitted as an expand-only migration after a confirmed backup.
 export async function loadRelease(root: string): Promise<Release | null> {

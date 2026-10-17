@@ -46,7 +46,7 @@ jobs:
       url: ${{ vars.PRODUCTION_URL }}
       deployment: false # recorded below against the exact candidate commit instead
     permissions:
-      contents: read
+      contents: write # create signed release branches; main is never written by this job
       actions: read
       deployments: write
     env:
@@ -152,10 +152,11 @@ jobs:
           sudo install -m 0755 "$(find "$RUNNER_TEMP/gddy" -name gddy -type f | head -1)" /usr/local/bin/gddy
           gddy --version
 
-      - name: Upload the exact commit and publish
+      - name: Import the verified release branch and publish
         id: ship
         if: steps.noop.outputs.skip != 'true'
         env:
+          GH_TOKEN: ${{ github.token }}
           GDDY_PAT: ${{ secrets.GODADDY_PAT }}
           MIGRATE: ${{ steps.guard.outputs.migrate == 'true' && 'migrate' || '' }}
         # PREVIEW starts the candidate first; with MIGRATE it backs up and applies the migration
@@ -202,6 +203,7 @@ jobs:
         # Safe only because the guard admitted no incompatible schema change; never migrates.
         if: (failure() || cancelled()) && steps.ship.outputs.publish_started == 'true' && steps.live.outputs.release != env.CANDIDATE
         env:
+          GH_TOKEN: ${{ github.token }}
           GDDY_PAT: ${{ secrets.GODADDY_PAT }}
           PREVIOUS: ${{ steps.live.outputs.release }}
           PREVIOUS_SOURCE: ${{ steps.live.outputs.source }}
@@ -221,6 +223,8 @@ jobs:
           ROLLBACK: ${{ steps.rollback.outcome || 'not run' }}
           BACKUP: ${{ steps.guard.outputs.migrate == 'true' && (steps.receipt.outputs.backup || 'taken by the release (receipt not found in logs)') || 'not required (no migration)' }}
           GODADDY_DEPLOYMENT: ${{ steps.ship.outputs.godaddy_deployment }}
+          RELEASE_SOURCE: ${{ steps.ship.outputs.release_source }}
+          RELEASE_BRANCH: ${{ steps.ship.outputs.release_branch }}
           LIVE: ${{ steps.live.outputs.release }}
           LIVE_SOURCE: ${{ steps.live.outputs.source }}
           ACTION: ${{ steps.guard.outputs.action }}
@@ -233,6 +237,7 @@ jobs:
             echo "### Production release"
             echo "| | |"; echo "|---|---|"
             echo "| Commit | \`$CANDIDATE\` |"
+            echo "| Source artifact | \`$RELEASE_SOURCE\` (\`$RELEASE_BRANCH\`) |"
             echo "| Previous | \`$LIVE\` ($LIVE_SOURCE) |"
             echo "| Action | $ACTION, migrations: $MIGRATIONS |"
             echo "| Backup | $BACKUP |"

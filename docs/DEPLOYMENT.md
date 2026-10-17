@@ -4,25 +4,25 @@ Production runs on GoDaddy Node.js Hosting. A release reaches it only through `.
 
 PR → `Validate` and review → merge to `main` → `Validate` succeeds on the push to `main` → `Deploy production` deploys that exact commit → post-deployment verification.
 
-## Architecture (verified 2026-10-16)
+## Architecture (release source updated 2026-10-17)
 
 | Item | Value |
 |---|---|
 | GoDaddy app | `TypeCheck`, ID `NODEJS-mxa13say2y`, Node 22, attached to the Web Hosting subscription |
 | Production URL | https://mxa13say2y.c24.airoapp.ai (GoDaddy platform hostname, TLS certificate issued by Google Trust Services) |
 | Variants | PREVIEW (GoDaddy-login gated) and PUBLISH (production). An upload builds PREVIEW, and `deployment publish` promotes that build to PUBLISH. |
-| Supported mechanism | `gddy hosting source upload` (zip) → `gddy hosting deployment publish`. There is no rollback API, so rollback redeploys a known-good commit. |
+| Supported mechanism | `gddy hosting source github` (unique release branch) → verified import → `gddy hosting deployment publish` → verified deployment hash. There is no rollback API, so rollback redeploys a known-good commit. |
 | Database | GoDaddy managed MySQL shared by PREVIEW and PUBLISH. Its `DB_*` credentials are injected into the runtime only: neither the dashboard ("no manual login") nor the API reveals them, so CI cannot connect to the database. The release backs the database up itself before migrating (see [Backups and restore](#backups-and-restore)). The dashboard's **Export SQL** is not a usable backup: it writes every JSON value as the text `[object Object]`, and its output fails to restore (verified 2026-10-17). |
 | Edge / DNS | GoDaddy's own Cloudflare-fronted platform domain. The project's Cloudflare zones contain no record for this app, so there is nothing to change there unless a custom domain is adopted (see below). |
 | Discord Activity | URL mapping `/` → production host. `https://1560495911358955540.discordsays.com/api/health` reaches the production process. |
-| GitHub link | The app still shows `source: GITHUB` (`feat/mysql-store`) from initial setup. The `godaddy-node-js-hosting` GitHub App has `contents: read` and no webhook events, so pushes never trigger GoDaddy imports. The first zip upload replaces this source. |
+| GitHub link | The app uses `source: GITHUB`. GoDaddy rejects ZIP replacement for a connected repository (HTTP 422). Imports use the linked `Jev-Engineering/TypeCheck` repository with a unique release branch, preserving the connection. The GitHub App has no push webhook; the release workflow explicitly imports and publishes. |
 
 ### Why deployment cannot bypass CI
 
 - The deploy job runs only for `workflow_run` events where `Validate` concluded `success` for a `push` to `main` from this repository. Pull request runs, other branches, failures and cancellations skip it.
 - Manual dispatch must name a full SHA that is on `main` and has a successful `Validate` push run. The workflow checks both.
 - Nothing else can deploy. GoDaddy has no push webhook, and the GoDaddy PAT exists only in the `production` environment, which is restricted to `main`.
-- Limitation: the repository is private on GitHub Free, so branch protection and rulesets are unavailable (API returns 403). Review is a process requirement, not an enforced rule. A direct push to `main` still needs `Validate` to pass before it deploys, but skips review. Enforcing review requires GitHub Team/Pro or a public repository.
+- Review remains a process requirement: the repository is public, but main currently has no branch protection or ruleset. Direct pushes still require successful main CI before this deployment workflow runs. The deployment job has `contents: write` only to create release artifact branches; its code never writes main. It uses the short-lived workflow token, not a new credential.
 
 ## GitHub configuration
 
@@ -49,7 +49,7 @@ To rotate the GoDaddy PAT, create a new token with the scopes above at https://d
    - Migrations are classified by diffing `db/`. *Expand-only* means new files that only create tables and indexes, and write rows only into those new tables or `schema_migrations`. Anything else (ALTER, DROP, UPDATE, DELETE, edits to shipped migrations) is *incompatible* and blocks deployment.
    - A forward release with an expand-only migration is marked `migrate`. Rollbacks never are.
 4. **Record.** A GitHub deployment is created for the exact candidate SHA (`in_progress`). It links to the run.
-5. **Ship.** `git archive` of the exact commit plus `release.json` (`commit`, `run`, `migrate`) is uploaded to PREVIEW, built by GoDaddy and then published. `migrate` is `true` only for an admitted expand-only forward release.
+5. **Ship.** `scripts/release-source.mjs` creates a fresh `releases/<run>-<candidate>-<migration-mode>` branch at the approved commit, then uses GitHub `createCommitOnBranch` with an expected-head check to add only `release.json` (`commit`, `run`, `migrate`). The commit must be signed, have exactly the candidate as its parent, and preserve every source tree entry except the added metadata file. GoDaddy imports this branch into PREVIEW. Its completed import hash and the current branch head must match the verified artifact commit before publishing; the completed deployment hash must also match. The health endpoint reports the original approved candidate, while workflow outputs record the artifact commit and branch. `migrate` is `true` only for an admitted expand-only forward release.
 6. **Backup, then migration** (only when `migrate` is `true`). The release migrates itself at startup with the runtime's own `DB_*` credentials, because nothing else can reach the database. Under `GET_LOCK('typecheck:migrate')`, and only if a migration is still pending, it first writes a full backup from one consistent snapshot to `OBJECT_DIR/backups/<time>-pre-migration.sql`, then applies the migration and writes the version receipt last. PREVIEW and PUBLISH starting together therefore back up and migrate exactly once. If the backup fails, nothing is migrated, the release does not start, verification fails and the previous release is redeployed. PREVIEW starts the new code first while the previous release keeps serving on PUBLISH; expand-only schema is compatible with both. CI runs the same path on MySQL 8.0 before a commit is eligible (`scripts/test-backup-databases.mjs`): populate the previous schema, back up and migrate concurrently, restore the backup with the `mysql` client and compare every row byte-for-byte.
 7. **Verify** (`scripts/verify-production.mjs`, read-only; up to 10 minutes for the release to appear, plus up to two 3-minute handoff retries):
    - HTTPS works.
@@ -131,6 +131,7 @@ PRODUCTION_URL=https://mxa13say2y.c24.airoapp.ai DISCORD_CLIENT_ID=1560495911358
 | `release not serving` on a migration release | The release backs up before migrating. Check the PREVIEW log for `operational_error` during startup (for example a full or read-only volume); nothing was migrated. |
 | `no database_migration log line found` (warning) | Platform logs lagged or rotated. The backup is still listed on the **Files** page → **Private Storage** → `objects/backups/`. |
 | `AUTH_REQUIRED` from `gddy` | The PAT is missing one of the scopes above, or has expired |
+| `imported source does not match release commit` | Do not publish. Inspect the import hash and artifact branch; never substitute the current main head. |
 | Import or publish `FAILED` | `deployment-diagnostics-<run>` artifact. GoDaddy build output is in the PREVIEW log. |
 | `release not serving before timeout` | Startup failure on PUBLISH (for example `migration_002_required` or a missing secret). Check the PUBLISH log. |
 | `object storage persisted` failed | The volume was replaced. See Persistent storage. |
@@ -145,3 +146,11 @@ Production uses the platform hostname. Moving to a custom hostname on Cloudflare
 - updating `PUBLIC_ORIGIN`, the Discord Activity URL mapping and `PRODUCTION_URL`
 
 That is a separate, user-approved change.
+
+## Repository release artifacts
+
+The provider's documented import schema accepts `repositoryFullName` and `branch`, not a commit SHA. A unique branch prevents a later main push from changing the selected source. Release branches are never force-updated or automatically deleted; retain them and the workflow outputs for audit. A collision fails closed. Re-running a workflow uses a new run attempt and therefore a fresh branch. A rollback creates the same kind of artifact from the guarded previous candidate with `migrate: false`, and keeps the same hash checks.
+
+Release metadata remains separate from application changes, equivalent to the former archive overlay. GitHub's expected-head mutation and signed commit are verified before contacting the provider. Provider writes are not blindly retried; import/deployment polling uses their returned IDs. An ambiguous write failure requires reconciliation before another attempt.
+
+References: [GoDaddy source import schema](https://developer.godaddy.com/en/docs/references/rest/hosting/create-source-import), [pinned CLI GitHub import command](https://github.com/godaddy/cli/blob/v0.2.29/rust/src/hosting/source/github.rs), [GitHub signed commit mutation](https://docs.github.com/en/graphql/reference/commits#createcommitonbranch).
