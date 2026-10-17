@@ -38,6 +38,15 @@ jobs:
         env:
           TEST_DATABASE_URL: mysql://guard:test-only-password@127.0.0.1:3306/cost_test
           ALLOW_DATABASE_TESTS: 'true'
+      - name: Back up a populated database before migrating and restore it with the mysql client
+        run: |
+          docker exec ${{ job.services.mysql.id }} mysql -uroot -ptest-only-root -e "CREATE DATABASE backup_test; CREATE DATABASE backup_restore; GRANT ALL ON backup_test.* TO 'guard'@'%'; GRANT ALL ON backup_restore.* TO 'guard'@'%';"
+          node scripts/test-backup-databases.mjs 2>&1 | tee evidence/backup-mysql-ci.txt
+        env:
+          TEST_DATABASE_URL: mysql://guard:test-only-password@127.0.0.1:3306/backup_test
+          RESTORE_DATABASE_URL: mysql://guard:test-only-password@127.0.0.1:3306/backup_restore
+          MYSQL_CONTAINER: ${{ job.services.mysql.id }}
+          ALLOW_DATABASE_TESTS: 'true'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -45,6 +54,7 @@ jobs:
           path: |
             evidence/mysql-ci.txt
             evidence/cost-mysql-ci.txt
+            evidence/backup-mysql-ci.txt
   tests:
     runs-on: ubuntu-latest
     services:

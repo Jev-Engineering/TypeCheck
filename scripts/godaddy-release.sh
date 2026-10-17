@@ -4,6 +4,7 @@
 #   ship <commit> <run> [migrate]  zip the exact commit (+ release.json), upload to PREVIEW, publish to PUBLISH;
 #                                  `migrate` lets the release apply its admitted migrations at startup
 #   verify                         verify-production.mjs, handing controller ownership to PUBLISH if needed
+#   receipt <since>                find the release's database_migration log line and its backup receipt
 #   logs <out-dir>                 save recent PREVIEW/PUBLISH platform logs for diagnostics
 set -euo pipefail
 : "${APP_ID:?}"
@@ -29,6 +30,7 @@ ship() {
     local commit="$1" run="$2" migrate=false zip="$RUNNER_TEMP/release-$1.zip" import_id deployment_id
     [[ "$commit" =~ ^[0-9a-f]{40}$ && "$run" =~ ^[0-9]+-[0-9]+$ ]] || { echo "::error::invalid commit or run" >&2; return 1; }
     [[ "${3:-}" == migrate ]] && migrate=true
+    echo "started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${GITHUB_OUTPUT:-/dev/null}"
     git archive --format=zip --add-virtual-file="release.json:{\"commit\":\"$commit\",\"run\":\"$run\",\"migrate\":$migrate}" -o "$zip" "$commit"
     echo "archive $(du -h "$zip" | cut -f1) for $commit (migrate=$migrate)"
     import_id="$(gddy hosting source upload --app-id "$APP_ID" --file "$zip" --output json | jq -er '.data.importId')"
@@ -56,6 +58,31 @@ verify() {
         return 0
     fi
     return "$code"
+}
+
+receipt() { # receipt <since>: the release logs one database_migration line per migrating process
+    local since="$1" v found="" summary
+    : "${CANDIDATE:?}"
+    for _ in $(seq 1 12); do # platform logs can lag a few minutes
+        for v in PREVIEW PUBLISH; do
+            found+="$(gddy hosting log list --app-id "$APP_ID" --variant "$v" --since "$since" --source STDOUT --output json 2>/dev/null \
+                | jq -c --arg c "$CANDIDATE" --arg v "$v" '.data[]?.message | fromjson? | select(type == "object" and .event == "database_migration" and .release == $c) | . + {variant: $v}' 2>/dev/null || true)"
+            found+=$'\n'
+        done
+        [[ -n "${found//$'\n'/}" ]] && break
+        found=""
+        sleep 15
+    done
+    [[ -n "$found" ]] || { echo "::warning::no database_migration log line found for $CANDIDATE"; return 1; }
+    echo "$found"
+    summary="$(jq -rs '[.[] | select(.backup != null)][0] // empty | "\(.backup.file) (sha256 \(.backup.sha256[0:16])…, \(.backup.tables) tables, \(.backup.rows) rows, \(.variant))"' <<<"$found")"
+    if [[ -n "$summary" ]]; then
+        echo "backup=$summary" >> "${GITHUB_OUTPUT:-/dev/null}"
+    elif jq -es 'all(.applied == [])' <<<"$found" >/dev/null; then
+        echo "backup=not needed: schema was already current" >> "${GITHUB_OUTPUT:-/dev/null}"
+    else
+        echo "::warning::migration applied without a backup receipt"; return 1
+    fi
 }
 
 logs() {

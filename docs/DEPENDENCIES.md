@@ -29,7 +29,7 @@ The upgraded decoder rejected the previous 1-pixel PNG because its IDAT checksum
 
 The sharp native distributions contain LGPL libraries, including libvips; they are not all permissively licensed merely because the sharp wrapper declares Apache-2.0. Preserve installed native package README/LICENSE files and review source/relinking/notice obligations before redistributing images or binaries. Native notices are retained with node_modules in the runtime image. This is an inventory review, not legal sign-off or an assertion that npm metadata enumerates every native component.
 
-The browser SDK and bundled runtime dependencies (big-integer, decimal.js-light, eventemitter3, lodash.transform, uuid and zod) ship complete license files in `/vendor/THIRD_PARTY_NOTICES.txt`, generated during the build. The app remains private/UNLICENSED; dependency licenses do not change project ownership.
+The browser SDK and bundled runtime dependencies (big-integer, decimal.js-light, eventemitter3, lodash.transform, uuid and zod) ship complete license files in `/vendor/THIRD_PARTY_NOTICES.txt`, generated during the build. The app itself is MIT-licensed (see [LICENSE](../LICENSE)); dependency licenses do not change project ownership.
 
 ## Container review
 

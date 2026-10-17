@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { assert, snowflake } from '../shared/domain.js';
 export interface Config {
     port: number;
@@ -15,6 +16,9 @@ export interface Config {
     migrateOnStart?: boolean;
     databaseTls?: { ca?: string };
 }
+// GoDaddy Node.js Hosting rebuilds the app directory on every deploy; only its Private Storage
+// mount (/private) survives. Reference images, the storage marker and backups belong there.
+export const defaultObjectDir = (hasPrivateStorage = existsSync('/private')) => hasPrivateStorage ? '/private/objects' : './objects';
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     const production = env.NODE_ENV === 'production';
     const port = Number(env.PORT ?? 3000);
@@ -28,7 +32,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     assert(/^jev-\d+\.\d+\.\d+$/.test(model), 'pin_versioned_jev_model');
     assert(!(production && env.API_ONLY === '1'), 'api_only_is_development_only');
     const database = databaseConfig(env);
-    return { port, production, publicOrigin, clientId, clientSecret: required('DISCORD_CLIENT_SECRET'), botToken: required('DISCORD_BOT_TOKEN'), databaseUrl: database.url, databaseTls: database.tls, migrateOnStart: env.MIGRATE_ON_START === '1', masterKey: required('CREDENTIAL_MASTER_KEY'), objectDir: env.OBJECT_DIR ?? './objects', model, apiOnly: env.API_ONLY === '1', enforcementApproved: env.ACCEPTANCE_APPROVED === '1' };
+    return { port, production, publicOrigin, clientId, clientSecret: required('DISCORD_CLIENT_SECRET'), botToken: required('DISCORD_BOT_TOKEN'), databaseUrl: database.url, databaseTls: database.tls, migrateOnStart: env.MIGRATE_ON_START === '1', masterKey: required('CREDENTIAL_MASTER_KEY'), objectDir: env.OBJECT_DIR ?? defaultObjectDir(), model, apiOnly: env.API_ONLY === '1', enforcementApproved: env.ACCEPTANCE_APPROVED === '1' };
 }
 
 export function databaseConfig(env: NodeJS.ProcessEnv = process.env): { url: string; tls?: { ca?: string } } {
