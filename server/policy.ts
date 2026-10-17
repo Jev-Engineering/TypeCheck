@@ -1,16 +1,18 @@
+import { CONTENT_VERSION } from '../shared/content.js';
 import { createHash } from 'node:crypto';
 import { isPunitive, isSevere, type Rule, type ReferenceImage, type Match, type Settings, type Action } from '../shared/domain.js';
 import { NORMALIZATION_HASH_VERSION } from './images.js';
 import { effectiveThreshold } from '../shared/domain.js';
 export const PROMPT_VERSION = 'image-identity-v1';
-const rank = { individual: 0, group: 1, any_match: 2, any_image: 3 };
+const rank = { individual: 0, group: 1, any_match: 2, content: 3, any_image: 4 };
 export function referencesFor(rule: Rule, images: ReferenceImage[]): ReferenceImage[] {
     return images.filter(i => i.guildId === rule.guildId && i.enabled && (rule.type === 'individual' ? i.id === rule.referenceId : rule.type === 'group' ? i.groupId === rule.groupId : rule.type === 'any_match'));
 }
 export function fingerprint(rule: Rule, images: ReferenceImage[], settings: Settings): string {
     const { approval, revision, createdAt, updatedAt, ...policy } = rule;
-    return createHash('sha256').update(JSON.stringify({ policy, hashScheme: NORMALIZATION_HASH_VERSION, model: settings.model, prompt: PROMPT_VERSION, thresholds: settings.thresholds,
-        refs: referencesFor(rule, images).map(i => [i.id, i.sha256, i.revision, i.hashVersion ?? null, i.objectKey]).sort((a, b) => String(a[0]).localeCompare(String(b[0]))) })).digest('hex');
+    const payload = { ...(rule.type === 'content' ? { contentVersion: CONTENT_VERSION, contextPolicy: settings.contentMessageContext === true } : {}), policy, hashScheme: NORMALIZATION_HASH_VERSION, model: settings.model, prompt: PROMPT_VERSION, thresholds: settings.thresholds,
+        refs: referencesFor(rule, images).map(i => [i.id, i.sha256, i.revision, i.hashVersion ?? null, i.objectKey]).sort((a, b) => String(a[0]).localeCompare(String(b[0]))) };
+    return createHash('sha256').update(JSON.stringify(rule.type === 'content' ? canonical(payload) : payload)).digest('hex');
 }
 export interface Decision {
     rule: Rule;
@@ -25,13 +27,13 @@ export function resolvePolicy(rules: Rule[], matches: Match[], settings: Setting
     // Use the same validity checks and precedence for action and review candidates.
     const candidates = eligible.flatMap(rule => {
         const floor = effectiveThreshold(rule, settings);
-        const valid = matches.filter(m => m.ruleId === rule.id && (m.provenance === 'exact_hash'
+        const valid = matches.filter(m => m.ruleId === rule.id && (rule.type === 'content' ? m.provenance === 'content' && m.policyFingerprint === fingerprint(rule, images, settings) && m.content !== undefined && m.model === settings.model && m.referenceId === null && m.probability !== null && Number.isFinite(m.probability) && m.probability >= 0 && m.probability <= 1 : m.provenance === 'content' ? false : m.provenance === 'exact_hash'
             ? m.probability === null && m.model === null && !m.verified && m.policyFingerprint === fingerprint(rule, images, settings) && referencesFor(rule, images).some(ref => ref.id === m.referenceId && ref.revision === m.referenceRevision && ref.hashVersion === m.hashVersion && ref.hashVersion === NORMALIZATION_HASH_VERSION)
             : (m.policyFingerprint === undefined || (m.policyFingerprint === fingerprint(rule, images, settings) && referencesFor(rule, images).some(ref => ref.id === m.referenceId && ref.revision === m.referenceRevision))) && m.probability !== null && Number.isFinite(m.probability) && m.probability >= 0 && m.probability <= 1 && m.model === settings.model))
-            .sort((a, b) => Number(b.provenance === 'exact_hash') - Number(a.provenance === 'exact_hash') || (b.probability ?? 0) - (a.probability ?? 0) || a.attachmentId.localeCompare(b.attachmentId) || (a.referenceId ?? '').localeCompare(b.referenceId ?? '') || Number(a.verified) - Number(b.verified));
+            .sort((a, b) => Number(b.content?.eligible === true) - Number(a.content?.eligible === true) || Number(b.content?.status === 'insufficient_evidence') - Number(a.content?.status === 'insufficient_evidence') || Number(b.provenance === 'exact_hash') - Number(a.provenance === 'exact_hash') || (b.probability ?? 0) - (a.probability ?? 0) || a.attachmentId.localeCompare(b.attachmentId) || (a.referenceId ?? '').localeCompare(b.referenceId ?? '') || Number(a.verified) - Number(b.verified));
         return valid[0] ? [{ rule, match: valid[0], floor }] : [];
     }).sort((a, b) => b.rule.priority - a.rule.priority || rank[a.rule.type] - rank[b.rule.type] || a.rule.id.localeCompare(b.rule.id));
-    const selected = candidates.find(c => c.match.provenance === 'exact_hash' || (c.match.probability !== null && c.match.probability >= c.floor));
+    const selected = candidates.find(c => c.match.provenance === 'content' ? (c.match.content!.eligible && c.match.probability !== null && c.match.probability >= c.floor) || c.match.content!.status === 'insufficient_evidence' : c.match.provenance === 'exact_hash' || (c.match.probability !== null && c.match.probability >= c.floor));
     if (!selected) {
         if (settings.uncertain === 'ignore')
             return null;
@@ -40,6 +42,7 @@ export function resolvePolicy(rules: Rule[], matches: Match[], settings: Setting
         return uncertain ? { rule: uncertain.rule, match: uncertain.match, action: 'review', deleteMessage: false, execute: false, reason: 'uncertain' } : null;
     }
     const { rule, match } = selected;
+    if (match.provenance === 'content' && !match.content?.eligible) return { rule, match, action: 'review', deleteMessage: false, execute: false, reason: match.content?.blockedReasons.join(',') || 'insufficient_evidence' };
     let reason = 'eligible';
     if (!settings.enforcement)
         reason = 'monitoring_only';
@@ -58,4 +61,10 @@ export function resolvePolicy(rules: Rule[], matches: Match[], settings: Setting
     if (match.provenance === 'exact_hash' && reason !== 'eligible')
         return { rule, match, action: 'review', deleteMessage: false, execute: false, reason: `exact_hash:${reason}` };
     return { rule, match, action: rule.action, deleteMessage: rule.deleteMessage || rule.action === 'delete', execute: reason === 'eligible', reason };
+}
+
+function canonical(value: unknown): unknown {
+    if (Array.isArray(value)) return value.map(canonical);
+    if (value !== null && typeof value === 'object') return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => [k, canonical(v)]));
+    return value;
 }

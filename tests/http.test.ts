@@ -1,4 +1,5 @@
 import { test, type TestContext } from 'node:test';
+import { CONTENT_PRESETS } from '../shared/content.js';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { baseRecord, type RoleGrant, type Rule, type Calibration, type ModerationEvent } from '../shared/domain.js';
@@ -267,4 +268,62 @@ test('the page references release-scoped assets that resolve to the current buil
 test('development pages use the dev asset scope', async t => {
     const f = await setup(t);
     assert.match((await f.request('/', 'GET', undefined, undefined, '')).raw, /src="\/r\/dev\/activity\/src\/main\.js"/);
+});
+
+test('content API starts monitoring, validates definitions, enforces permissions and guild isolation', async t => {
+    const f = await setup(t), admin = await f.login(), token = admin.data.sessionToken;
+    const { id, guildId, revision, createdAt, updatedAt, approval, ...input } = rule(f.ref, { type: 'content', referenceId: null, content: structuredClone(CONTENT_PRESETS[0]!.definition) });
+    const created = await f.request(`/api/g/${G}/rules`, 'POST', { rule: input }, token);
+    assert.equal(created.status, 201); assert.equal(created.data.automatic, false); assert.equal(created.data.approval, null);
+    const invalid = await f.request(`/api/g/${G}/rules`, 'POST', { rule: { ...input, content: { ...input.content, unsupported: true } } }, token);
+    assert.equal(invalid.status, 400);
+    const foreign = await f.request(`/api/g/${G2}/rules/${created.data.id}`, 'PUT', { rule: input, revision: 1 }, token);
+    assert.equal(foreign.status, 403);
+    await f.grant(['rules.view']);
+    const mod = await f.login('moderator-code');
+    assert.equal((await f.request(`/api/g/${G}/rules`, 'POST', { rule: input }, mod.data.sessionToken)).status, 403);
+    assert.equal((await f.request(`/api/g/${G}/content-presets`, 'GET', undefined, token)).data.length, 13);
+    const stale = await f.request(`/api/g/${G}/rules/${created.data.id}`, 'PUT', { rule: input, revision: 9 }, token);
+    assert.equal(stale.status, 409);
+    const hugeContext = await f.request(`/api/g/${G}/rules/${created.data.id}/test`, 'POST', { base64: PNG.toString('base64'), context: 'x'.repeat(2001) }, token);
+    assert.equal(hugeContext.status, 400);
+    const module = await f.request('/shared/content.js'); assert.equal(module.status, 200);
+});
+
+test('content rule capacity is enforced transactionally on creation and enabling', async t => {
+    const f = await setup(t), token = (await f.login()).data.sessionToken;
+    const { id, guildId, revision, createdAt, updatedAt, approval, ...input } = rule(f.ref, { type: 'content', referenceId: null, content: structuredClone(CONTENT_PRESETS[0]!.definition) });
+    const saved = [];
+    for (let i = 0; i < 8; i++) {
+        const response = await f.request(`/api/g/${G}/rules`, 'POST', { rule: input }, token);
+        assert.equal(response.status, 201); saved.push(response.data);
+    }
+    const blocked = await f.request(`/api/g/${G}/rules`, 'POST', { rule: input }, token);
+    assert.equal(blocked.status, 400); assert.equal(blocked.data.error, 'content_active_rule_limit');
+    const dormant = await f.request(`/api/g/${G}/rules`, 'POST', { rule: { ...input, enabled: false } }, token);
+    assert.equal(dormant.status, 201);
+    const enable = await f.request(`/api/g/${G}/rules/${dormant.data.id}`, 'PUT', { rule: input, revision: 1 }, token);
+    assert.equal(enable.status, 400); assert.equal(enable.data.error, 'content_active_rule_limit');
+    assert.equal((await f.store.get<Rule>('rules', G, dormant.data.id))!.revision, 1);
+    const edit = await f.request(`/api/g/${G}/rules/${saved[0].id}`, 'PUT', { rule: { ...input, name: 'Updated at capacity' }, revision: 1 }, token);
+    assert.equal(edit.status, 200);
+    assert.equal((await f.request(`/api/g/${G}/rules/${saved[0].id}`, 'PUT', { rule: { ...input, enabled: false }, revision: 2 }, token)).status, 200);
+    assert.equal((await f.request(`/api/g/${G}/rules/${dormant.data.id}`, 'PUT', { rule: input, revision: 1 }, token)).status, 200);
+});
+
+test('retesting a negative sample cannot hide a false positive from approval', async t => {
+    for (const type of ['individual', 'content'] as const) {
+        for (const predictions of [[true, false], [false, true]]) {
+            const f = await setup(t);
+            const r = rule(f.ref, { action: 'warn', type, ...(type === 'content' ? { referenceId: null, content: structuredClone(CONTENT_PRESETS[0]!.definition) } : {}) });
+            await f.store.put('rules', r, 0);
+            const settings = (await f.store.getSettings(G)).value;
+            for (const [i, predicted] of [true, ...predictions].entries()) {
+                const c: Calibration = { ...baseRecord(G, randomUUID()), ruleId: r.id, fingerprint: fingerprint(r, [f.ref], settings), model: settings.model, expected: i === 0, predicted, probability: predicted ? 1 : 0, sampleSha256: i === 0 ? 'positive' : 'negative', actor: ADMIN };
+                await f.store.put('calibrations', c, 0);
+            }
+            await assert.rejects(f.services.approveRule(G, ADMIN, r.id, 'Reviewed examples and residual risk.'), /calibration_failed/);
+            assert.equal((await f.store.get<Rule>('rules', G, r.id))!.approval, null);
+        }
+    }
 });

@@ -10,7 +10,8 @@ async def main():
     data=json.loads(raw)
     data['png']=base64.b64encode((root/'fixtures/reference.png').read_bytes()).decode()
     domain=(root/'dist/shared/domain.js').read_text(encoding='utf-8')
-    domain=re.sub(r'^export ', '', domain, flags=re.M)
+    domain=re.sub(r'^import .*?;\n|^export ', '', domain, flags=re.M)
+    content=re.sub(r'^import .*?;\n|^export ', '', (root/'dist/shared/content.js').read_text(encoding='utf-8'), flags=re.M)
     frontend=(root/'dist/activity/src/main.js').read_text(encoding='utf-8')
     frontend=re.sub(r'^import .*?;\n','',frontend,flags=re.M)
     analytics=(root/'dist/shared/analytics.js').read_text(encoding='utf-8')
@@ -19,12 +20,15 @@ async def main():
     frontend=frontend.replace('await import(modulePath)','({ DiscordSDK: globalThis.__PreviewSDK })')
     frontend=frontend.replace("const first = links()", "const first = links()")
     mock='''(() => {const d=DATA;
+      const contentDefinition=CONTENT_PRESETS[0].definition;
+      d.rules.push({...d.rules[0],id:'00000000-0000-4000-8000-000000000099',name:'Synthetic content test',type:'content',referenceId:null,groupId:null,content:contentDefinition,threshold:.7,action:'timeout'});
       globalThis.__PreviewSDK=class{guildId=d.guild;async ready(){};commands={authorize:async()=>({code:'offline'}),authenticate:async()=>({})}};
       globalThis.fetch=async (input,options={})=>{const path=String(input).split('?')[0];
         const response=(value,status=200)=>new Response(JSON.stringify(value),{status,headers:{'Content-Type':'application/json'}});
         if(path==='/api/config')return response({clientId:'100000000000000099',preview:true});
         if(path==='/api/auth/start')return response({nonce:'offline'});
         if(path==='/api/auth/exchange')return response({sessionToken:'offline',accessToken:'offline',authority:d.authority});
+        if(path.endsWith('/00000000-0000-4000-8000-000000000099/test'))return response({probability:.9,predicted:true,ruleThreshold:.7,actionFloor:.9,effectiveThreshold:.9,thresholdApplies:true,meetsThreshold:true,inputTokens:120,hashComparisons:0,accounting:{attempts:1,estimatedCostMicros:null,partial:true},policyOutcome:{action:'timeout',reason:'monitoring_only'},matches:[{model:'jev-1.14.0',content:{definition:contentDefinition,status:'detected',readability:'readable',context:'solicitation',promotionProbability:.95,depictedProbability:.98,blockedReasons:[],promptVersion:'image-content-v1',signals:{credentials:.9}}}]});
         if(options.method&&options.method!=='GET')return response({error:'offline_preview_is_read_only'},403);
         const r=path.split('/').slice(4).join('/');
         if(r.startsWith('analytics/'))return response(previewCosts(r,new URL(String(input),'https://preview.invalid').searchParams));
@@ -43,7 +47,7 @@ async def main():
             page=await browser.new_page(viewport={'width':w,'height':h},device_scale_factor=1)
             page.on('pageerror',lambda e:errors.append(str(e)))
             await page.set_content('<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+(root/'activity/style.css').read_text(encoding='utf-8')+'</style></head><body><div id="app"></div></body></html>')
-            await page.add_script_tag(content=domain+'\n'+analytics+'\n'+mock+'\n'+frontend,type='module')
+            await page.add_script_tag(content=domain+'\n'+content+'\n'+analytics+'\n'+mock+'\n'+frontend,type='module')
             await page.get_by_role('button',name='Open read-only preview').click()
             await page.get_by_role('heading',name='Recent moderation events').wait_for()
             await page.screenshot(path=str(root/'evidence'/f'{prefix}preview-{label}.png'),full_page=True)
@@ -90,6 +94,18 @@ async def main():
             assert 'Match thresholds do not apply' in await dialog.inner_text()
             await dialog.get_by_label(re.compile(r'^When')).select_option('individual')
             assert not await threshold.is_disabled()
+            await dialog.get_by_label(re.compile(r'^When')).select_option('content')
+            assert await dialog.get_by_label(re.compile(r'^Matching mode')).is_disabled()
+            assert not await dialog.get_by_label('Yes/no question',exact=True).is_hidden()
+            await dialog.get_by_label('Find a preset',exact=True).fill('credential')
+            await dialog.get_by_label(re.compile(r'^Preset category')).select_option('phishing')
+            await dialog.get_by_role('button',name='Load selected template',exact=True).click()
+            assert 'authentication secrets' in await dialog.get_by_label('Yes/no question',exact=True).input_value()
+            await dialog.get_by_label(re.compile(r'^Context source')).select_option('posting_message')
+            await dialog.get_by_label('Positive criteria',exact=True).fill('Explicit request for passwords or recovery codes.')
+            assert not await dialog.get_by_label('Allow automatic enforcement after approval',exact=True).is_checked()
+            assert not await page.evaluate('document.documentElement.scrollWidth > window.innerWidth + 1')
+            findings.append({'viewport':label,'contentEditor':'preset search, editable criteria, explicit context, no reference and monitoring default passed'})
             await page.screenshot(path=str(root/'evidence'/f'{prefix}threshold-editor-{label}.png'),full_page=True)
             findings.append({'viewport':label,'thresholdControls':'defaults, presets, custom precision, override, validation, any-image passed'})
             await page.get_by_role('dialog').get_by_role('button',name='Close',exact=True).click()
@@ -99,6 +115,17 @@ async def main():
             assert await dialog.get_by_label(re.compile(r'^Threshold preset')).input_value()=='custom'
             await dialog.get_by_role('button',name='Close',exact=True).click()
             findings.append({'viewport':label,'existingCustomRule':'saved 0.82 preserved and displayed as Custom'})
+            await page.get_by_role('button',name='Test',exact=True).last.click()
+            dialog=page.get_by_role('dialog')
+            await dialog.get_by_label('Sample images',exact=True).set_input_files(str(root/'fixtures/reference.png'))
+            await dialog.get_by_role('button',name='Run tests',exact=True).click()
+            await dialog.get_by_text(re.compile(r'^Provider attempts: 1')).wait_for()
+            body=await dialog.inner_text()
+            assert 'Noul probability 0.9 / rule 0.7 / action floor 0.9 / effective 0.9 / meets threshold: true' in body
+            assert 'monitoring_only' in body and 'unavailable' in body and 'readable' in body
+            assert await dialog.locator('.content-sample').count()==1
+            await dialog.locator('.content-result').screenshot(path=str(root/'evidence'/f'{prefix}test-result-{label}.png'))
+            findings.append({'viewport':label,'contentResults':'synthetic typed result, inclusive threshold, readability, blocked enforcement, unknown cost, preview and label controls passed'})
             await page.close()
         await browser.close()
     result={'scope':'Offline compiled UI, synthetic SDK/fetch; no network or live Discord authentication','checks':findings,'pageErrors':errors,'passed':not errors and all(not c.get('horizontalOverflow') and not c.get('errors') for c in findings)}

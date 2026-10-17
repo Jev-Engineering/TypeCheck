@@ -63,3 +63,8 @@ Whole-guild removal has a MySQL-specific operational constraint: InnoDB checks `
 ## Hash matching boundary
 
 Only server-derived compatible normalization hashes qualify. Eligibility and guild checks run before comparison; metadata edits cannot introduce a client-controlled hash version. Match evidence contains reference identity/revision and policy binding, not content digests. Access to reference metadata and events keeps the existing capabilities. Hash hits do not read credentials or enter provider usage ledgers. Partial failures retain evidence but cannot dispatch punishment. All approval, calibration, severe-action verification, protection, permission and deployment gates remain mandatory; unmet gates route exact evidence to review without a provider request. Legacy hashes are never automatically relabeled. Hash-only samples are not Jev calibration evidence.
+
+
+## Content-analysis boundary
+
+Posting context requires server/rule opt-in and is not retained in jobs or evaluation records. Evidence contains its digest, typed judgments and moderator policy. No extraction, URL visits or command execution is performed. Incomplete assessments cannot authorize punishment. See [privacy](CONTENT_ANALYSIS.md#context-and-privacy).

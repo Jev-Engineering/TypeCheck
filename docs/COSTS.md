@@ -42,3 +42,8 @@ Supported reporting covers the last 90 UTC calendar days, including today. Custo
 See [API.md](API.md) for range, breakdown and cursor formats. Analytics and CSV use `dashboard.view`; pricing mutations require an administrator, allowed Origin, revision and audit record. CSV exports one bounded page; use both returned cursor headers to continue. CSV formula prefixes are neutralized. The ledger contains no API keys, request bodies, image bytes, signed URLs, user IDs or message IDs.
 
 The evaluation CLI still runs without a database. Its `evaluation-results.json` includes per-attempt outcomes, reported usage, retry/verification metadata and a safe failure code even if a later comparison fails. Optional `JEV_EVAL_PRICING` is a JSON object in the same pricing format (including model, revision, currency, perMillion, effectiveAt and note). No rate is inferred from production configuration. It uses the same exact calculation and labels estimates. CLI output is written at normal completion or caught failure, not a crash-durable ledger. CLI runs are never imported into a guild dashboard. Live evaluation still requires explicit authorization and an evaluation key; automated tests use only synthetic responses.
+
+
+## Content-analysis costs
+
+Questions batch per selected rule. Each attempt, retry and verification is counted once with rule IDs and correlation provenance; no per-question tokens are invented. Unknown usage and unpriced estimates remain explicit. See [limits](CONTENT_ANALYSIS.md#resource-use-and-costs). Paid evaluations require explicit authorization.

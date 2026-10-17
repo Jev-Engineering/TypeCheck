@@ -1,4 +1,5 @@
 import { seedStarterReferences } from './starter-references.js';
+import { CONTENT_LIMITS, CONTENT_PRESETS, parseContent } from '../shared/content.js';
 import { analyticsQuery, parseRate } from '../shared/analytics.js';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -140,8 +141,8 @@ export function createHttp(services: Services, config: Config, root = process.cw
             if (route === 'analytics/attempts' || route === 'analytics/export') {
                 const page = await store.analytics.attempts(guild, query);
                 if (route === 'analytics/attempts') return { body: page };
-                const fields = ['id','correlationId','model','purpose','mode','verification','retry','startedAt','completedAt','outcome','error','inputTokens','currency','estimatedCostMicros','pricingRevision'];
-                const lines = page.items.map(v => [v.id,v.correlationId,v.model,v.purpose,v.mode,v.verification,v.retry,v.startedAt,v.completedAt,v.outcome,v.error,v.inputTokens ?? 'Usage unknown',v.rate?.currency ?? 'Rate not configured',v.costMicros ?? 'Partial estimate: unavailable',v.rate?.revision ?? '']);
+                const fields = ['id','correlationId','model','purpose','mode','verification','retry','startedAt','completedAt','outcome','error','inputTokens','currency','estimatedCostMicros','pricingRevision','analysisKind','ruleIds'];
+                const lines = page.items.map(v => [v.id,v.correlationId,v.model,v.purpose,v.mode,v.verification,v.retry,v.startedAt,v.completedAt,v.outcome,v.error,v.inputTokens ?? 'Usage unknown',v.rate?.currency ?? 'Rate not configured',v.costMicros ?? 'Partial estimate: unavailable',v.rate?.revision ?? '',v.analysisKind ?? 'reference',v.ruleIds?.join(';') ?? '']);
                 return { bytes: Buffer.from([fields,...lines].map(row=>row.map(csvCell).join(',')).join('\r\n')), type:'text/csv; charset=utf-8', headers:{'Content-Disposition':'attachment; filename="estimated-jev-usage-page.csv"', ...(page.next ? {'X-Next-Before':page.next.before,'X-Next-Before-Id':page.next.beforeId} : {})} };
             }
             if (route === 'analytics/summary') query.group = 'summary';
@@ -302,6 +303,7 @@ export function createHttp(services: Services, config: Config, root = process.cw
             await store.withGuild(guild, async (tx) => { assert(!(await tx.all<Rule>('rules', guild)).some(r => r.referenceId === id), 'image_used_by_rule', 409); await tx.remove('images', guild, id, revision); await services.audit(guild, a.userId, 'image.removed', id, {}, tx); });
             return { body: { ok: true } };
         }
+        if (route === 'content-presets' && method === 'GET') { requireCapability(a, 'rules.view'); return { body: CONTENT_PRESETS }; }
         if (route === 'rules' && method === 'GET') {
             requireCapability(a, 'rules.view');
             const rules = await store.all<Rule>('rules', guild), images = await store.all<ReferenceImage>('images', guild), settings = (await store.getSettings(guild)).value;
@@ -317,16 +319,23 @@ export function createHttp(services: Services, config: Config, root = process.cw
                 const old = creating ? null : await tx.get<Rule>('rules', guild, id);
                 assert(creating || old, 'rule_not_found', 404);
                 const next = parseRule(b.rule, old?.threshold);
+                if (next.type === 'content' && (creating || old?.type !== 'content')) next.automatic = false;
                 if (old)
                     assert(old.revision === number(b.revision, 1, 1e9, true), 'revision_conflict', 409);
                 if (creating)
                     assert((await tx.all('rules', guild)).length < 250, 'rule_limit');
                 rulePermissions(a, next, old ?? undefined);
+                if (next.type === 'content' && next.enabled) {
+                    const active = (await tx.all<Rule>('rules', guild)).filter(r => r.id !== id && r.type === 'content' && r.enabled);
+                    assert(active.length + 1 <= CONTENT_LIMITS.rules, 'content_active_rule_limit');
+                    assert([...active, next].reduce((n, r) => n + 5 + parseContent(r.content).supporting.length, 0) <= CONTENT_LIMITS.questions, 'content_question_limit');
+                }
                 if (next.referenceId)
                     assert(await tx.get('images', guild, next.referenceId), 'image_not_found', 404);
                 if (next.groupId)
                     assert(await tx.get('groups', guild, next.groupId), 'group_not_found', 404);
                 const record: Rule = { ...(old ?? baseRecord(guild, id)), ...next, revision: (old?.revision ?? 0) + 1, updatedAt: new Date().toISOString(), approval: null };
+                if (next.type !== 'content') delete record.content;
                 await tx.put('rules', record, old?.revision ?? 0);
                 await services.audit(guild, a.userId, creating ? 'rule.created' : 'rule.updated', id, { approvalInvalidated: true }, tx);
                 return { status: creating ? 201 : 200, body: record };
@@ -344,9 +353,10 @@ export function createHttp(services: Services, config: Config, root = process.cw
             if (p[5] === 'test' && method === 'POST') {
                 requireCapability(a, 'matching.test');
                 const b = await jsonBody(req);
-                onlyKeys(b, ['base64', 'expected']);
+                onlyKeys(b, ['base64', 'expected', 'context']);
+                assert(b.context === undefined || typeof b.context === 'string' && b.context.length <= 2000, 'content_context_over_limit');
                 const expected = b.expected === undefined ? undefined : bool(b.expected);
-                return { body: await services.testRule(guild, a.userId, id, await normalize(decodeImage(b.base64)), expected) };
+                return { body: await services.testRule(guild, a.userId, id, await normalize(decodeImage(b.base64)), expected, b.context as string | undefined) };
             }
             if (p[5] === 'calibration' && method === 'GET') {
                 requireCapability(a, 'matching.test');
@@ -447,7 +457,7 @@ export function createHttp(services: Services, config: Config, root = process.cw
             const html = await readFile(resolve(root, 'activity/index.html'), 'utf8');
             return { bytes: Buffer.from(html.replace(/(href|src)="\/(style\.css|activity\/src\/main\.js)"/g, `$1="/r/${version}/$2"`)), type: 'text/html; charset=utf-8' };
         }
-        const fixed: Record<string, string> = { '/style.css': 'activity/style.css', '/vendor/discord-sdk.js': 'dist/activity/vendor/discord-sdk.js', '/vendor/THIRD_PARTY_NOTICES.txt': 'dist/activity/vendor/THIRD_PARTY_NOTICES.txt', '/shared/analytics.js':'dist/shared/analytics.js','/shared/domain.js': 'dist/shared/domain.js' };
+        const fixed: Record<string, string> = { '/style.css': 'activity/style.css', '/vendor/discord-sdk.js': 'dist/activity/vendor/discord-sdk.js', '/vendor/THIRD_PARTY_NOTICES.txt': 'dist/activity/vendor/THIRD_PARTY_NOTICES.txt', '/shared/analytics.js':'dist/shared/analytics.js','/shared/content.js':'dist/shared/content.js','/shared/domain.js': 'dist/shared/domain.js' };
         const fonts: Record<string, string> = { '/fonts/schibsted-grotesk-400.woff2': 'activity/fonts/schibsted-grotesk-400.woff2', '/fonts/schibsted-grotesk-500.woff2': 'activity/fonts/schibsted-grotesk-500.woff2', '/fonts/vt323-400.woff2': 'activity/fonts/vt323-400.woff2', '/fonts/jetbrains-mono-400.woff2': 'activity/fonts/jetbrains-mono-400.woff2' };
         if (fonts[pathname]) {
             let bytes: Buffer;

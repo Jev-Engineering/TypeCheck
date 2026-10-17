@@ -96,3 +96,8 @@ Image create/replacement derives optional `hashVersion` server-side with `sha256
 Rule-test responses and evaluations include `hashComparisons`, distinct from reported provider tokens/attempts. Hash-only rule tests have `predicted: true`, `probability: null`; hash-only evaluations have `model: null`. Mixed evaluations retain each comparison's provenance. Failed evaluations may retain partial evidence and are never actionable. UI displays “Exact normalized-image match”, matched reference ID and decision reason in authorized event details. Review labels remain annotations, not execution commands. Consumers must handle nullable model/probability and must not price avoided calls.
 
 Exact-hash rule-test summaries set `thresholdApplies: false`, `effectiveThreshold: null`, and `meetsThreshold: null`. Configured rule/action values remain visible but are not a numerical verdict on deterministic evidence. Jev summaries retain the Standard/Strict/custom effective-threshold fields.
+
+
+## Content-analysis API
+
+Rule POST/PUT accepts type content, null reference/group IDs, compatibility mode exact and a versioned content definition. Creation forces automatic enforcement off; edits clear approval. GET /api/g/:guild/content-presets requires rules.view. Tests accept optional context (maximum 2,000 characters), used only with server and rule opt-in. Responses include content evidence, thresholds, policy outcome and partial/unknown costs. Settings accept contentMessageContext (missing-only default false). See [schema and decision mapping](CONTENT_ANALYSIS.md).

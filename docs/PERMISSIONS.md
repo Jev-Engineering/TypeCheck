@@ -24,3 +24,8 @@ A delegated permission manager cannot assign administrator-only capabilities, gr
 Suggested roles: observers receive dashboard.view, images.view, rules.view and logs.view; library editors additionally receive appropriate image capabilities; policy editors receive rule capabilities plus explicitly allowed action capabilities. Add matching.test only when API usage is acceptable. Every test consumes the same daily provider budget as operational comparisons.
 
 Role edits/revocations take effect on the next API authority check. Sessions are not authorization snapshots. In-flight provider/Discord operations may complete; pause enforcement before major policy changes.
+
+
+## Content-analysis permissions
+
+Content rules reuse rules.create, rules.edit, actions.change, matching.test, administrator approval and high-impact restrictions. Preset listing requires rules.view. Context opt-in uses existing Settings authorization. Preset/threshold edits do not grant enforcement. See [approvals](CONTENT_ANALYSIS.md#approvals-and-persistence).

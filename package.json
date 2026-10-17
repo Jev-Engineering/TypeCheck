@@ -18,7 +18,8 @@
     "evaluate": "node --env-file-if-exists=.env dist/server/evaluate-cli.js",
     "test:postgres": "node scripts/test-postgres.mjs",
     "test:compose": "node scripts/test-compose.mjs",
-    "test:mysql": "node scripts/test-mysql.mjs"
+    "test:mysql": "node scripts/test-mysql.mjs",
+    "evaluate:content": "node --env-file-if-exists=.env dist/server/content-evaluate-cli.js"
   },
   "dependencies": {
     "@discord/embedded-app-sdk": "^2.0.0",
