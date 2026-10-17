@@ -221,7 +221,7 @@ jobs:
           DEPLOYMENT_ID: ${{ steps.record.outputs.id }}
           VERIFY: ${{ steps.verify.outcome }}
           ROLLBACK: ${{ steps.rollback.outcome || 'not run' }}
-          BACKUP: ${{ steps.guard.outputs.migrate == 'true' && (steps.receipt.outputs.backup || 'unknown: migration receipt unavailable') || 'not required (no migration)' }}
+          BACKUP: "${{ steps.guard.outputs.migrate == 'true' && (steps.receipt.outputs.backup || 'unknown: migration receipt unavailable') || 'not required (no migration)' }}"
           GODADDY_DEPLOYMENT: ${{ steps.ship.outputs.godaddy_deployment }}
           RELEASE_SOURCE: ${{ steps.ship.outputs.release_source }}
           RELEASE_BRANCH: ${{ steps.ship.outputs.release_branch }}
