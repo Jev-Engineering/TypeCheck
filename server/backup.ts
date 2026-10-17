@@ -22,7 +22,7 @@ export async function backupMySql(pool: SqlPool, dir: string, label: string): Pr
     const takenAt = new Date().toISOString();
     let tables: string[] = [], rows = 0;
     try {
-        await c.query('SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ');
+        await c.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ'); // next transaction only; the pooled session is unchanged
         await c.query('START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY');
         tables = (await c.query("SELECT table_name AS name FROM information_schema.tables WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE' ORDER BY table_name")).rows.map(r => String(r.name));
         lines.push('-- TypeCheck database backup', `-- Taken: ${takenAt}`, `-- Label: ${label}`, `-- Tables: ${tables.length}`,
