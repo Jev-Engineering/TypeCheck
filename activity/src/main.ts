@@ -1,3 +1,4 @@
+import { timeoutPreset } from '../../shared/domain.js';
 import { CONTENT_PRESETS, CONTENT_VERSION, parseContent } from '../../shared/content.js';
 import { money, type AnalyticsReport, type Bucket, type Attempt, type Rate } from '../../shared/analytics.js';
 import { MATCH_THRESHOLDS, DEFAULT_RULE_THRESHOLD, matchThreshold, parseRule, parseSettings, effectiveThreshold, type Action, ACTIONS, MODES, RULE_TYPES, CAPABILITIES, ADMIN_ONLY, DEFAULT_SETTINGS, type Authority, type Capability, type Group, type ReferenceImage, type Rule, type Settings, type RoleGrant, type ModerationEvent, type Calibration } from '../../shared/domain.js';
@@ -346,8 +347,9 @@ async function editRule(old?: Rule) {
     const timeout = input(String(old?.timeoutSeconds ?? 600), 'number');
     timeout.min = '1';
     timeout.max = '2419200';
-    const presets = select([['60', '1 minute'], ['300', '5 minutes'], ['600', '10 minutes'], ['3600', '1 hour'], ['86400', '1 day'], ['604800', '7 days'], ['2419200', '28 days']], String(old?.timeoutSeconds ?? 600));
-    presets.onchange = () => { timeout.value = presets.value; };
+    const presets = select([['custom', 'Custom'], ['60', '1 minute'], ['300', '5 minutes'], ['600', '10 minutes'], ['3600', '1 hour'], ['86400', '1 day'], ['604800', '7 days'], ['2419200', '28 days']], timeoutPreset(Number(timeout.value)));
+    presets.onchange = () => { if (presets.value !== 'custom') timeout.value = presets.value; };
+    timeout.oninput = () => { presets.value = timeoutPreset(Number(timeout.value)); };
     const priority = input(String(old?.priority ?? 0), 'number'), reason = input(old?.reason ?? 'Posted an image prohibited by this server’s image policy');
     const enabled = check('Rule enabled', old?.enabled ?? true), automatic = check('Allow automatic enforcement after approval', old?.automatic ?? false), deletion = check('Also delete the message', old?.deleteMessage ?? false), verification = check('Require a second Jev check', old?.secondVerification ?? false, 'Always required for kick and ban. The checks can share correlated errors.');
     const refField = field('Reference image', ref), groupField = field('Image group', group), timeoutField = field('Timeout duration, seconds', timeout);
