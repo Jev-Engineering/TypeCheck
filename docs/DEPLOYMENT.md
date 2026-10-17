@@ -149,6 +149,8 @@ That is a separate, user-approved change.
 
 ## Repository release artifacts
 
+For a source-hash mismatch, the **Inspect hosting source** workflow performs only GET requests for an existing import ID. It reports source configuration and import provenance directly from the official API, without changing source or publishing. Its allowlisted output excludes secrets and application logs. The release job also records the completed import's provenance before comparing hashes.
+
 The provider's documented import schema accepts `repositoryFullName` and `branch`, not a commit SHA. A unique branch prevents a later main push from changing the selected source. Release branches are never force-updated or automatically deleted; retain them and the workflow outputs for audit. A collision fails closed. Re-running a workflow uses a new run attempt and therefore a fresh branch. A rollback creates the same kind of artifact from the guarded previous candidate with `migrate: false`, and keeps the same hash checks.
 
 Release metadata remains separate from application changes, equivalent to the former archive overlay. GitHub's expected-head mutation and signed commit are verified before contacting the provider. Provider writes are not blindly retried; import/deployment polling uses their returned IDs. An ambiguous write failure requires reconciliation before another attempt.

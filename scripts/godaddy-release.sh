@@ -37,6 +37,7 @@ ship() {
     import_id="$(gddy hosting source github --app-id "$APP_ID" --repo "$GITHUB_REPOSITORY" --branch "$branch" --output json | jq -er '.data.importId')"
     echo "import_id=$import_id" | tee -a "${GITHUB_OUTPUT:-/dev/null}"
     imported="$(poll gddy hosting source status --app-id "$APP_ID" --import-id "$import_id")"
+    jq -c '.data | {importId,importType,status,gitHash,fields:keys}' <<<"$imported"
     [[ "$(jq -er '.data.gitHash' <<<"$imported")" == "$oid" ]] || { echo '::error::imported source does not match release commit'; return 1; }
     [[ "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$branch" --jq '.object.sha')" == "$oid" ]] || { echo '::error::release branch changed during import'; return 1; }
     echo "publish_started=true" >> "${GITHUB_OUTPUT:-/dev/null}"
