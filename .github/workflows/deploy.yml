@@ -174,9 +174,9 @@ jobs:
           EXPECTED_STORAGE: ${{ steps.live.outputs.storage }}
         run: scripts/godaddy-release.sh verify
 
-      - name: Confirm the pre-migration backup
+      - name: Retrieve the migration or schema-check receipt
         id: receipt
-        if: steps.noop.outputs.skip != 'true' && steps.guard.outputs.migrate == 'true'
+        if: steps.noop.outputs.skip != 'true'
         # Evidence only: readiness does not prove that a backup was made. Missing receipts
         # remain explicitly unknown; startup still enforces backup before pending migrations.
         continue-on-error: true
@@ -221,7 +221,7 @@ jobs:
           DEPLOYMENT_ID: ${{ steps.record.outputs.id }}
           VERIFY: ${{ steps.verify.outcome }}
           ROLLBACK: ${{ steps.rollback.outcome || 'not run' }}
-          BACKUP: "${{ steps.guard.outputs.migrate == 'true' && (steps.receipt.outputs.backup || 'unknown: migration receipt unavailable') || 'not required (no migration)' }}"
+          BACKUP: "${{ steps.receipt.outputs.backup || (steps.guard.outputs.migrate == 'true' && 'unknown: migration receipt unavailable' || 'not requested; startup schema receipt unavailable') }}"
           GODADDY_DEPLOYMENT: ${{ steps.ship.outputs.godaddy_deployment }}
           RELEASE_SOURCE: ${{ steps.ship.outputs.release_source }}
           RELEASE_BRANCH: ${{ steps.ship.outputs.release_branch }}

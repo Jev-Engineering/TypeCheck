@@ -10,7 +10,7 @@ import { Services } from './services.js';
 import { Worker } from './worker.js';
 import { createHttp } from './http.js';
 import { loadRelease } from './release.js';
-import { backupMySql, BACKUP_SUBDIR } from './backup.js';
+import { backupMySql, BACKUP_SUBDIR, type BackupReceipt } from './backup.js';
 import { resolve } from 'node:path';
 import { type ReferenceImage } from '../shared/domain.js';
 const report = (code: string) => console.error(JSON.stringify({ event: 'operational_error', code }));
@@ -22,13 +22,16 @@ async function main() {
     // Production database credentials exist only inside the GoDaddy runtime, so admitted
     // migrations run here, once, under the migrator's named lock. A release-admitted migration
     // first writes a full backup to persistent storage; if that fails, nothing is migrated.
+    let migration: { applied: string[]; before?: BackupReceipt } | undefined;
     if (config.migrateOnStart || release?.migrate) {
         const backup = release?.migrate ? () => backupMySql(pool, resolve(config.objectDir, BACKUP_SUBDIR), 'pre-migration') : undefined;
-        const result = await migrateDatabase(pool, kind, backup);
-        // A plain-text envelope survives hosting log processors that collapse JSON to its event name.
-        console.log('TYPECHECK_MIGRATION_RECEIPT_V1 ' + JSON.stringify({ event: 'database_migration', release: release?.commit ?? null, applied: result.applied, backup: result.before ?? null }));
+        migration = await migrateDatabase(pool, kind, backup);
     }
     await assertMigrated(pool, kind);
+    // A successful read-only schema check is useful evidence even when no migration was requested.
+    // The envelope survives hosting processors that collapse JSON to its event name.
+    console.log('TYPECHECK_MIGRATION_RECEIPT_V1 ' + JSON.stringify({ event: 'database_migration', release: release?.commit ?? null,
+        mode: migration ? 'migration' : 'schema_check', applied: migration?.applied ?? [], backup: migration?.before ?? null }));
     const discord = new DiscordRest(config.botToken, config.clientId, config.clientSecret);
     await discord.initialize();
     const objects = new ObjectStore(config.objectDir);

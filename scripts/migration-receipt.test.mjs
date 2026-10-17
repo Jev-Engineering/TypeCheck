@@ -25,6 +25,16 @@ test('already-current status requires both variants; partial, unrelated and miss
     assert.throws(() => extractReceipts({}, candidate, 'PUBLISH'));
 });
 
+test('read-only schema checks report current schema without claiming a migration or backup', () => {
+    const checked = { ...receipt, mode: 'schema_check' };
+    const records = [...extract(checked), ...extract(checked, 'PUBLISH')];
+    assert.equal(records[0].mode, 'schema_check');
+    assert.match(summarizeReceipts(records), /no backup reported by those starts/);
+    assert.throws(() => extract({ ...checked, applied: ['002'], backup }));
+    assert.throws(() => extract({ ...checked, backup }));
+    assert.throws(() => extract({ ...checked, mode: 'unknown' }));
+});
+
 test('malformed or unsafe receipts never confirm backups or disclose raw content', () => {
     for (const patch of [{ applied: null }, { applied: ['002', '002'] }, { applied: ['002'] }, { backup: undefined }, { backup: {} },
         { backup: { ...backup, file: '../private.sql' } }, { backup: { ...backup, rows: -1 } },

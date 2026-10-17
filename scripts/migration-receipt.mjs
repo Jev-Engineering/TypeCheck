@@ -14,6 +14,8 @@ export function extractReceipts(response, candidate, variant) {
         try { r = JSON.parse(framed ? message.slice(prefix.length) : message); }
         catch { if (framed) fail(); else continue; }
         if (r?.event !== 'database_migration' || r.release !== candidate) continue;
+        const mode = r.mode === undefined ? 'migration' : r.mode; // Legacy receipts were emitted only by migration attempts.
+        if (!['migration', 'schema_check'].includes(mode)) fail();
         if (!Array.isArray(r.applied) || r.applied.length > 100 || !r.applied.every(v => typeof v === 'string' && /^\d{3}$/.test(v)) || new Set(r.applied).size !== r.applied.length) fail();
         let backup = null;
         if (r.backup !== null) {
@@ -25,8 +27,9 @@ export function extractReceipts(response, candidate, variant) {
             backup = { file: b.file, sha256: b.sha256, tables: b.tables, rows: b.rows, takenAt: b.takenAt };
         }
         if (r.applied.length && !backup) fail();
+        if (mode === 'schema_check' && (r.applied.length || backup)) fail();
         // Only operational metadata is allowed through; never print raw log records.
-        found.push({ release: candidate, applied: r.applied, backup, variant });
+        found.push({ release: candidate, mode, applied: r.applied, backup, variant });
     }
     return found;
 }
