@@ -26,6 +26,33 @@ exit "$VERIFY_CODE"
     }
 });
 
+test('a rejected PREVIEW restart is retried and never skips re-verification', { skip: process.platform === 'win32' }, t => {
+    const dir = mkdtempSync(join(tmpdir(), 'restart-'));
+    t.after(() => rmSync(dir, { recursive: true, force: true }));
+    writeFileSync(join(dir, 'node'), `#!/usr/bin/env bash
+n=$(cat "$COUNT"); echo $((n+1)) > "$COUNT"
+if [[ "$n" -ge "$SUCCEED_AFTER" ]]; then exit 0; fi
+exit 3
+`, { mode: 0o755 });
+    writeFileSync(join(dir, 'sleep'), '#!/usr/bin/env bash\necho "$1" >> "$SLEEPS"\n', { mode: 0o755 });
+    writeFileSync(join(dir, 'gddy'), `#!/usr/bin/env bash
+echo "$*" >> "$CALLS"
+n=$(wc -l < "$CALLS")
+if [[ "$n" -le "$FAIL_RESTARTS" ]]; then echo '{"error":{"code":"NOT_FOUND","message":"HTTP error 404: App not found or failed to restart"}}'; exit 4; fi
+`, { mode: 0o755 });
+    const calls = join(dir, 'calls'), count = join(dir, 'count'), sleeps = join(dir, 'sleeps');
+    // [failed restarts, verification succeeds after, success, restart calls, backoff sleeps]
+    for (const [fail, after, success, restarts, backoff] of [[2, 1, true, 3, '15,30'], [4, 1, true, 4, '15,30,45'], [8, 9, false, 8, '15,30,45,15,30,45']]) {
+        writeFileSync(calls, ''); writeFileSync(count, '0'); writeFileSync(sleeps, '');
+        const r = spawnSync('bash', [resolve('scripts/godaddy-release.sh'), 'verify'], { encoding: 'utf8', timeout: 5000,
+            env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, APP_ID: 'NODEJS-test', CALLS: calls, COUNT: count, SLEEPS: sleeps, FAIL_RESTARTS: String(fail), SUCCEED_AFTER: String(after) } });
+        assert.equal(r.status === 0, success, r.stdout + r.stderr);
+        assert.equal(readFileSync(calls, 'utf8').trim().split('\n').length, restarts);
+        assert.equal(readFileSync(sleeps, 'utf8').trim().split('\n').join(','), backoff);
+        assert.match(r.stdout, /PREVIEW restart attempt 1 failed: .*failed to restart/);
+    }
+});
+
 test('receipt retrieval is bounded and writes only validated evidence to workflow outputs', { skip: process.platform === 'win32' }, t => {
     const dir = mkdtempSync(join(tmpdir(), 'receipt-'));
     t.after(() => rmSync(dir, { recursive: true, force: true }));
