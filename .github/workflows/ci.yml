@@ -80,6 +80,7 @@ jobs:
       - run: npm run check
       - run: npm run build
       - run: npm test
+      - run: node scripts/validate-text-dataset.mjs
       - run: node --test scripts/release-guard.test.mjs scripts/release-source.test.mjs scripts/migration-receipt.test.mjs scripts/hosting-handoff.test.mjs
       - run: node dist/server/migrate.js
         env:

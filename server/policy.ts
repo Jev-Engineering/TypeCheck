@@ -11,7 +11,7 @@ export function referencesFor(rule: Rule, images: ReferenceImage[]): ReferenceIm
 }
 export function fingerprint(rule: Rule, images: ReferenceImage[], settings: Settings): string {
     const { approval, revision, createdAt, updatedAt, ...policy } = rule;
-    const payload = { ...(rule.type === 'text' ? { textVersion: TEXT_VERSION, modality: 'text', textEnabled: settings.textModerationEnabled===true } : {}), ...(rule.type === 'content' ? { contentVersion: CONTENT_VERSION, contextPolicy: settings.contentMessageContext === true } : {}), policy, hashScheme: NORMALIZATION_HASH_VERSION, model: settings.model, prompt: PROMPT_VERSION, thresholds: settings.thresholds,
+    const payload = { ...(rule.type === 'text' ? { textVersion: TEXT_VERSION, modality: 'text', textEnabled: settings.textModerationEnabled===true } : {}), ...(rule.type === 'content' ? { contentVersion: CONTENT_VERSION, contextPolicy: settings.contentMessageContext === true } : {}), policy, hashScheme: rule.type === 'text' ? 'utf8-exact-v1' : NORMALIZATION_HASH_VERSION, model: settings.model, prompt: rule.type === 'text' ? TEXT_VERSION : PROMPT_VERSION, thresholds: settings.thresholds,
         refs: referencesFor(rule, images).map(i => [i.id, i.sha256, i.revision, i.hashVersion ?? null, i.objectKey]).sort((a, b) => String(a[0]).localeCompare(String(b[0]))) };
     return createHash('sha256').update(JSON.stringify(['content','text'].includes(rule.type) ? canonical(payload) : payload)).digest('hex');
 }

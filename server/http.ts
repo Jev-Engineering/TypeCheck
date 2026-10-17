@@ -380,6 +380,8 @@ export function createHttp(services: Services, config: Config, root = process.cw
                 const expected = b.expected === undefined ? undefined : bool(b.expected);
                 const testRule=await store.get<Rule>('rules',guild,id);
                 assert(testRule,'rule_not_found',404);
+                if(testRule.type==='text') { assert(b.context===undefined,'text_has_no_external_context'); assert(b.base64===undefined && b.imageIds===undefined,'text_rule_requires_text_sample'); }
+                if(b.text!==undefined) assert(testRule.type==='text','text_sample_requires_text_rule');
                 if(b.text!==undefined) { assert(typeof b.text==='string','invalid_text_sample'); return {body:await services.testTextRule(guild,a.userId,id,b.text,expected)}; }
                 if (b.messageUrl !== undefined) {
                     assert(typeof b.messageUrl === 'string', 'invalid_message_url');

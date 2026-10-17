@@ -60,7 +60,7 @@ test('native request is JSON text with trusted policy separate from injected com
 });
 test('empty, unavailable and oversize text abstain without provider calls or sanctions', async (t) => { const f = await setup(t); for (const content of [undefined, '', '   ', 'x'.repeat(4001)]) {
     const r = await f.services.evaluateText(G, content, [f.r], [], (await f.store.getSettings(G)).value);
-    assert.equal(r.matches[0]!.text!.status, 'insufficient_evidence');
+    assert.equal(r.matches[0]!.text!.status, 'insufficient_evidence'); assert.equal(r.matches[0]!.probability, null);
     assert.equal(resolvePolicy([f.r], r.matches, (await f.store.getSettings(G)).value, [])?.execute, false);
 } assert.equal(f.control.calls, 0); });
 test('text-only ingestion persists a digest without raw text and evaluates once across duplicate deliveries', async (t) => { const f = await setup(t); await f.worker.ingest(f.m); await f.worker.ingest(f.m); const j = await f.store.claim(); assert.ok(j); assert.equal(j.message.content, undefined); assert.equal(j.message.textDigest, textDigest(f.m.content)); assert.ok(!JSON.stringify(j).includes(f.m.content!)); await f.worker.process(j.message); await new Worker(f.services, async () => normalize(PNG)).process(j.message); assert.equal(f.control.calls, 1); assert.equal(f.discord.performed.length, 1); assert.equal(f.discord.performed[0]!.message.content, undefined); assert.equal(await f.store.claim(), null); const durable = JSON.stringify([await f.store.all('evaluations', G), await f.store.all('events', G), await f.store.all('audit', G), f.discord.notifications]); assert.ok(!durable.includes(f.m.content!)); });
