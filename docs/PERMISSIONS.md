@@ -35,6 +35,10 @@ Content rules reuse rules.create, rules.edit, actions.change, matching.test, adm
 
 Native text creation/editing and starter installation require administrator. Preview uses rules.view. Tests reuse matching.test, current membership and same-channel read checks for links. Approval and server text switch remain administrator operations. Global enforcement, deployment acceptance, exemptions, bot/webhook opt-ins and high-impact safeguards apply. Text tests never moderate. See [API](API.md).
 
+## Agent setup boundaries
+
+Agent setup and standalone sign-in require live Discord owner/administrator authority. Delegated rule editing alone is insufficient. Ordinary manual pages retain their capability checks. Server checks apply on every request; tools also recheck authority and invalidate on observed permission/session/guild changes. Presets grant no permissions, install no sanctions and approve no rules. Review needs readable monitored channels and a log destination with bot View Channel/Send Messages; message-link testing additionally needs Read Message History. Administrators must verify actual bot/channel permissions in Discord. Pause cannot resume. See [browser onboarding](AGENT_ONBOARDING.md).
+
 ## Pack administration
 
 Only current Discord owners/administrators can export, preview or apply packs, including bundled starters and standalone prompt edits. Delegated rule/image capabilities do not confer pack administration. Complete policy grants are opt-in and require destination role mapping; administrator-only capabilities are rejected. Existing conflicting grants require reconciliation through Permissions rather than silent import overwrite. Channel mappings require current member/bot read access, and log-channel mapping checks send permission. Importing a rule removes source approval and disables it; ordinary destination review, approval, action-specific permissions/hierarchy and enforcement gates remain mandatory. [Pack workflow](MODERATION_PACKS.md).

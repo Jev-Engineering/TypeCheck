@@ -38,7 +38,7 @@ export interface DiscordChannel {
 export interface DiscordAdapter {
     readonly online: boolean;
     readonly botId: string;
-    exchange(code: string): Promise<{
+    exchange(code: string, redirectUri?: string): Promise<{
         accessToken: string;
         userId: string;
     }>;
@@ -168,9 +168,9 @@ export class DiscordRest implements DiscordAdapter {
         return result;
     }
     async initialize() { const me = await this.request('/users/@me'); assert(snowflake(me.id), 'discord_identity_invalid'); this.botId = me.id; }
-    async exchange(code: string) {
+    async exchange(code: string, redirectUri?: string) {
         assert(typeof code === 'string' && code.length >= 1 && code.length <= 2048, 'invalid_oauth_code');
-        const result = await this.json('https://discord.com/api/oauth2/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ client_id: this.clientId, client_secret: this.clientSecret, grant_type: 'authorization_code', code }) });
+        const result = await this.json('https://discord.com/api/oauth2/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ client_id: this.clientId, client_secret: this.clientSecret, grant_type: 'authorization_code', code, ...(redirectUri ? { redirect_uri: redirectUri } : {}) }) });
         assert(typeof result?.access_token === 'string', 'oauth_exchange_failed', 401);
         const me = await this.json(API + '/users/@me', { headers: { Authorization: `Bearer ${result.access_token}` } });
         assert(snowflake(me?.id), 'oauth_identity_invalid', 401);

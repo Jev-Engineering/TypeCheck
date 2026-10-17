@@ -1,0 +1,1 @@
+MySQL onboarding: canonical JSON plans, binding, explicit acceptance, rollback, concurrent apply, persisted receipts, tombstones, stale rejection and isolation passed.

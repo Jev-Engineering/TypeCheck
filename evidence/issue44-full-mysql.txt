@@ -1,0 +1,6 @@
+npm notice run typecheck@0.1.0 test:mysql
+npm notice run node scripts/test-mysql.mjs
+MySQL version: 8.0.46
+PASS native text JSON persistence, concurrent starter installation, deletion, digest edit deduplication and rollback
+mysql: threshold defaults, legacy/custom persistence and missing-only fallback passed
+MySQL integration passed: 104 assertions; migration retry/concurrency, tenant constraints, revisions, UTC, expiry, quota/claim/nonce concurrency, two-pool election, lock loss, leader-only reset, retention and durable no-replay.

@@ -93,6 +93,7 @@ export async function exportPack(services: Services, guild: string, selection: P
         const policy: Partial<Settings> = settings;
         // Seed markers describe local history, not portable policy.
         delete policy.textStartersInstalled;
+        delete policy.onboardingStarters;
         for (const field of ['channels', 'excludedChannels', 'exemptRoles'] as const)
             policy[field] = settings[field].map(id => binding(id, field === 'exemptRoles' ? 'role' : 'channel', field));
         policy.logChannel = settings.logChannel ? binding(settings.logChannel, 'channel', 'logChannel') : null;
@@ -251,7 +252,7 @@ export async function validatePack(input: unknown): Promise<{
             bindings.set(b.id, b.kind as string);
         }
         const s = object(policy.settings), mapped = { ...s };
-        assert(!('textStartersInstalled' in s), 'starter_marker_not_portable');
+        assert(!('textStartersInstalled' in s) && !('onboardingStarters' in s), 'starter_marker_not_portable');
         for (const k of ['channels', 'excludedChannels', 'exemptRoles']) {
             assert(Array.isArray(s[k]) && s[k].length <= 250 && s[k].every((id: any) => bindings.get(id) === (k === 'exemptRoles' ? 'role' : 'channel')), 'invalid_policy_binding');
             mapped[k] = [];
@@ -317,7 +318,8 @@ export class Packs {
             // Adopt existing first-login assets by normalized digest, preserving edits/group assignment.
             if (!existing && c.kind === 'images')
                 existing = (snap.records.images as unknown as ReferenceImage[]).find(r => r.sha256 === c.value.normalizedDigest) as unknown as Saved;
-            const deleted = !existing && (prior || seedId || legacySeed && c.kind === 'images');
+            const onboardingDeleted = pack.id === 'combined-scam-setup' && c.id === 'reference-rule' && snap.settings.value.onboardingStarters?.includes('image_scams');
+            const deleted = !existing && (prior || seedId || legacySeed && c.kind === 'images' || onboardingDeleted);
             const baseline = origin?.packOrigin?.baseline ?? (existing && receipt?.baselines?.[existing.id]);
             const edited = existing && baseline && packHash(policyValue(existing)) !== baseline;
             const original = structuredClone(c);
@@ -426,6 +428,7 @@ export class Packs {
                     s.enforcement = false;
                     s.highImpactEnabled = false;
                     s.textStartersInstalled = plan.snap.settings.value.textStartersInstalled;
+                    s.onboardingStarters = plan.snap.settings.value.onboardingStarters;
                     await tx.putSettings(guild, parseSettings(s, plan.snap.settings.value), plan.snap.settings.revision);
                     for (const g of pack.policy.grants) {
                         const existing = (plan.snap.records.grants as RoleGrant[]).find(r => r.roleId === map[g.role]);

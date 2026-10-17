@@ -64,3 +64,7 @@ See [issue39 validation](../evidence/issue39-validation.md). Separately authoriz
 ## Moderation packs acceptance
 
 The local implementation and evidence boundaries are recorded in [PACK_VALIDATION.md](PACK_VALIDATION.md). The feature covers component/complete exports, dependency closure, bounded validation, previews/conflicts/mapping, atomic imports, deletion/repeat/upgrade behavior, source-approval invalidation and four editable starters. Imported claims remain untrusted historical evidence; software tests and owner-reviewed images do not establish model accuracy or live acceptance. Offline desktop/mobile screenshots exercise real UI/HTTP handlers with temporary state and faked Discord/model transports. Real Discord permission/proxy acceptance and representative model accuracy remain unperformed. No production deployment is included.
+
+## Agent onboarding evidence
+
+The standalone Chrome 155 browser flow passed real Discord OAuth and live administrator checks, native tool discovery, exact-plan acceptance/application in isolated local SQL, receipt recovery and logout. The actual Discord web Activity iframe denied the tools policy and rejected a constant-only registration probe; use the standalone dashboard. See [scope and remaining gates](../evidence/issue44-validation.md). No second-account live permission-revocation, real provider accuracy or production/deployment acceptance is asserted.

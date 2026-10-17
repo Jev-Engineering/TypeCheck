@@ -1043,6 +1043,10 @@ See [Historical scans](HISTORICAL_SCANS.md) for administrator scope selection,
 review-only results, permissions, fixed cutoffs, shared quotas, recovery,
 coverage exclusions, migration 003, privacy and validation instructions.
 
+## Browser-assisted onboarding
+
+Administrators can independently authenticate to the browser dashboard or connect to the Activity, inspect structured tools where supported, preview four reusable starter compositions, customize/review an exact revision-bound plan, explicitly accept it and apply it with a receipt. New rules are disabled/review-only; enforcement activation retains existing separate gates. Unsupported browsers use the same manual planner. [The guide](AGENT_ONBOARDING.md) describes scope, browser support and the observed Discord iframe policy block, verified standalone OAuth and remaining provider/other-client gates.
+
 ## Reusable moderation packs (implemented scope, migration 004)
 
 Administrators can export individual reference images, image groups, standalone image-analysis prompts, individual rules with automatic dependency closure, selected combinations and complete portable moderation policy. The Activity supports file upload, bounded validation, dry-run previews, explicit keep/replace conflicts, destination mappings, atomic application and audit receipts. Unrelated and locally edited records are preserved by default. Repeat imports, upgrades and deletion restoration follow the identity/baseline rules in [MODERATION_PACKS.md](MODERATION_PACKS.md).

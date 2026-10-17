@@ -1,0 +1,1 @@
+postgres: pack persistence, second-connection readback, complete round trip, mapped settings, repeat import, local edits, rollback, isolation and concurrent-preview race passed

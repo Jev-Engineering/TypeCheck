@@ -1,0 +1,24 @@
+﹣ handoff is bounded, requires a leader and does not retry unrelated verification failures (0.4047ms) # SKIP
+﹣ receipt retrieval is bounded and writes only validated evidence to workflow outputs (0.0678ms) # SKIP
+✔ framed, platform-prefixed and legacy JSON receipts preserve only allowed metadata (0.9097ms)
+✔ already-current status requires both variants; partial, unrelated and missing evidence stays unknown (1.0136ms)
+✔ read-only schema checks report current schema without claiming a migration or backup (0.2088ms)
+✔ malformed or unsafe receipts never confirm backups or disclose raw content (0.3948ms)
+✔ shipped migration 002 is expand-only for both databases (4.0049ms)
+✔ destructive or in-place schema changes are not expand-only (0.2253ms)
+✔ editing or deleting a shipped migration is incompatible (0.1439ms)
+✔ ordering: forward deploys proceed, older commits need an explicit compatible rollback (0.1198ms)
+✔ release names isolate attempts, candidates and migration vs rollback metadata (1.628ms)
+✔ signed release artifact contains exactly the approved source and bound metadata (7.4461ms)
+✔ fresh ref and atomic expected-head mutation precede source verification (0.316ms)
+✔ collisions, concurrent branch changes and failed commit creation abort without overwriting refs (0.3163ms)
+✔ null provider hashes require exact operation, repository, branch and verified head binding (0.5818ms)
+﹣ ship uses GitHub imports and prevents publication on failed or mismatched source (0.0516ms) # SKIP
+ℹ tests 16
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 3
+ℹ todo 0
+ℹ duration_ms 96.4121

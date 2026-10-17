@@ -1,0 +1,54 @@
+{
+  "provenance": "Original MIT repository diagram and compiled UI captures; synthetic adapters only, not live Discord/provider evidence",
+  "generator": [
+    "scripts/onboarding-browser.py",
+    "scripts/onboarding-browser-server.mjs"
+  ],
+  "assets": [
+    {
+      "file": "evidence/issue44-fallback-desktop.png",
+      "sha256": "6847222c8ae95e3ed6e6bad6defed0520c4a1c5f82dd827884dc80ade98af34a",
+      "bytes": 126382
+    },
+    {
+      "file": "evidence/issue44-fallback-mobile.png",
+      "sha256": "19cd4bececfa18fa31d28b67749c3f3328105c0cb256a64a0b7996d4cf524461",
+      "bytes": 108728
+    },
+    {
+      "file": "evidence/issue44-plan-desktop.png",
+      "sha256": "a27d159007d4e1161aeb76c7e8a4988f4901f9996138f5774ffed98649d220a2",
+      "bytes": 235015
+    },
+    {
+      "file": "evidence/issue44-plan-mobile.png",
+      "sha256": "2a56f5c2037f8e661765b3109bae9ab406b0b061309704f3e252c112bb8a47df",
+      "bytes": 203217
+    },
+    {
+      "file": "evidence/issue44-result-desktop.png",
+      "sha256": "f5a79a16d1c1e62675dec616050fb65e74a1dabed68f2c9a3a905668727ddb1a",
+      "bytes": 256220
+    },
+    {
+      "file": "evidence/issue44-result-mobile.png",
+      "sha256": "8562f3873289bfa2509b0417530d1bb4cafed4367341f5841220fcdf967edce8",
+      "bytes": 217698
+    },
+    {
+      "file": "evidence/issue44-starters-desktop.png",
+      "sha256": "a5d514e964d1a05ab6fb488857683ed24329e5441733a44b76fe8f20220931f0",
+      "bytes": 131499
+    },
+    {
+      "file": "evidence/issue44-starters-mobile.png",
+      "sha256": "374c05169cd0535af6fecc85e28ebe8daef75bebd767a677a584a39121889fa3",
+      "bytes": 113070
+    },
+    {
+      "file": "docs/assets/agent-onboarding.svg",
+      "sha256": "90fc907d4041df13b360c62b3aed7b2af974e10730d545652a5dffb32b770bf5",
+      "bytes": 2321
+    }
+  ]
+}

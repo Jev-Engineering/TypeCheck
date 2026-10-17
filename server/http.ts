@@ -1,3 +1,5 @@
+import { Onboarding } from './onboarding.js';
+import { ONBOARDING_PRESETS, ONBOARDING_NOTICE } from '../shared/onboarding.js';
 import { Packs, exportPack } from './packs.js';
 import { starterPack, STARTER_PACKS } from './pack-starters.js';
 import { PACK_LIMITS } from '../shared/packs.js';
@@ -67,6 +69,7 @@ function rulePermissions(a: Authority, next: RuleInput, old?: Rule) {
 export interface Deployment { release: Release | null; storage: string | null }
 export function createHttp(services: Services, config: Config, root = process.cwd(), readiness?: () => Promise<boolean>, controllerState?: () => string, deployment?: Deployment) {
     const { store, discord } = services;
+    const onboarding = new Onboarding(services);
     const limits = new Map<string, {
         at: number;
         count: number;
@@ -83,7 +86,7 @@ export function createHttp(services: Services, config: Config, root = process.cw
         const method = req.method ?? 'GET';
         const p = url.pathname.split('/').filter(Boolean);
         if (url.pathname === '/api/config' && method === 'GET')
-            return { body: { clientId: config.clientId, version: '0.1.0', experimental: true } };
+            return { body: { clientId: config.clientId, dashboardUrl: config.publicOrigin + '/setup', version: '0.1.0', experimental: true } };
         if (url.pathname === '/api/health' && method === 'GET')
             return { body: { status: controllerState?.() ?? 'running', ...(deployment ? { release: deployment.release?.commit ?? null, storage: deployment.storage } : {}) } };
         if (url.pathname === '/api/ready' && method === 'GET') {
@@ -113,6 +116,38 @@ export function createHttp(services: Services, config: Config, root = process.cw
             await services.audit(b.guildId, auth.userId, 'session.created', 'session');
             return { body: { sessionToken, accessToken: auth.accessToken, authority: a, expiresIn: 900 } };
         }
+        // Independent browser OAuth: state is one-use, origin/guild/browser-bound; no Activity SDK.
+        const cookie = (name: string) => (req.headers.cookie ?? '').split('; ').find(v => v.startsWith(name + '='))?.slice(name.length + 1) ?? '';
+        const cookieFlags = `; HttpOnly; SameSite=Lax; Path=/api/auth/browser${config.production ? '; Secure' : ''}`;
+        if (url.pathname === '/api/auth/browser/start' && method === 'POST') {
+            assert(origin === config.publicOrigin, 'browser_origin_required', 403);
+            rate('auth:' + req.socket.remoteAddress, 20);
+            const b = await jsonBody(req); onlyKeys(b, ['guildId']); assert(snowflake(b.guildId), 'invalid_guild');
+            const state = token(), verifier = token();
+            await store.createNonce(digest(state), `${config.publicOrigin}:${b.guildId}:${digest(verifier)}`);
+            const authorize = new URL('https://discord.com/oauth2/authorize');
+            authorize.search = new URLSearchParams({client_id:config.clientId, response_type:'code', scope:'identify', redirect_uri:config.publicOrigin + '/api/auth/browser/callback', state}).toString();
+            return {body:{authorizeUrl:authorize.toString()}, headers:{'Set-Cookie':`tc_oauth=${b.guildId}.${state}.${verifier}${cookieFlags}; Max-Age=300`}};
+        }
+        if (url.pathname === '/api/auth/browser/callback' && method === 'GET') {
+            rate('auth:' + req.socket.remoteAddress, 20);
+            const [guild, state, verifier] = cookie('tc_oauth').split('.');
+            assert(snowflake(guild) && state && verifier && url.searchParams.get('state') === state && await store.consumeNonce(digest(state), `${config.publicOrigin}:${guild}:${digest(verifier)}`), 'invalid_or_expired_state', 401);
+            const auth = await discord.exchange(text(url.searchParams.get('code'), 2048), config.publicOrigin + '/api/auth/browser/callback');
+            const a = await services.authority(guild, auth.userId); requireAdmin(a);
+            await seedStarterReferences(services, guild, root);
+            const sessionToken = token();
+            await store.createSession(digest(sessionToken), {userId:auth.userId, guildId:guild, expiresAt:Date.now()+15*60000});
+            await services.audit(guild, auth.userId, 'session.browser_created', 'session');
+            return {status:303, headers:{Location:'/setup', 'Set-Cookie':`tc_boot=${sessionToken}${cookieFlags}; Max-Age=60`}};
+        }
+        if (url.pathname === '/api/auth/browser/session' && method === 'POST') {
+            assert(origin === config.publicOrigin, 'browser_origin_required', 403);
+            const rawToken = cookie('tc_boot'), session = rawToken ? await store.session(digest(rawToken)) : null;
+            assert(session, 'browser_login_required', 401);
+            const a = await services.authority(session.guildId, session.userId); requireAdmin(a);
+            return {body:{sessionToken:rawToken, guildId:session.guildId, authority:a, expiresIn:900}, headers:{'Set-Cookie':`tc_boot=${cookieFlags}; Max-Age=0`}};
+        }
         const raw = req.headers.authorization;
         assert(typeof raw === 'string' && raw.startsWith('Bearer ') && raw.length < 200, 'authentication_required', 401);
         const hash = digest(raw.slice(7));
@@ -129,6 +164,14 @@ export function createHttp(services: Services, config: Config, root = process.cw
         // Every guild request verifies LIVE membership/roles. Client claims are never authority.
         const a = await services.authority(guild, session.userId);
         const route = p.slice(3).join('/');
+        if (route.startsWith('onboarding/')) {
+            requireAdmin(a);
+            if (route === 'onboarding/context' && method === 'GET') return {body:await onboarding.context(guild, a.userId)};
+            if (route === 'onboarding/inventory' && method === 'GET') return {body:await onboarding.inventory(guild, a.userId, Number(url.searchParams.get('offset') ?? 0))};
+            if (route === 'onboarding/starters' && method === 'GET') return {body:{presets:ONBOARDING_PRESETS, textStarters:TEXT_STARTERS, notice:ONBOARDING_NOTICE}};
+            if (route === 'onboarding/plans' && method === 'POST') return {body:await onboarding.plan(guild, a.userId, hash, await jsonBody(req))};
+            if (['onboarding/plan', 'onboarding/accept', 'onboarding/apply'].includes(route) && method === 'POST') return {body:await onboarding.transition(guild, a.userId, hash, await jsonBody(req), route === 'onboarding/plan' ? 'inspect' : route === 'onboarding/accept' ? 'accept' : 'apply')};
+        }
         if (p[3] === 'packs') {
             requireAdmin(a);
             if (route === 'packs/history' && method === 'GET') return {body:await new Packs(services).history(guild,a.userId)};
@@ -213,6 +256,7 @@ export function createHttp(services: Services, config: Config, root = process.cw
                 assert(old.revision === revision, 'revision_conflict', 409);
                 const value = parseSettings(b.value, old.value);
                 assert(value.textStartersInstalled===old.value.textStartersInstalled,'starter_marker_read_only');
+                assert(JSON.stringify(value.onboardingStarters ?? []) === JSON.stringify(old.value.onboardingStarters ?? []),'starter_marker_read_only');
                 if (value.enforcement && !old.value.enforcement) {
                     assert(!config.production || config.enforcementApproved === true, 'deployment_acceptance_required', 403);
                     assert(b.acknowledgement === 'ENABLE_AUTOMATIC_ENFORCEMENT', 'enforcement_acknowledgement_required');
@@ -538,7 +582,7 @@ export function createHttp(services: Services, config: Config, root = process.cw
     async function staticFile(requested: string): Promise<Reply> {
         // Only this build's scope: content cached under another release's path would be wrong for a month.
         const pathname = requested.startsWith(`/r/${version}/`) ? requested.slice(version.length + 3) : requested;
-        if (pathname === '/') {
+        if (pathname === '/' || pathname === '/setup') {
             const html = await readFile(resolve(root, 'activity/index.html'), 'utf8');
             return { bytes: Buffer.from(html.replace(/(href|src)="\/(style\.css|activity\/src\/main\.js)"/g, `$1="/r/${version}/$2"`)), type: 'text/html; charset=utf-8' };
         }
@@ -547,7 +591,7 @@ export function createHttp(services: Services, config: Config, root = process.cw
             const html = await readFile(resolve(root, legal[pathname]), 'utf8');
             return { bytes: Buffer.from(html.replace('href="/legal.css"', `href="/r/${version}/legal.css"`)), type: 'text/html; charset=utf-8' };
         }
-        const fixed: Record<string, string> = { '/style.css': 'activity/style.css', '/legal.css': 'activity/legal/legal.css', '/vendor/discord-sdk.js': 'dist/activity/vendor/discord-sdk.js', '/vendor/THIRD_PARTY_NOTICES.txt': 'dist/activity/vendor/THIRD_PARTY_NOTICES.txt', '/shared/analytics.js':'dist/shared/analytics.js','/shared/content.js':'dist/shared/content.js','/shared/text.js':'dist/shared/text.js','/shared/text-starters.js':'dist/shared/text-starters.js','/shared/domain.js': 'dist/shared/domain.js' };
+        const fixed: Record<string, string> = { '/setup':'activity/index.html', '/style.css': 'activity/style.css', '/legal.css': 'activity/legal/legal.css', '/vendor/discord-sdk.js': 'dist/activity/vendor/discord-sdk.js', '/vendor/THIRD_PARTY_NOTICES.txt': 'dist/activity/vendor/THIRD_PARTY_NOTICES.txt', '/shared/onboarding.js':'dist/shared/onboarding.js','/shared/analytics.js':'dist/shared/analytics.js','/shared/content.js':'dist/shared/content.js','/shared/text.js':'dist/shared/text.js','/shared/text-starters.js':'dist/shared/text-starters.js','/shared/domain.js': 'dist/shared/domain.js' };
         const fonts: Record<string, string> = { '/fonts/schibsted-grotesk-400.woff2': 'activity/fonts/schibsted-grotesk-400.woff2', '/fonts/schibsted-grotesk-500.woff2': 'activity/fonts/schibsted-grotesk-500.woff2', '/fonts/vt323-400.woff2': 'activity/fonts/vt323-400.woff2', '/fonts/jetbrains-mono-400.woff2': 'activity/fonts/jetbrains-mono-400.woff2' };
         if (fonts[pathname]) {
             let bytes: Buffer;

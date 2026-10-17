@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { assert, DEFAULT_SETTINGS } from '../shared/domain.js';
 import { CONTENT_PRESETS, CONTENT_VERSION } from '../shared/content.js';
-import { PACK_FORMAT, type Pack } from '../shared/packs.js';
+import { PACK_FORMAT, type Pack, type PackComponent } from '../shared/packs.js';
 import { packDigest } from './packs.js';
 import { NORMALIZATION_HASH_VERSION } from './images.js';
 export const STARTER_PACKS = [
@@ -12,6 +12,9 @@ export const STARTER_PACKS = [
     { id: 'combined-scam-setup', name: 'Combined scam setup', description: 'Separate reference-match and content-analysis rules. References do not condition the content prompt.' },
     { id: 'custom-template', name: 'Custom policy template', description: 'Adapt observable criteria and exclusions before testing and approving.' }
 ];
+export function scamReferenceComponent(dependencies: string[] = []): PackComponent {
+    return { id: 'reference-rule', kind: 'rules', name: 'Known scam reference match (review first)', dependencies, value: { type: 'group', referenceId: null, groupId: 'scam-references', mode: 'exact', threshold: .9, action: 'review', timeoutSeconds: 600, deleteMessage: false, priority: 1, enabled: false, automatic: false, secondVerification: true, reason: 'Review a match to owner-reviewed scam references' } };
+}
 export async function starterPack(root: string, id: string): Promise<Pack> {
     const starter = STARTER_PACKS.find(s => s.id === id);
     assert(starter, 'starter_not_found', 404);
@@ -34,7 +37,7 @@ export async function starterPack(root: string, id: string): Promise<Pack> {
         pack.components.push({ id: 'analysis-rule', kind: 'rules', name: id === 'custom-template' ? 'Custom policy (configure first)' : 'Image scam analysis (review first)', dependencies: [], value: { type: 'content', content, referenceId: null, groupId: null, mode: 'exact', threshold: .9, action: 'review', timeoutSeconds: 600, deleteMessage: false, priority: 0, enabled: false, automatic: false, secondVerification: true, reason: 'Review apparent scam content with visible context' } });
     }
     if (id === 'combined-scam-setup')
-        pack.components.push({ id: 'reference-rule', kind: 'rules', name: 'Known scam reference match (review first)', dependencies: pack.components.filter(c => ['groups', 'images'].includes(c.kind)).map(c => c.id), value: { type: 'group', referenceId: null, groupId: 'scam-references', mode: 'exact', threshold: .9, action: 'review', timeoutSeconds: 600, deleteMessage: false, priority: 1, enabled: false, automatic: false, secondVerification: true, reason: 'Review a match to owner-reviewed scam references' } });
+        pack.components.push(scamReferenceComponent(pack.components.filter(c => ['groups', 'images'].includes(c.kind)).map(c => c.id)));
     const digest = packDigest(pack);
     pack.evidence.push({ kind: 'template', digest, source: 'Bundled TypeCheck starter', details: { modelEvaluation: 'not performed', liveValidation: 'not performed', limitations: 'No accuracy claim, no held-out split, no destination approval.' } });
     if (pack.assets.length)
