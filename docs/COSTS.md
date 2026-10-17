@@ -48,6 +48,35 @@ The evaluation CLI still runs without a database. Its `evaluation-results.json` 
 
 Questions batch per selected rule. Each attempt, retry and verification is counted once with rule IDs and correlation provenance; no per-question tokens are invented. Unknown usage and unpriced estimates remain explicit. See [limits](CONTENT_ANALYSIS.md#resource-use-and-costs). Paid evaluations require explicit authorization.
 
+## Local non-email benchmark estimates
+
+`scripts/prepare-kaggle-benchmark.py` prepares a first batch of 10,000 Jigsaw comments, deduplicated spam/legitimate images and 1,000 DISC21 comparison pairs. It requires Python with `requests`; it makes no Jev calls and downloads no email corpus. DISC21 members are fetched from the original archives with byte ranges and checked against ZIP lengths/CRCs. Published copy/spam labels remain proxies for the tool's stricter matching/scam policies, not independently adjudicated production labels.
+
+All benchmark helpers use `BENCHMARK_ROOT` (default `G:/datasets-deleteme/typecheck`). The runner/reporter also use `BENCHMARK_RUN_ID` (default `20261017-non-email-v1`). Dataset manifests live under the root; receipts, status and reports live under `runs/<run ID>`. Keep these outside the repository. Do not commit downloaded data, result receipts or credentials.
+
+Before a paid run, build and freeze `dist/server` and `dist/shared` as the run's `runtime/server` and `runtime/shared`, copy `package.json`, and provide the frozen runtime access to the matching installed dependencies as `runtime/node_modules`. The local run uses a Windows directory junction to the existing dependency directory. Record the source commit, lockfile and runtime hashes. Do not rebuild that snapshot while its worker is running. With the manifests and snapshot prepared, `node --env-file=.env scripts/kaggle-benchmark.mjs` requires `TYPESAFE_EVAL_KEY` and explicit `ALLOW_PAID_KAGGLE_EVALUATION=true` authorization. It never calls Discord or grants enforcement approval.
+
+The runner durably appends per-attempt usage and per-case results, resumes completed cases without another provider call, and refuses automatic resume when an external attempt or its case result needs reconciliation. A single-writer lock prevents a duplicate controller. A `STOP` file in the run directory requests a checkpoint between cases. Limits are 15,000 attempts and a stop after 100 million reported input tokens; unknown usage cannot establish a dollar hard cap.
+
+An optional run-local `pricing.json` supplies the pinned model, currency and decimal input price per million tokens. On October 17, 2026, [TypeSafe's website](https://typesafe.ai/) listed **USD 0.042 per million input tokens and free output**. This is a public list-price estimate, not verified account-specific billing. For example:
+
+```json
+{
+  "model": "jev-1.14.0",
+  "currency": "USD",
+  "perMillion": "0.042",
+  "outputPerMillion": "0",
+  "source": "https://typesafe.ai/",
+  "verifiedAt": "2026-10-17T00:00:00.000Z"
+}
+```
+
+Replace `verifiedAt` with the actual observation timestamp and preserve the source/basis. New reservations snapshot the rate; completions retain their estimated cost. Previously unpriced receipts receive a separately identified retrospective estimate without rewriting those original receipts. Each attempt is rounded half up to six currency decimal places using integer arithmetic before summing. Retries count separately; known usage on failures counts too. Unknown usage and pending attempts make the total partial. Taxes, credits, account discounts and other charges are excluded.
+
+`python scripts/summarize-kaggle-benchmark.py --watch` refreshes `report.json` and `costs.json` every 30 seconds, including totals and cost by modality. It reads receipts without an API key and makes no provider calls. Worker `status.json` also includes estimated spend when started with pricing configured. Price assumptions and original receipts remain distinct from the provider's invoice and the guild Cost & Usage ledger.
+
+Offline checks run in CI: `node --test scripts/kaggle-benchmark.test.mjs` and `python scripts/benchmark_costs_test.py`. They cover resume behavior, pricing backfill, per-attempt rounding, retries, unknown/pending usage, preserved rate snapshots and model mismatch. No dataset download or paid evaluation runs in CI.
+
 
 ## Historical image scanning
 

@@ -1,6 +1,6 @@
 # Issue #44 — browser onboarding validation
 
-Scope: isolated implementation and offline/synthetic validation, 2026-10-17. No production deployment, bot controller startup, live provider calls or production data changes. Remote confirmed as `git@github.com:Jev-Engineering/TypeCheck.git`; main is the default branch. No additional filesystem AGENTS.md was found in the repository/ancestor paths; supplied machine-wide instructions were followed. Unrelated deployment/branding work stays in its own checkouts/PRs. Starter overlap was recorded on issue #41. PR #46 merged during implementation; its main commit 7e893ce was integrated, preserving pack UI/API/seeding. Cross-workflow tests protect marker portability, complete imports and shared image rule identity.
+Scope: isolated implementation and offline/synthetic validation, 2026-10-17. No production deployment, bot controller startup, live provider calls or production data changes. Remote confirmed as `git@github.com:Jev-Engineering/TypeCheck.git`; main is the default branch. No additional filesystem AGENTS.md was found in the repository/ancestor paths; supplied machine-wide instructions were followed. Unrelated deployment/branding work stays in its own checkouts/PRs. Starter overlap was recorded on issue #41. PR #46 merged during implementation; its main commit 7e893ce was integrated, followed by the independently merged benchmark-pricing main commit d701480, preserving pack UI/API/seeding. Cross-workflow tests protect marker portability, complete imports and shared image rule identity.
 
 ## Local checks
 
