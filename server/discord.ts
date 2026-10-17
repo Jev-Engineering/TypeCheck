@@ -47,6 +47,7 @@ export interface DiscordAdapter {
         roles: DiscordRole[];
         channels: DiscordChannel[];
     }>;
+    assertCanReadMessage(guild: string, user: string, channel: string): Promise<void>;
     currentMessage(channel: string, message: string): Promise<ImageMessage>;
     preflight(message: ImageMessage, action: Action, settings: Settings): Promise<void>;
     perform(message: ImageMessage, action: Action, seconds: number, reason: string): Promise<void>;
@@ -157,6 +158,25 @@ export class DiscordRest implements DiscordAdapter {
         return { userId: user, guildId: guild, owner: g.owner_id === user, administrator: (guildPermissions(g, m) & P.ADMIN) !== 0n, roles: m.roles };
     }
     async metadata(guild: string) { const g: DiscordGuild = await this.request(`/guilds/${guild}`); const channels: DiscordChannel[] = await this.request(`/guilds/${guild}/channels`); return { name: g.name, roles: g.roles, channels }; }
+    async assertCanReadMessage(guild: string, user: string, channelId: string) {
+        const [g, member, original]: [DiscordGuild, DiscordMember, DiscordChannel] = await Promise.all([
+            this.request(`/guilds/${guild}`), this.request(`/guilds/${guild}/members/${user}`), this.request(`/channels/${channelId}`)
+        ]);
+        assert(g.id === guild && member.user?.id === user && original.id === channelId && original.guild_id === guild, 'channel_guild_mismatch', 403);
+        let channel = original;
+        if ([10, 11, 12].includes(original.type)) {
+            assert(original.parent_id, 'message_channel_invalid', 403);
+            channel = await this.request(`/channels/${original.parent_id}`);
+            assert(channel.guild_id === guild, 'channel_guild_mismatch', 403);
+        }
+        const permissions = channelPermissions(g, member, channel);
+        if (original.type === 12 && (permissions & (1n << 34n)) === 0n) {
+            // Private threads require membership unless Manage Threads is granted.
+            const membership = await this.request(`/channels/${channelId}/thread-members/${user}`);
+            assert(membership?.user_id === user, 'message_read_permission_required', 403);
+        }
+        assert((permissions & 1024n) !== 0n && (permissions & 65536n) !== 0n, 'message_read_permission_required', 403);
+    }
     async currentMessage(channel: string, message: string): Promise<ImageMessage> {
         const [m, c] = await Promise.all([this.request(`/channels/${channel}/messages/${message}`), this.request(`/channels/${channel}`)]);
         return parseDiscordMessage({ ...m, guild_id: c.guild_id }, true);
