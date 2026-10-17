@@ -1,3 +1,4 @@
+import { timeoutPreset } from '../shared/domain.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomBytes, randomUUID } from 'node:crypto';
@@ -74,6 +75,11 @@ test('OAuth renewal validates application binding, identify scope and token expi
     application = G2; await assert.rejects(rest.oauthIdentity('oauth'), /oauth_identity_invalid/);
     application = G; scopes = []; await assert.rejects(rest.oauthIdentity('oauth'), /oauth_identity_invalid/);
     scopes = ['identify']; expires = new Date(0).toISOString(); await assert.rejects(rest.oauthIdentity('oauth'), /oauth_identity_invalid/);
+});
+
+test('timeout duration selects matching presets and represents arbitrary durations as Custom', () => {
+    for (const value of [60, 300, 600, 3600, 86400, 604800, 2419200]) assert.equal(timeoutPreset(value), String(value));
+    for (const value of [1, 59, 61, 900, 2419201, NaN]) assert.equal(timeoutPreset(value), 'custom');
 });
 
 test('message reader permission checks apply live channel overwrites and private thread membership', async () => {
