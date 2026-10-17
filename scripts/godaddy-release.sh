@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # GoDaddy Node.js Hosting release steps used by .github/workflows/deploy.yml.
 # Requires: gddy, jq, git; GDDY_PAT and APP_ID in the environment.
-#   ship <commit> <run> [migrate]  zip the exact commit (+ release.json), upload to PREVIEW, publish to PUBLISH;
+#   ship <commit> <run> [migrate]  import a verified release branch (+ release.json) into PREVIEW, publish to PUBLISH;
 #                                  `migrate` lets the release apply its admitted migrations at startup
 #   verify                         verify-production.mjs, handing controller ownership to PUBLISH if needed
 #   receipt <since>                find the release's database_migration log line and its backup receipt
@@ -15,7 +15,7 @@ poll() { # poll <command...>: up to 10 minutes; tolerates a few transient CLI/AP
     for _ in $(seq 1 40); do
         if out="$("$@" --output json 2>/dev/null)" && status="$(jq -er '.data.status' <<<"$out" 2>/dev/null)"; then
             case "$status" in
-                COMPLETED) return 0 ;;
+                COMPLETED) printf '%s\n' "$out"; return 0 ;;
                 FAILED|CANCELLED|ERROR) echo "::error::$2 $3 ended $status" >&2; return 1 ;;
             esac
         elif (( ++errors > 5 )); then
@@ -27,19 +27,23 @@ poll() { # poll <command...>: up to 10 minutes; tolerates a few transient CLI/AP
 }
 
 ship() {
-    local commit="$1" run="$2" migrate=false zip="$RUNNER_TEMP/release-$1.zip" import_id deployment_id
+    local commit="$1" run="$2" migration="${3:-no-migrate}" source branch oid imported published import_id deployment_id
     [[ "$commit" =~ ^[0-9a-f]{40}$ && "$run" =~ ^[0-9]+-[0-9]+$ ]] || { echo "::error::invalid commit or run" >&2; return 1; }
-    [[ "${3:-}" == migrate ]] && migrate=true
     echo "started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${GITHUB_OUTPUT:-/dev/null}"
-    git archive --format=zip --add-virtual-file="release.json:{\"commit\":\"$commit\",\"run\":\"$run\",\"migrate\":$migrate}" -o "$zip" "$commit"
-    echo "archive $(du -h "$zip" | cut -f1) for $commit (migrate=$migrate)"
-    import_id="$(gddy hosting source upload --app-id "$APP_ID" --file "$zip" --output json | jq -er '.data.importId')"
+    source="$(node scripts/release-source.mjs "$commit" "$run" "$migration")"
+    branch="$(jq -er .branch <<<"$source")"; oid="$(jq -er .oid <<<"$source")"
+    echo "release_branch=$branch" | tee -a "${GITHUB_OUTPUT:-/dev/null}"
+    echo "release_source=$oid" | tee -a "${GITHUB_OUTPUT:-/dev/null}"
+    import_id="$(gddy hosting source github --app-id "$APP_ID" --repo "$GITHUB_REPOSITORY" --branch "$branch" --output json | jq -er '.data.importId')"
     echo "import_id=$import_id" | tee -a "${GITHUB_OUTPUT:-/dev/null}"
-    poll gddy hosting source status --app-id "$APP_ID" --import-id "$import_id"
+    imported="$(poll gddy hosting source status --app-id "$APP_ID" --import-id "$import_id")"
+    [[ "$(jq -er '.data.gitHash' <<<"$imported")" == "$oid" ]] || { echo '::error::imported source does not match release commit'; return 1; }
+    [[ "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$branch" --jq '.object.sha')" == "$oid" ]] || { echo '::error::release branch changed during import'; return 1; }
     echo "publish_started=true" >> "${GITHUB_OUTPUT:-/dev/null}"
     deployment_id="$(gddy hosting deployment publish --app-id "$APP_ID" --output json | jq -er '.data.deploymentId')"
     echo "godaddy_deployment=$deployment_id" | tee -a "${GITHUB_OUTPUT:-/dev/null}"
-    poll gddy hosting deployment get --app-id "$APP_ID" --deployment-id "$deployment_id"
+    published="$(poll gddy hosting deployment get --app-id "$APP_ID" --deployment-id "$deployment_id")"
+    [[ "$(jq -er '.data.gitHash' <<<"$published")" == "$oid" ]] || { echo '::error::published source does not match release commit'; return 1; }
 }
 
 verify() {
