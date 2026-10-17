@@ -9,6 +9,7 @@ export function makeContentRequest(submitted: Buffer, model: string, definition:
     const ref = randomUUID();
     const instructions = (question: string) => ({ question, trustedPolicy: { trust, predicate: d.question, positive: d.positive, negative: d.negative, exceptions: d.exceptions, contextRequirements: d.contextRequirements, promptVersion: CONTENT_VERSION, verification: verification ? 'Reassess conservatively for false positives.' : 'Initial assessment.' } });
     const questions: Record<string, any> = {
+        depicted: { type: 'noul', instructions: { question: d.question, trustedPolicy: { trust, scope: 'Assess only whether the submitted image depicts the positive criteria, including nested or quoted content. Ignore author-supplied posting context and reporting/warning framing for this diagnostic: depiction is not endorsement or wrongdoing by the uploader.' } }, criteria: { true: d.positive, false: 'The described content is not depicted, or visual evidence is insufficient.' } },
         primary: { type: 'noul', instructions: instructions(d.question), criteria: { true: d.positive, false: d.negative } },
         promotion: { type: 'noul', instructions: instructions('Does the current post visibly promote, endorse or solicit participation in the conduct described by this policy? A warning, report, question asking whether this is a scam, education or quotation without endorsement is not promotion.'), criteria: { true: d.positive, false: 'Reporting, warning, neutral quotation, education or insufficient context.' } },
         readability: { type: 'choice', instructions: instructions('How readable is the policy-relevant evidence in the submitted image?'), criteria: READABILITY },
@@ -50,7 +51,7 @@ export function parseTypedAnswer(raw: unknown, question: { type: string; criteri
 }
 export interface ContentResult {
     probability: number; model: string; inputTokens: number;
-    readability: keyof typeof READABILITY; context: keyof typeof CONTEXT; promotionProbability: number; signals: Record<string, number>;
+    readability: keyof typeof READABILITY; context: keyof typeof CONTEXT; promotionProbability: number; depictedProbability: number; signals: Record<string, number>;
 }
 export function parseContentResult(raw: unknown, model: string, questions: Record<string, any>): ContentResult {
     const v = object(raw); assert(v.model === model, 'jev_model_mismatch', 502);
@@ -58,7 +59,7 @@ export function parseContentResult(raw: unknown, model: string, questions: Recor
     for (const k of ['input_tokens', 'output_tokens']) assert(Number.isSafeInteger(usage[k]) && Number(usage[k]) >= 0, 'jev_usage_schema_invalid', 502);
     assert(Object.keys(answers).length === Object.keys(questions).length, 'jev_response_schema_invalid', 502);
     const parsed = Object.fromEntries(Object.entries(questions).map(([k, q]) => [k, parseTypedAnswer(answers[k], q)]));
-    return { probability: parsed.primary, model, inputTokens: usage.input_tokens as number, readability: parsed.readability, context: parsed.context, promotionProbability: parsed.promotion, signals: Object.fromEntries(Object.keys(parsed).filter(k => k.startsWith('signal_')).map(k => [k.slice(7), parsed[k]])) };
+    return { probability: parsed.primary, model, inputTokens: usage.input_tokens as number, readability: parsed.readability, context: parsed.context, promotionProbability: parsed.promotion, depictedProbability: parsed.depicted, signals: Object.fromEntries(Object.keys(parsed).filter(k => k.startsWith('signal_')).map(k => [k.slice(7), parsed[k]])) };
 }
 export function contentEligibility(r: ContentResult, d: ContentDefinition, threshold: number) {
     const blockedReasons: string[] = [];

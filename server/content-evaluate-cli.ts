@@ -1,7 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve, relative } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { assert, matchThreshold } from '../shared/domain.js';
+import { assert, matchThreshold, object, onlyKeys } from '../shared/domain.js';
 import { CONTENT_MODELS, CONTENT_PRESETS, CONTENT_VERSION } from '../shared/content.js';
 import { contentMetrics, type LabeledContentResult } from '../shared/content-metrics.js';
 import { contentEligibility } from './content.js';
@@ -22,7 +22,9 @@ assert(!rate || rate.model === model, 'pricing_model_mismatch');
 const jev = new JevClient(), attempts: Attempt[] = [], results: (LabeledContentResult & Record<string, unknown>)[] = [];
 let failure: string | null = null;
 try {
+    assert(new Set(cases.map(c => c.id)).size === cases.length, 'duplicate_case_id');
     for (const c of cases) {
+        onlyKeys(object(c), ['id', 'file', 'language', 'category', 'preset', 'expected', 'expectedContext', 'split', 'postingContext', 'synthetic']);
         assert(typeof c.id === 'string' && /^[a-z0-9_-]{1,80}$/.test(c.id) && typeof c.file === 'string', 'invalid_case');
         assert(typeof c.language === 'string' && c.language.length <= 40 && typeof c.category === 'string' && c.category.length <= 64, 'invalid_case');
         assert(['tuning', 'held_out'].includes(c.split) && [true, false, null].includes(c.expected), 'invalid_case');

@@ -2,7 +2,7 @@ import { assert, bool, object, onlyKeys, text } from './domain.js';
 
 export const CONTENT_VERSION = 'image-content-v1';
 export const CONTENT_MODELS = ['jev-1.13.0', 'jev-1.14.0'];
-export const CONTENT_LIMITS = { rules: 8, supporting: 8, context: 2000, questions: 96, examples: 0, crops: 0 } as const;
+export const CONTENT_LIMITS = { rules: 8, supporting: 8, context: 2000, questions: 104, examples: 0, crops: 0 } as const;
 export interface ContentDefinition {
     version: typeof CONTENT_VERSION;
     preset: string;
@@ -44,6 +44,12 @@ export const CONTEXT = {
     none: 'No relevant context.', other: 'Another context.', insufficient_context: 'Cannot determine the relationship of the current post to depicted content.'
 };
 export interface ContentEvidence {
+    decision: {
+        ruleRevision: number; ruleThreshold: number; actionFloor: number; effectiveThreshold: number;
+        action: import('./domain.js').Action; priority: number; automatic: boolean; secondVerification: boolean;
+        deleteMessage: boolean; timeoutSeconds: number; approvalFingerprint: string | null;
+        globalEnforcement: boolean; highImpactEnabled: boolean; contextEnabled: boolean; uncertain: 'review' | 'ignore';
+    };
     definition: ContentDefinition;
     promptVersion: typeof CONTENT_VERSION;
     correlationId: string;
@@ -53,12 +59,13 @@ export interface ContentEvidence {
     normalizationVersion: string;
     readability: keyof typeof READABILITY;
     context: keyof typeof CONTEXT;
+    depictedProbability: number;
     promotionProbability: number;
     signals: Record<string, number>;
     eligible: boolean;
     status: 'detected' | 'not_detected' | 'insufficient_evidence';
     blockedReasons: string[];
-    verification?: { probability: number; eligible: boolean; readability: string; context: string };
+    verification?: { probability: number; eligible: boolean; readability: string; context: string; promotionProbability: number; depictedProbability: number; signals: Record<string, number>; blockedReasons: string[] };
 }
 const exclusions = 'Exclude reporting, warnings, education, satire and quotation without endorsement. A single cue, QR code, cryptocurrency reference, unfamiliar language, urgency or logo alone is insufficient. Do not infer identity, ownership, legality, truth, age, private intent or behavioral repetition from a screenshot.';
 const families = [

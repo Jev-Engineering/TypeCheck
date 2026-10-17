@@ -94,7 +94,7 @@ export class Services {
         try {
         const contentRules = rules.filter(r => r.guildId === guild && r.enabled && r.type === 'content');
         assert(contentRules.length <= CONTENT_LIMITS.rules, 'content_active_rule_limit', 503);
-        assert(contentRules.reduce((n, r) => n + 4 + parseContent(r.content).supporting.length, 0) <= CONTENT_LIMITS.questions, 'content_question_limit', 503);
+        assert(contentRules.reduce((n, r) => n + 5 + parseContent(r.content).supporting.length, 0) <= CONTENT_LIMITS.questions, 'content_question_limit', 503);
         for (const rule of rules.filter(r => r.guildId === guild && r.enabled)) {
             if (rule.mode === 'semantic' && !settings.semanticEnabled)
                 continue;
@@ -120,14 +120,14 @@ export class Services {
                 };
                 const first = await analyze(false), floor = effectiveThreshold(rule, settings);
                 const gate = contentEligibility(first, d, floor);
-                const evidence: import('../shared/content.js').ContentEvidence = { definition: d, promptVersion: CONTENT_VERSION, correlationId, contextSource: d.contextSource, contextSha256: context === undefined ? null : createHash('sha256').update(context).digest('hex'), sampleSha256: image.sha256, normalizationVersion: image.hashVersion ?? 'unknown', readability: first.readability, context: first.context, promotionProbability: first.promotionProbability, signals: first.signals, ...gate };
+                const evidence: import('../shared/content.js').ContentEvidence = { decision: { ruleRevision: rule.revision, ruleThreshold: rule.threshold, actionFloor: settings.thresholds[rule.action], effectiveThreshold: floor, action: rule.action, priority: rule.priority, automatic: rule.automatic, secondVerification: rule.secondVerification || isSevere(rule.action), deleteMessage: rule.deleteMessage, timeoutSeconds: rule.timeoutSeconds, approvalFingerprint: rule.approval?.fingerprint ?? null, globalEnforcement: settings.enforcement, highImpactEnabled: settings.highImpactEnabled, contextEnabled: settings.contentMessageContext === true, uncertain: settings.uncertain }, definition: d, promptVersion: CONTENT_VERSION, correlationId, contextSource: d.contextSource, contextSha256: context === undefined ? null : createHash('sha256').update(context).digest('hex'), sampleSha256: image.sha256, normalizationVersion: image.hashVersion ?? 'unknown', readability: first.readability, context: first.context, promotionProbability: first.promotionProbability, depictedProbability: first.depictedProbability, signals: first.signals, ...gate };
                 const match: Match = { provenance: 'content', ruleId: rule.id, referenceId: null, probability: first.probability, verified: false, model: first.model, attachmentId, policyFingerprint: fingerprint(rule, images, settings), content: evidence };
                 matches.push(match);
                 if (gate.eligible && (rule.secondVerification || isSevere(rule.action))) {
                     let second: ContentResult;
                     try { second = await analyze(true); } catch (error) { evidence.eligible = false; evidence.status = 'insufficient_evidence'; evidence.blockedReasons.push('verification_failed'); throw error; }
                     const secondGate = contentEligibility(second, d, floor);
-                    evidence.verification = { probability: second.probability, eligible: secondGate.eligible, readability: second.readability, context: second.context };
+                    evidence.verification = { probability: second.probability, eligible: secondGate.eligible, readability: second.readability, context: second.context, promotionProbability: second.promotionProbability, depictedProbability: second.depictedProbability, signals: second.signals, blockedReasons: secondGate.blockedReasons };
                     match.verified = secondGate.eligible;
                     if (!match.verified) { evidence.eligible = false; evidence.status = 'insufficient_evidence'; evidence.blockedReasons.push('verification_conflict'); }
                 }

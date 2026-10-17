@@ -20,7 +20,7 @@ Visible words, screenshots, nested speakers, memes, captions, signs, layout and 
 
 ## Exact decision mapping
 
-Each request batches a primary Noul, promotion Noul, readability Choice, context Choice and up to eight diagnostic Nouls. Questions cannot read each other's answers. Noul answers must be finite probabilities in [0,1]. Choice answers must select a configured option and supply a valid full distribution and confidence. Category confidence is not treated as the selected category's probability. Score and Box parsers follow documented shapes, but neither is requested or used for sanctions. Localization/extraction are disabled: no displayed box, OCR transcription, QR decoding, URL visiting or command execution.
+Each request batches a primary policy Noul, a separate depicted-content Noul, promotion Noul, readability Choice, context Choice and up to eight diagnostic Nouls. Questions cannot read each other's answers. Noul answers must be finite probabilities in [0,1]. Choice answers must select a configured option and supply a valid full distribution and confidence. Category confidence is not treated as the selected category's probability. Score and Box parsers follow documented shapes, but neither is requested or used for sanctions. Localization/extraction are disabled: no displayed box, OCR transcription, QR decoding, URL visiting or command execution.
 
 `effectiveThreshold = max(rule.threshold, settings.thresholds[rule.action])`; `meetsThreshold = primaryProbability >= effectiveThreshold`. Standard is 0.70, Strict 0.90, Custom 0.5–1.0 inclusive. Default floors are 0.70 for none/review/warn/delete and 0.90 for timeout/kick/ban. Floors remain editable with timeout <= kick <= ban validation. These are starting points, not accuracy guarantees. Any-image thresholds remain inapplicable.
 
@@ -32,7 +32,7 @@ Second verification repeats the full typed assessment. Both calls must be eligib
 
 Image-only is the default. Posting text requires both server `contentMessageContext: true` and rule `contextSource: posting_message`. Only the live posting message is used. Missing context or more than 2,000 characters fails explicitly, without truncation. Gateway jobs discard text. No history, private messages or unrelated attachments are ingested. Author text is labeled separately from trusted moderator policy. Embedded instructions are untrusted evidence. Nested speakers are not automatically attributed to the uploader.
 
-Evidence stores the policy snapshot, typed decisions, model, prompt/preset versions, sample digest/normalization version, context source/digest, request correlation and verification. Raw posting text and uploaded bytes are not retained. Do not place real secrets in policy definitions. Existing tenant isolation, permissions, retention and audit controls apply. Notifications and CSV event exports do not include detected text or posting context. Provider retention is governed separately by TypeSafe's service terms.
+Evidence stores the definition and decision snapshot (thresholds, action, priority, verification, approval and enforcement settings), typed decisions, model, prompt/preset versions, sample digest/normalization version, context source/digest, request correlation and verification. Raw posting text and uploaded bytes are not retained. Do not place real secrets in policy definitions. Existing tenant isolation, permissions, retention and audit controls apply. Notifications and CSV event exports do not include detected text or posting context. Provider retention is governed separately by TypeSafe's service terms.
 
 ## Approvals and persistence
 
@@ -44,7 +44,7 @@ PostgreSQL JSONB and MySQL JSON records support additive versioned fields; no SQ
 
 ## Resource use and costs
 
-Caps: eight enabled content rules, 96 questions across them, eight diagnostics per rule, 2,000 context characters; 1,000 characters for question/exceptions/context requirements, 2,000 each for positive/negative criteria, 500 per diagnostic. All enabled rules must fit: exceeding a cap fails instead of reporting partial success. The evaluation deadline is 120 seconds. Optional image examples, crops, extraction and localization are not implemented and have zero budget.
+Caps: eight enabled content rules, 104 questions across them, eight diagnostics per rule, 2,000 context characters; 1,000 characters for question/exceptions/context requirements, 2,000 each for positive/negative criteria, 500 per diagnostic. All enabled rules must fit: exceeding a cap fails instead of reporting partial success. The evaluation deadline is 120 seconds. Optional image examples, crops, extraction and localization are not implemented and have zero budget.
 
 Each rule's compatible questions share one request; different rules retain separate policy/context boundaries. Attempts, retries and verification use the existing durable ledger. Content attempts include `analysisKind: content`, `ruleIds` and correlation ID. Input totals are charged once per request, never once per question. Unknown usage, missing prices and partial estimates remain explicit. Test estimates read at most the latest 100 daily attempts; pagination/unpriced attempts mark estimates partial. The full Cost & Usage ledger remains authoritative.
 
