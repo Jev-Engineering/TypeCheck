@@ -67,12 +67,17 @@ test('null provider hashes require exact operation, repository, branch and verif
     const expected = { kind: 'import', id: 'i', repository: spec.repository, branch: spec.branch, oid, head: oid };
     assert.equal(verifyProviderSource(result, app, expected).providerHash, null);
     assert.equal(verifyProviderSource({ ...result, gitHash: oid }, app, expected).providerHash, oid);
-    for (const change of [{ status: 'PENDING' }, { importId: 'other' }, { importType: 'ZIP' }, { gitHash: commit }, { gitHash: '' }])
+    for (const change of [{ status: 'PENDING' }, { importId: 'other' }, { importType: 'ZIP' }, { gitHash: 'bad' }, { gitHash: '' }])
         assert.throws(() => verifyProviderSource({ ...result, ...change }, app, expected));
     for (const change of [{ source: 'ZIP' }, { sourceDetails: { repositoryFullName: 'other/repo', branch: spec.branch } }, { sourceDetails: { repositoryFullName: spec.repository, branch: 'main' } }])
         assert.throws(() => verifyProviderSource(result, { ...app, ...change }, expected));
     assert.throws(() => verifyProviderSource(result, app, { ...expected, head: commit }));
     assert.throws(() => verifyProviderSource(result, app, { ...expected, kind: 'deployment' }));
+    const deployment = { deploymentId: 'd', status: 'COMPLETED', gitHash: commit };
+    const publication = { ...expected, kind: 'deployment', id: 'd', receiptHash: commit };
+    assert.equal(verifyProviderSource(deployment, app, publication).receiptHashVerified, true);
+    assert.throws(() => verifyProviderSource(deployment, app, { ...publication, receiptHash: oid }));
+    assert.throws(() => verifyProviderSource({ ...deployment, gitHash: null }, app, publication));
 });
 
 test('ship uses GitHub imports and prevents publication on failed or mismatched source', { skip: process.platform === 'win32' }, t => {
@@ -83,7 +88,7 @@ echo "$*" >> "$CALLS"
 case "$1 $2 $3" in
   'hosting source github') echo '{"data":{"importId":"import-1"}}' ;;
   'hosting source status') jq -cn --arg status "\${IMPORT_STATUS:-COMPLETED}" --arg hash "\${IMPORT_HASH:-${oid}}" '{data:{importId:"import-1",importType:"GITHUB",status:$status,gitHash:(if $hash == "null" then null else $hash end)}}' ;;
-  'hosting deployment publish') echo '{"data":{"deploymentId":"deployment-1"}}' ;;
+  'hosting deployment publish') jq -cn --arg hash "\${RECEIPT_HASH:-${oid}}" '{data:{deploymentId:"deployment-1",gitHash:(if $hash == "null" then null else $hash end)}}' ;;
   'hosting deployment get') jq -cn --arg hash "\${PUBLISH_HASH:-${oid}}" '{data:{deploymentId:"deployment-1",status:"COMPLETED",gitHash:(if $hash == "null" then null else $hash end)}}' ;;
   'hosting app get') jq -cn --arg branch "\${SOURCE_BRANCH:-releases/test}" '{data:{source:"GITHUB",sourceDetails:{repositoryFullName:"Jev-Engineering/TypeCheck",branch:$branch}}}' ;;
   *) exit 91 ;;
@@ -91,7 +96,7 @@ esac`;
         writeFileSync(join(dir, name), '#!/usr/bin/env bash\n' + contents + '\n', { mode: 0o755 });
     }
     const calls = join(dir, 'calls');
-    for (const overrides of [{}, { IMPORT_HASH: 'null', PUBLISH_HASH: 'null' }, { IMPORT_HASH: 'null', SOURCE_BRANCH: 'main' }, { IMPORT_HASH: commit }, { IMPORT_HASH: 'missing' }, { IMPORT_STATUS: 'FAILED' }, { REF_HASH: commit }, { PUBLISH_HASH: commit }]) {
+    for (const overrides of [{}, { IMPORT_HASH: 'null', RECEIPT_HASH: commit, PUBLISH_HASH: commit }, { IMPORT_HASH: 'null', RECEIPT_HASH: 'null', PUBLISH_HASH: 'null' }, { IMPORT_HASH: 'null', SOURCE_BRANCH: 'main' }, { IMPORT_HASH: 'missing' }, { IMPORT_STATUS: 'FAILED' }, { REF_HASH: commit }, { PUBLISH_HASH: commit }]) {
         writeFileSync(calls, '');
         const r = spawnSync('bash', [resolve('scripts/godaddy-release.sh'), 'ship', commit, '123-1'], { encoding: 'utf8', timeout: 10000,
             env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, APP_ID: 'NODEJS-test', GITHUB_REPOSITORY: spec.repository, CALLS: calls, ...overrides } });

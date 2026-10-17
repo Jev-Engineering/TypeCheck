@@ -51,9 +51,9 @@ export function createReleaseSource(spec, api) {
     return { branch: spec.branch, oid };
 }
 
-// GoDaddy currently returns null gitHash for completed GitHub imports (verified via
-// its REST API). Bind the acknowledged import to the exact unique branch instead.
-// A populated hash is additional evidence and must never contradict that branch.
+// GoDaddy omits import gitHash and uses a provider-side hash for deployments.
+// Bind GitHub identity through the signed branch, and provider identity through
+// the operation ID and any hash supplied by that operation's initial receipt.
 export function verifyProviderSource(result, app, expected) {
     assert.equal(result.status, 'COMPLETED', 'provider operation incomplete');
     assert.equal(result[expected.kind === 'import' ? 'importId' : 'deploymentId'], expected.id, 'provider operation identity changed');
@@ -62,9 +62,12 @@ export function verifyProviderSource(result, app, expected) {
     assert.equal(app.sourceDetails?.repositoryFullName, expected.repository, 'source repository changed');
     assert.equal(app.sourceDetails?.branch, expected.branch, 'source branch changed');
     assert.equal(expected.head, expected.oid, 'release branch changed');
-    if (result.gitHash !== null && result.gitHash !== undefined)
-        assert.equal(result.gitHash, expected.oid, 'provider source hash mismatch');
-    return { providerHash: result.gitHash ?? null, provenance: result.gitHash ? 'provider_hash_and_signed_branch' : 'signed_branch_and_provider_source' };
+    if (result.gitHash !== null && result.gitHash !== undefined) assert.match(result.gitHash, /^[a-f0-9]{40}$/, 'invalid provider hash');
+    if (expected.receiptHash) {
+        assert.match(expected.receiptHash, /^[a-f0-9]{40}$/, 'invalid provider receipt hash');
+        assert.equal(result.gitHash, expected.receiptHash, 'provider operation hash changed');
+    }
+    return { githubSource: expected.oid, providerHash: result.gitHash ?? null, provenance: 'signed_branch_and_provider_source', receiptHashVerified: Boolean(expected.receiptHash) };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
