@@ -1,0 +1,27 @@
+{
+  "base": "52084fd7bf96267570414c956c537311c7639f3f",
+  "branch": "feat/data-use-consent-49",
+  "state": "uncommitted",
+  "sha256": {
+    ".github/workflows/ci.yml": "e6a38a5d10484acba1e2ceee18ad73ce397637ab9b5c2e144972d3fd9e904825",
+    "README.md": "342297a942910229e831655348c88e1b75cb4041f36325b109ed4c1d345b2cf1",
+    "activity/legal/privacy.html": "e8f1db64c333ea79662bb6bafef17f08a6708c2c693c420885a5a682de76f498",
+    "activity/legal/terms.html": "78430712ecbb7a70f715967c03ee4953654dd1cc7cb544511d8364f21a935872",
+    "activity/src/main.ts": "1870cc28fe7576e93442f0d6e2a141036315e2470953a95b5c2b9734f28ffbdc",
+    "activity/src/onboarding.ts": "5983c8c639a141b235d258eb7c243feda3e2f6a0bea6d7df7fd4e34c6128895d",
+    "docs/API.md": "6b06bb4e28f473c67c1e8857f2f81e8f605e3d26546d233fc8f9eaf54c794f0b",
+    "docs/DATA_USE.md": "3ece4e210f0eb1587270d4946be6456d936c68b595807a11837413daaaf4761e",
+    "docs/PERMISSIONS.md": "e11333bef7c8d02923c015d83ac860c7564a279735cd7c0b1a70e6d79beafbd8",
+    "scripts/consent-browser-workflow.js": "623310a781bfe9c07c4bb6b09318ab0a5b8bc58087662a81490b176718def82f",
+    "scripts/consent-browser.py": "49f49c5c28aa1ba931eb027f410e54423ec891664d23267f6f54ed1421b935e3",
+    "scripts/test-consent-databases.mjs": "37758f1493a8d6905897756f95180db97a6981840ba512ef849aca7697212270",
+    "scripts/test-consent-persistence.mjs": "603400c66b3d08af01cb1711826b25f1e2869d2d17e65cd019c5e31893f2e9a9",
+    "server/http.ts": "1ca64677475b23152aac440ac099dc3f1b2713b4e7523ce220b43c6efdd877a1",
+    "server/packs.ts": "b3161be765a093fea6c108ff8eda30a5eb71d12b1e4d1485e85317d3071e0b4f",
+    "shared/domain.ts": "bde57de36aab289552cc62381d766de3830caa132dbd3b0d5d2d0fdb7d55e65c",
+    "shared/onboarding.ts": "9e6bf7b580dbef145e7bdfc4cf28a3d645fb11485d7aaf0d8d4d40313167be9e",
+    "tests/consent.test.ts": "c66d1a8c9d88899840a61eea3a357fff00e3036567ac3a0c0faf0a0f0504578b",
+    "tests/core.test.ts": "a6a1558852bbd33324f6a73180693aadbc364d115b7ab0ad3235ff586717c862",
+    "tests/http.test.ts": "1a104805dec9248699e552a57a61305d4113ee1ded5e5164490002aafc4bc966"
+  }
+}

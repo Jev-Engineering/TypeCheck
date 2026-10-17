@@ -120,6 +120,7 @@ async function packsPage(parent: HTMLElement) {
         parent.append(panel('Saved image-analysis definitions', 'Standalone prompts are editable. Rules contain independent snapshots; editing a definition does not silently change a rule.', ...definitions.map(d => h('div', {}, h('h3', {}, d.name), h('p', {}, d.content.question), button('Create rule from ' + d.name, () => editRule(undefined, d.content), 'quiet'), button('Edit definition', () => editDefinition(d), 'quiet')))));
 }
 import { TEXT_STARTERS } from '../../shared/text-starters.js';
+import { DATA_USE_NOTICE_VERSION } from '../../shared/domain.js';
 import { TEXT_LIMITS, parseText } from '../../shared/text.js';
 import type { HistoricalScan } from '../../shared/historical.js';
 import { activityAuth, HttpError, serializeConnection } from './connection.js';
@@ -655,6 +656,28 @@ async function settingsPage(parent: HTMLElement) {
         parent.append(panel('Channel configuration', 'Monitoring uses exact channel IDs; no channel is monitored when none is selected.', h('div', { class: 'columns' }, monitored.node, excluded.node), button('Save channels', async () => { await api('channels', 'PUT', { channels: monitored.values(), excludedChannels: excluded.values(), revision: settings!.revision }); await render(); })));
         return;
     }
+    const typesafeReview = check('Allow TypeSafe to review inputs and outputs to improve Jev', s.typesafeReviewConsent ?? false, 'Optional permission to read and analyze requests and responses to understand model issues and debug use cases. TypeSafe says these queries are not used for training.');
+    const completeTechTraining = check('Allow CompleteTech LLC to use server data for model training', s.completeTechTrainingConsent ?? false, 'Optional consent for the service host to use data processed by TypeCheck for model training and improvement. This release records permission only; no training collection or export is active.');
+    parent.append(panel('Optional data use', 'Both choices default to off and are independent. Moderation works without either opt-in. Only consent for data you are authorized to share; server permission does not replace members’ rights or consent.',
+        typesafeReview.node,
+        h('p', { class: 'muted' }, 'TypeSafe review is controlled separately for the entire organization that owns the API key. This checkbox records this server’s permission only; it cannot change or verify that organization setting. Ask the API-key owner to manage “Help improve TypeSafe models” in ', h('a', { href: 'https://console.typesafe.ai', target: '_blank', rel: 'noopener noreferrer' }, 'TypeSafe console'), '. An unchecked box here does not override an organization opt-in.'),
+        completeTechTraining.node,
+        h('p', { class: 'muted' }, 'Uncheck and save to withdraw either local permission. These choices do not extend retention or recover discarded text or images. ', h('a', { href: '/privacy', target: '_blank', rel: 'noopener noreferrer' }, 'Privacy Policy'), ` · Notice ${DATA_USE_NOTICE_VERSION}`),
+        button('Save data-use choices', async () => {
+            try {
+                await api('settings', 'PUT', { value: { typesafeReviewConsent: typesafeReview.box.checked, completeTechTrainingConsent: completeTechTraining.box.checked }, revision: settings!.revision, noticeVersion: DATA_USE_NOTICE_VERSION });
+            } catch (e) {
+                if (e instanceof HttpError && e.status === 409) {
+                    message('Choices were not saved because settings or the notice changed. Reload the page, review the current notice and saved choices, then save again.', true);
+                    status?.setAttribute('tabindex', '-1'); status?.focus();
+                    return;
+                }
+                throw e;
+            }
+            await render();
+            message('Data-use choices saved. TypeSafe organization settings are managed separately.');
+            status?.setAttribute('tabindex', '-1'); status?.focus();
+        })));
     const monitoring = check('Monitor selected channels', s.monitoring), enforcement = check('Enable automatic enforcement', s.enforcement), high = check('Allow kick and ban policies', s.highImpactEnabled), any = check('Allow explicit any-image rules', s.anyImageEnabled, 'These rules do not require a Jev match.'), semantic = check('Enable semantic tests and review-only rules', s.semanticEnabled), bots = check('Inspect other bots’ image attachments', s.processBots), webhooks = check('Inspect webhook messages', s.processWebhooks, 'Webhook messages can be deleted; no user-level punishment is applied to webhook identities.'), dm = check('Send optional direct-message notifications', s.dmNotify);
     const exempt = checklist('Exempt Discord roles', meta.roles, s.exemptRoles), log = select([['', 'No log channel'], ...channels.map(c => [c.id, c.name] as [
             string,

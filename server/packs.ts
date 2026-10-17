@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { assert, baseRecord, object, onlyKeys, text, parseRule, parseSettings, CAPABILITIES, ADMIN_ONLY, DEFAULT_SETTINGS, type RecordBase, type ReferenceImage, type Rule, type Group, type RoleGrant, type Settings } from '../shared/domain.js';
+import { assert, baseRecord, object, onlyKeys, text, parseRule, parseSettings, CAPABILITIES, ADMIN_ONLY, DEFAULT_SETTINGS, DATA_USE_CONSENT_KEYS, type RecordBase, type ReferenceImage, type Rule, type Group, type RoleGrant, type Settings } from '../shared/domain.js';
 import { parseContent, CONTENT_VERSION } from '../shared/content.js';
 import { PACK_FORMAT, PACK_LIMITS, type Pack, type PackComponent, type PackKind, type PackSelection, type ImportOptions, type PackPreview } from '../shared/packs.js';
 import { normalize, NORMALIZATION_HASH_VERSION, type NormalizedImage } from './images.js';
@@ -94,6 +94,8 @@ export async function exportPack(services: Services, guild: string, selection: P
         // Seed markers describe local history, not portable policy.
         delete policy.textStartersInstalled;
         delete policy.onboardingStarters;
+        // Permission belongs to the destination's administrator, never a portable policy.
+        for (const key of DATA_USE_CONSENT_KEYS) delete policy[key];
         for (const field of ['channels', 'excludedChannels', 'exemptRoles'] as const)
             policy[field] = settings[field].map(id => binding(id, field === 'exemptRoles' ? 'role' : 'channel', field));
         policy.logChannel = settings.logChannel ? binding(settings.logChannel, 'channel', 'logChannel') : null;
@@ -253,6 +255,7 @@ export async function validatePack(input: unknown): Promise<{
         }
         const s = object(policy.settings), mapped = { ...s };
         assert(!('textStartersInstalled' in s) && !('onboardingStarters' in s), 'starter_marker_not_portable');
+        assert(DATA_USE_CONSENT_KEYS.every(key => !Object.hasOwn(s, key)), 'consent_not_portable');
         for (const k of ['channels', 'excludedChannels', 'exemptRoles']) {
             assert(Array.isArray(s[k]) && s[k].length <= 250 && s[k].every((id: any) => bindings.get(id) === (k === 'exemptRoles' ? 'role' : 'channel')), 'invalid_policy_binding');
             mapped[k] = [];
@@ -429,6 +432,7 @@ export class Packs {
                     s.highImpactEnabled = false;
                     s.textStartersInstalled = plan.snap.settings.value.textStartersInstalled;
                     s.onboardingStarters = plan.snap.settings.value.onboardingStarters;
+                    for (const key of DATA_USE_CONSENT_KEYS) s[key] = plan.snap.settings.value[key] ?? false;
                     await tx.putSettings(guild, parseSettings(s, plan.snap.settings.value), plan.snap.settings.revision);
                     for (const g of pack.policy.grants) {
                         const existing = (plan.snap.records.grants as RoleGrant[]).find(r => r.roleId === map[g.role]);

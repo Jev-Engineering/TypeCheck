@@ -1,5 +1,53 @@
 # Management API
 
+## Optional data-use choices
+
+Administrator-only `PUT /api/g/{guildId}/settings` accepts independent boolean
+`value.typesafeReviewConsent` and `value.completeTechTrainingConsent`, with the
+current `revision`. Both default to false for new and legacy settings. Partial
+updates preserve the other choice; unchecking and saving withdraws permission.
+Invalid booleans return 400 and stale revisions return 409.
+
+Any transition of either choice also requires top-level
+`noticeVersion: "2026-10-17.1"`, matching the notice displayed by the client.
+Missing or stale notice versions return 409 `data_use_notice_conflict` without
+changing settings or creating a consent receipt. Reload the current page and
+review the notice before retrying. Unchanged choices and unrelated settings
+saves do not renew consent or require this field. For example:
+
+```json
+{"value":{"typesafeReviewConsent":true},"revision":1,"noticeVersion":"2026-10-17.1"}
+```
+
+Consent is not portable policy: pack exports omit both fields; imports reject
+either field (even false) with 400 `consent_not_portable` and preserve destination
+choices. Setup/starters and unrelated settings writers must preserve them.
+See [data-use boundaries and verification](DATA_USE.md).
+
+Changes write a `data_use.consent_updated` audit entry in the same guild
+transaction, recording actor, timestamp, previous/current values and
+`noticeVersion: "2026-10-17.1"`. Audit records follow configured log retention;
+current choices remain in guild settings. These settings do not change moderation
+approvals, provider request bodies/headers, or content retention.
+
+`typesafeReviewConsent` records local permission for TypeSafe to read and analyze
+inputs/outputs to understand model issues and debug use cases, **not training**.
+The [official announcement](https://typesafe.ai/blog/jev-1-14) shows “Help improve
+TypeSafe models” under organization settings in the TypeSafe console. It applies
+to everyone in that organization. The current [API reference](https://docs.typesafe.ai/api)
+and [OpenAPI schema](https://api.typesafe.ai/openapi.json) expose no control for
+that setting. The app cannot enable, disable or verify it; the API-key owner must
+manage it separately, including when a local permission is withdrawn. Do not
+present a local checkbox as proof of provider-side state.
+
+`completeTechTrainingConsent` records permission for the service host,
+CompleteTech LLC, to use processed server data for model training/improvement.
+No training-data collection, export or training pipeline exists in this release.
+A future pipeline must define and disclose its data scope and retention before
+activation, respect current consent and affected people's rights, and comply with
+provider agreements. A saved permission alone must never activate collection.
+See the [privacy notice](../activity/legal/privacy.html).
+
 ## Cost analytics
 
 All paths below are under `/api/g/{guildId}` and require live `dashboard.view` authority, except pricing PUT which requires owner/administrator authority. Cross-guild sessions are rejected. Pricing writes require exact Origin validation and create `pricing.updated` audit records in the same transaction.

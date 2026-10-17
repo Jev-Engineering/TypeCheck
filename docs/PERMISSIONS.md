@@ -39,6 +39,14 @@ Native text creation/editing and starter installation require administrator. Pre
 
 Agent setup and standalone sign-in require live Discord owner/administrator authority. Delegated rule editing alone is insufficient. Ordinary manual pages retain their capability checks. Server checks apply on every request; tools also recheck authority and invalidate on observed permission/session/guild changes. Presets grant no permissions, install no sanctions and approve no rules. Review needs readable monitored channels and a log destination with bot View Channel/Send Messages; message-link testing additionally needs Read Message History. Administrators must verify actual bot/channel permissions in Discord. Pause cannot resume. See [browser onboarding](AGENT_ONBOARDING.md).
 
+## Optional data use
+
+Optional data-use permissions require a live server owner/administrator, not a
+delegated capability. Consent changes require the current settings revision and
+displayed notice version, and commit with a guild-scoped audit receipt. Setup-plan
+acceptance grants neither permission. Pack imports reject consent fields and
+preserve destination choices. See [data-use permissions](DATA_USE.md).
+
 ## Pack administration
 
 Only current Discord owners/administrators can export, preview or apply packs, including bundled starters and standalone prompt edits. Delegated rule/image capabilities do not confer pack administration. Complete policy grants are opt-in and require destination role mapping; administrator-only capabilities are rejected. Existing conflicting grants require reconciliation through Permissions rather than silent import overwrite. Channel mappings require current member/bot read access, and log-channel mapping checks send permission. Importing a rule removes source approval and disables it; ordinary destination review, approval, action-specific permissions/hierarchy and enforcement gates remain mandatory. [Pack workflow](MODERATION_PACKS.md).

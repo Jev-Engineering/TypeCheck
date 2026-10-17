@@ -69,7 +69,7 @@ export function setupPanel(api: Api, onPlan?: ()=>void, dashboardUrl = '/setup')
             target.append(el('h3','Existing rules — preserved'),el('pre',pretty(plan.existingRules)),el('h3','New disabled rules'),el('pre',pretty(plan.additions)),el('p','Preserved or tombstoned components: '+(plan.skipped.join(', ')||'none')),el('p',plan.warnings.join(' '),'notice'));
             const body={planId:plan.id,digest:plan.digest};
             if(plan.status==='proposed'){
-                const label=el('label','','check'), box=document.createElement('input');box.type='checkbox';label.append(box,el('span','I reviewed this exact plan and accept the listed changes. This does not approve rules or activate enforcement.'));
+                const label=el('label','','check'), box=document.createElement('input');box.type='checkbox';label.append(box,el('span','I reviewed this exact plan and accept the listed changes. This does not approve rules, activate enforcement or grant optional data-use permission.'));
                 const accept=actions('Accept reviewed plan',async()=>{if(!box.checked)throw new Error('Review and check acceptance first');show(await guardedApi('onboarding/accept','POST',body));});
                 // Acceptance is deliberately absent from the agent tool surface.
                 target.append(label,accept);

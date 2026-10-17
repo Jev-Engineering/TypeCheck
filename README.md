@@ -138,6 +138,14 @@ See [native text architecture, boundaries and privacy](docs/TEXT_MODERATION.md),
 
 Text tests never moderate Discord. Submitted text is not retained in jobs, logs, notifications, exports or decision evidence. Empty, unavailable, over-limit or insufficient evidence routes to review without punishment. Links, Markdown, Unicode and code blocks are evidence; linked sites, DMs and history are not fetched. Model probabilities are estimates, not measured accuracy or verified wrongdoing. Live provider/Discord acceptance and production deployment require separate authorization.
 
+## Optional data use
+
+Optional data-use choices are managed separately in Settings: TypeSafe review/analysis
+(not training), and CompleteTech LLC possible training/improvement. Both default off;
+moderation works without either. These record local permission only and cannot
+control or verify TypeSafe's organization setting. Setup and pack imports preserve
+destination choices. See [purposes, withdrawal, audit limits and verification](docs/DATA_USE.md).
+
 ## Agent-assisted onboarding
 
 Administrators can open **Agent setup** in the Activity or sign in independently at `/setup` on the public origin. A compatible browser agent can inspect guild setup, preview/customize four starter compositions and propose a concrete plan. The administrator accepts the exact plan before application; all new rules remain disabled, review-only and unapproved, with enforcement off. A manual planner is available without WebMCP. See [browser setup, compatibility, starters and screenshots](docs/AGENT_ONBOARDING.md) and [validation limits](evidence/issue44-validation.md). Chrome 155 with WebMCP enabled passed native in-page tools and real standalone Discord OAuth, accepted-plan application to isolated local SQL, receipts and logout. Discord web's actual iframe denied registration with `NotAllowedError` because it does not delegate `tools`; use the browser dashboard. Other browser agents/Discord clients and real provider acceptance remain unverified. This adds no remote MCP service or production deployment.

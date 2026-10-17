@@ -4,6 +4,7 @@ import { Packs, exportPack } from './packs.js';
 import { starterPack, STARTER_PACKS } from './pack-starters.js';
 import { PACK_LIMITS } from '../shared/packs.js';
 import { TEXT_STARTERS } from '../shared/text-starters.js';
+import { DATA_USE_NOTICE_VERSION, DATA_USE_CONSENT_KEYS } from '../shared/domain.js';
 import { TEXT_LIMITS } from '../shared/text.js';
 import { installTextStarters } from './text-starters.js';
 import { Deferred } from './throttle.js';
@@ -249,12 +250,17 @@ export function createHttp(services: Services, config: Config, root = process.cw
         if (route === 'settings' && method === 'PUT') {
             requireAdmin(a);
             const b = await jsonBody(req);
-            onlyKeys(b, ['value', 'revision', 'acknowledgement']);
+            onlyKeys(b, ['value', 'revision', 'acknowledgement', 'noticeVersion']);
             const revision = number(b.revision, 1, 1e9, true);
             await store.withGuild(guild, async (tx) => {
                 const old = await tx.getSettings(guild);
                 assert(old.revision === revision, 'revision_conflict', 409);
                 const value = parseSettings(b.value, old.value);
+                const consentChanged = DATA_USE_CONSENT_KEYS.some(k => (value[k] ?? false) !== (old.value[k] ?? false));
+                // Bind a transition to the notice actually displayed by the client.
+                // Unrelated saves cannot renew consent or silently accept revised purposes.
+                if (consentChanged)
+                    assert(b.noticeVersion === DATA_USE_NOTICE_VERSION, 'data_use_notice_conflict', 409);
                 assert(value.textStartersInstalled===old.value.textStartersInstalled,'starter_marker_read_only');
                 assert(JSON.stringify(value.onboardingStarters ?? []) === JSON.stringify(old.value.onboardingStarters ?? []),'starter_marker_read_only');
                 if (value.enforcement && !old.value.enforcement) {
@@ -268,6 +274,13 @@ export function createHttp(services: Services, config: Config, root = process.cw
                 assert([...value.channels, ...value.excludedChannels, ...(value.logChannel ? [value.logChannel] : [])].every(id => channelIds.has(id)), 'channel_not_in_guild');
                 assert(value.exemptRoles.every(id => roleIds.has(id)), 'role_not_in_guild');
                 await tx.putSettings(guild, value, revision);
+                if (consentChanged) {
+                    await services.audit(guild, a.userId, 'data_use.consent_updated', 'settings', {
+                        noticeVersion: DATA_USE_NOTICE_VERSION,
+                        previous: Object.fromEntries(DATA_USE_CONSENT_KEYS.map(k => [k, old.value[k] ?? false])),
+                        current: Object.fromEntries(DATA_USE_CONSENT_KEYS.map(k => [k, value[k] ?? false]))
+                    }, tx);
+                }
                 await services.audit(guild, a.userId, 'settings.updated', 'settings', { changed: Object.keys(value).filter(k => JSON.stringify(value[k as keyof typeof value]) !== JSON.stringify(old.value[k as keyof typeof value])) }, tx);
             });
             return { body: await store.getSettings(guild) };

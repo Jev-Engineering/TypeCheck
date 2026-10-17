@@ -12,6 +12,8 @@ export type Mode = 'exact' | 'transformed' | 'partial' | 'semantic';
 export type Action = 'none' | 'delete' | 'warn' | 'timeout' | 'kick' | 'ban' | 'review';
 export type RuleType = 'individual' | 'group' | 'any_match' | 'any_image' | 'content' | 'text';
 export interface Settings {
+    typesafeReviewConsent?: boolean;
+    completeTechTrainingConsent?: boolean;
     textModerationEnabled?: boolean;
     textStartersInstalled?: boolean;
     onboardingStarters?: string[];
@@ -37,7 +39,10 @@ export interface Settings {
 // Practical starting points; scores depend on the domain, model and images.
 export const MATCH_THRESHOLDS = { standard: 0.70, strict: 0.90, min: 0.5, max: 1.0 } as const;
 export const DEFAULT_RULE_THRESHOLD = MATCH_THRESHOLDS.standard;
+export const DATA_USE_NOTICE_VERSION = '2026-10-17.1';
+export const DATA_USE_CONSENT_KEYS = ['typesafeReviewConsent', 'completeTechTrainingConsent'] as const;
 export const DEFAULT_SETTINGS: Settings = {
+    typesafeReviewConsent: false, completeTechTrainingConsent: false,
     onboardingStarters: [], textModerationEnabled: false, textStartersInstalled: false, contentMessageContext: false, monitoring: true, enforcement: false, anyImageEnabled: false, semanticEnabled: false,
     channels: [], excludedChannels: [], exemptRoles: [], processBots: false, processWebhooks: false,
     logChannel: null, dmNotify: false,
@@ -258,7 +263,7 @@ export function parseSettings(value: unknown, defaults: Settings = DEFAULT_SETTI
         assert(Array.isArray(v.onboardingStarters) && v.onboardingStarters.length <= 32 && v.onboardingStarters.every(k => typeof k === 'string' && /^[a-z_]{1,40}$/.test(k)), 'invalid_onboarding_starters');
         s.onboardingStarters = [...new Set(v.onboardingStarters as string[])];
     }
-    for (const k of ['textModerationEnabled', 'textStartersInstalled', 'contentMessageContext', 'monitoring', 'enforcement', 'anyImageEnabled', 'semanticEnabled', 'processBots', 'processWebhooks', 'dmNotify', 'highImpactEnabled'] as const)
+    for (const k of ['typesafeReviewConsent', 'completeTechTrainingConsent', 'textModerationEnabled', 'textStartersInstalled', 'contentMessageContext', 'monitoring', 'enforcement', 'anyImageEnabled', 'semanticEnabled', 'processBots', 'processWebhooks', 'dmNotify', 'highImpactEnabled'] as const)
         if (k in v)
             s[k] = bool(v[k]);
     for (const k of ['channels', 'excludedChannels', 'exemptRoles'] as const)
