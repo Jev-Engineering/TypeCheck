@@ -53,18 +53,25 @@ export async function exportPack(services: Services, guild: string, selection: P
             for (const row of rows[kind]!)
                 byId.set(row.id, { kind, row });
         const selected = new Set<string>();
-        const add = (kind: PackKind, id: string) => {
+        const expandedGroups = new Set<string>();
+        const add = (kind: PackKind, id: string, includeMembers = true) => {
             const entry = byId.get(id);
             assert(entry && entry.kind === kind, 'pack_component_not_found');
-            if (selected.has(id))
+            if (selected.has(id)) {
+                if(kind==='groups' && includeMembers && !expandedGroups.has(id)) {
+                    expandedGroups.add(id);
+                    for(const image of rows.images as ReferenceImage[]) if(image.groupId===id) add('images',image.id);
+                }
                 return;
+            }
             selected.add(id);
             const r = entry.row;
             if (r.groupId)
-                add('groups', r.groupId);
+                add('groups', r.groupId,kind==='rules' && r.type==='group');
             if (r.referenceId)
                 add('images', r.referenceId);
-            if (kind === 'groups' || kind === 'rules' && r.type === 'group')
+            if(kind==='groups' && includeMembers) expandedGroups.add(id);
+            if (kind === 'groups' && includeMembers || kind === 'rules' && r.type === 'group')
                 for (const image of rows.images as ReferenceImage[])
                     if (image.groupId === (kind === 'groups' ? id : r.groupId))
                         add('images', image.id);
@@ -142,6 +149,7 @@ export async function validatePack(input: unknown): Promise<{
     pack: Pack;
     images: Map<string, NormalizedImage>;
 }> {
+    object(input);
     const queue: {
         v: any;
         depth: number;

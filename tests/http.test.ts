@@ -2,6 +2,7 @@ import { TEXT_STARTERS } from '../shared/text-starters.js';
 test('pack API enforces live administrator/guild boundary and preview-before-apply with recorded results',async t=>{
     const f=await setup(t),login=await f.login(),token=login.data.sessionToken,base='/api/g/'+G+'/packs';
     const starters=await f.request(base+'/starters','GET',undefined,token);assert.equal(starters.data.length,4);
+    assert.equal((await f.request(base+'/preview','POST',{},token)).status,400);
     const pack=(await f.request(base+'/starter/image-scam-analysis','GET',undefined,token)).data;
     assert.equal((await f.request(base+'/apply','POST',{pack,options:{},token:'forged'},token)).status,409);
     const preview=await f.request(base+'/preview','POST',{pack,options:{}},token);assert.equal(preview.status,200);

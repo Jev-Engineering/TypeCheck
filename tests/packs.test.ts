@@ -11,6 +11,13 @@ import { baseRecord, type Rule, type ReferenceImage } from '../shared/domain.js'
 import { PACK_LIMITS, type Pack, type ImportOptions } from '../shared/packs.js';
 import { PNG } from './helpers.js';
 import { TEXT_STARTERS } from '../shared/text-starters.js';
+test('individual grouped image export includes the container without unrelated sibling images',async t=>{
+    const f=await fixture(t),group={...baseRecord(G,randomUUID()),name:'Shared group'};
+    await f.store.put('groups',group,0);await f.store.put('images',{...f.ref,groupId:group.id,revision:2},1);
+    await f.store.put('images',{...f.ref,...baseRecord(G,randomUUID()),groupId:group.id,name:'Unselected sibling'},0);
+    const individual=await exportPack(f.services,G,{components:[{kind:'images',id:f.ref.id}]});assert.equal(individual.components.length,2);assert.ok(!individual.components.some(c=>c.name==='Unselected sibling'));
+    const selection=await exportPack(f.services,G,{components:[{kind:'images',id:f.ref.id},{kind:'groups',id:group.id}]});assert.equal(selection.components.length,3);assert.ok(selection.components.some(c=>c.name==='Unselected sibling'));
+});
 test('complete export supports full destination component and channel/role capacities',async t=>{
     const f=await fixture(t),template=await starterPack(process.cwd(),'custom-template'),definition=template.components.find(c=>c.kind==='definitions')!.value.content;
     for(let i=0;i<250;i++) {

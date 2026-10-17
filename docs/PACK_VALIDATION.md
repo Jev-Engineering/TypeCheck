@@ -9,8 +9,8 @@ Scope: [issue #41](https://github.com/Jev-Engineering/TypeCheck/issues/41). Thes
 | `npm ci --no-audit --no-fund` | Clean install, 44 packages; npm reported esbuild install-script policy notice, build subsequently succeeded. |
 | `npm run check` | TypeScript passed. |
 | `npm run build` | TypeScript and official Discord SDK bundling passed; [transcript](../evidence/packs-build.txt). |
-| `npm test` | 347 tests passed, zero failed/skipped; [transcript](../evidence/packs-local-tests.txt). |
-| `node --test dist/tests/packs.test.js` | 26 pack-specific tests passed; [transcript](../evidence/packs-focused-tests.txt). |
+| `npm test` | 348 tests passed, zero failed/skipped; [transcript](../evidence/packs-local-tests.txt). |
+| `node --test dist/tests/packs.test.js` | 27 pack-specific tests passed; [transcript](../evidence/packs-focused-tests.txt). |
 | `npm audit --audit-level=high` | Zero vulnerabilities; [transcript](../evidence/packs-audit.txt). |
 | `node scripts/review-dependencies.mjs` | Existing dependency declarations/licenses passed; no new package; [transcript](../evidence/packs-dependencies.txt). |
 | `node --test scripts/release-guard.test.mjs scripts/release-source.test.mjs scripts/migration-receipt.test.mjs scripts/hosting-handoff.test.mjs` | 13 passed, 3 platform-dependent skips on Windows; [transcript](../evidence/packs-release-tests.txt). Linux CI runs the platform-specific checks. |
@@ -21,7 +21,7 @@ Scope: [issue #41](https://github.com/Jev-Engineering/TypeCheck/issues/41). Thes
 
 ## Coverage
 
-Pack tests cover standalone reference/definition and complete policy round trips, group/individual dependency closure and reconstruction, native text-definition preservation, exact normalized asset bytes, secret/history/path exclusion, role/channel mapping and permission loss, live administrator/guild boundaries, keep/replace conflicts, repeat import and explicit upgrades, local edits and unrelated records, deletion tombstones and first-login starter adoption, disabled/unapproved imported rules, different-modality replacement, source-evidence binding/staleness, corrupt/unsupported/malicious inputs, invalid checksums/paths/counts/pixels, expanded bytes, upload/container/structural work bounds, injected filesystem/database failures and orphan collection, and snapshot/decision/input changes, inherited-property conflict choices, and complete exports at the supported 850-component/750-mapping capacity.
+Pack tests cover standalone reference/definition and complete policy round trips (including a single grouped image without its siblings), group/individual dependency closure and reconstruction, native text-definition preservation, exact normalized asset bytes, secret/history/path exclusion, role/channel mapping and permission loss, live administrator/guild boundaries, keep/replace conflicts, repeat import and explicit upgrades, local edits and unrelated records, deletion tombstones and first-login starter adoption, disabled/unapproved imported rules, different-modality replacement, source-evidence binding/staleness, corrupt/unsupported/malicious inputs, invalid checksums/paths/counts/pixels, expanded bytes, upload/container/structural work bounds, injected filesystem/database failures and orphan collection, and snapshot/decision/input changes, inherited-property conflict choices, and complete exports at the supported 850-component/750-mapping capacity.
 
 Both backend drills migrate twice, import the 37-component combined pack, read it back through a second connection, export complete policy and map settings, preserve local edits, reject stale previews, roll back an injected final-audit failure, isolate guild reads, and admit only one of two concurrent imports. Existing PostgreSQL durability/idempotency/election/recovery and MySQL 104-assertion suites run alongside these tests. CI adds this pack drill to both existing database lanes; checks and approval gates are not weakened.
 

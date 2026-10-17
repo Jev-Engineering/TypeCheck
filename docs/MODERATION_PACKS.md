@@ -4,7 +4,7 @@ Administrators open **Moderation packs** in the Activity. Select a starter or up
 
 ## Export and complete configuration
 
-Select an individual image, group, standalone image-analysis definition, rule, or any collection. **Preview export** resolves dependencies and lists the exact included components before **Download pack file**. A group includes its members; a rule includes its individual reference, group members, or entire reference library for an any-reference rule. Content/text rules embed their parsed definitions; reference images do not condition content-analysis prompts. Exports capture the policy and asset bytes under the guild transaction lock.
+Select an individual image, group, standalone image-analysis definition, rule, or any collection. **Preview export** resolves dependencies and lists the exact included components before **Download pack file**. A selected group includes its members. An individual grouped image includes its group container without unrelated siblings; a rule includes its individual reference, group members, or entire reference library for an any-reference rule. Content/text rules embed their parsed definitions; reference images do not condition content-analysis prompts. Exports capture the policy and asset bytes under the guild transaction lock.
 
 **Complete configuration** includes all groups, reference images (including disabled records), saved image-analysis definitions, image and native text rules, the policy settings below and delegated capability grants. This is the complete *portable moderation policy*, not a database backup.
 
