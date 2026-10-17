@@ -82,6 +82,10 @@ jobs:
       - run: npm run build
       - run: npm test
       - run: node scripts/validate-text-dataset.mjs
+      - name: Verify offline benchmark receipts and pricing arithmetic
+        run: |
+          node --test scripts/kaggle-benchmark.test.mjs
+          python3 scripts/benchmark_costs_test.py
       - run: node --test scripts/release-guard.test.mjs scripts/release-source.test.mjs scripts/migration-receipt.test.mjs scripts/hosting-handoff.test.mjs
       - run: node dist/server/migrate.js
         env:
