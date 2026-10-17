@@ -3,10 +3,9 @@ name: Deploy production
 # runs, other branches and failed or cancelled runs never reach the deploy job.
 # workflow_run is used only to observe Validate's verdict for main. No pull request code is
 # checked out or executed here; the candidate is a main commit that already passed CI.
-# Database credentials exist only inside the GoDaddy runtime, so CI cannot back up or
-# migrate the database. A release that adds an (expand-only) migration is held until an
-# operator exports the database from the GoDaddy dashboard and dispatches it with
-# backup_confirmed; the release then applies the migration at startup under its lock.
+# Database credentials exist only inside the GoDaddy runtime, so CI never touches the
+# database. A release admitted with an expand-only migration backs the database up to its
+# persistent volume and then migrates, once, at startup under the migration lock.
 on: # zizmor: ignore[dangerous-triggers]
   workflow_run:
     workflows: [Validate]
@@ -24,10 +23,6 @@ on: # zizmor: ignore[dangerous-triggers]
       reason:
         description: Why this manual deployment is needed
         required: true
-      backup_confirmed:
-        description: I downloaded a fresh Export SQL backup from the GoDaddy Hosted Database page (required for releases that migrate)
-        type: boolean
-        default: false
 permissions:
   contents: read
 # One production release at a time. A newer queued run replaces an older queued one;
@@ -106,7 +101,6 @@ jobs:
         env:
           LIVE: ${{ steps.live.outputs.release }}
           ROLLBACK: ${{ inputs.rollback && '--rollback' || '' }}
-          BACKUP_CONFIRMED: ${{ inputs.backup_confirmed && 'true' || 'false' }}
         run: |
           set +e
           # shellcheck disable=SC2086 # ROLLBACK is empty or one flag
@@ -121,20 +115,8 @@ jobs:
           echo "action=$action" >> "$GITHUB_OUTPUT"
           echo "migrations=$migrations" >> "$GITHUB_OUTPUT"
           if [[ $code -ne 0 ]]; then echo "::error::release blocked: $reason"; exit 1; fi
-          # A rollback never migrates; a forward release with migrations needs a confirmed manual backup.
-          if [[ "$migrations" == expand && "$action" == deploy ]]; then
-            if [[ "$GITHUB_EVENT_NAME" != workflow_dispatch || "$BACKUP_CONFIRMED" != true ]]; then
-              {
-                echo "### Release held: database migration"
-                echo "\`$CANDIDATE\` adds an expand-only migration. Before it can deploy:"
-                echo "1. GoDaddy dashboard → TypeCheck → Settings → Hosted Database → **Export SQL**; keep the file."
-                echo "2. Run **Deploy production** with \`commit=$CANDIDATE\` and **backup_confirmed** checked."
-              } >> "$GITHUB_STEP_SUMMARY"
-              echo "::error::release held: $CANDIDATE migrates the database; export a backup, then dispatch with backup_confirmed"
-              exit 1
-            fi
-            echo "migrate=true" >> "$GITHUB_OUTPUT"
-          fi
+          # Forward expand-only releases back up and migrate at startup; rollbacks never migrate.
+          if [[ "$migrations" == expand && "$action" == deploy ]]; then echo "migrate=true" >> "$GITHUB_OUTPUT"; fi
 
       - name: Skip a commit that is already live or superseded
         id: noop
@@ -176,8 +158,8 @@ jobs:
         env:
           GDDY_PAT: ${{ secrets.GODADDY_PAT }}
           MIGRATE: ${{ steps.guard.outputs.migrate == 'true' && 'migrate' || '' }}
-        # PREVIEW starts the candidate first; with MIGRATE it applies the migration once under
-        # the application lock while the previous release keeps serving (expand-only).
+        # PREVIEW starts the candidate first; with MIGRATE it backs up and applies the migration
+        # once under the application lock while the previous release keeps serving (expand-only).
         run: |
           # shellcheck disable=SC2086 # MIGRATE is empty or one word
           scripts/godaddy-release.sh ship "$CANDIDATE" "$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" $MIGRATE
@@ -190,6 +172,17 @@ jobs:
           EXPECTED_COMMIT: ${{ env.CANDIDATE }}
           EXPECTED_STORAGE: ${{ steps.live.outputs.storage }}
         run: scripts/godaddy-release.sh verify
+
+      - name: Confirm the pre-migration backup
+        id: receipt
+        if: steps.noop.outputs.skip != 'true' && steps.guard.outputs.migrate == 'true'
+        # Evidence only: the release cannot start migrated without a successful backup, and
+        # verification has already proved it started, so missing log lines only warn.
+        continue-on-error: true
+        env:
+          GDDY_PAT: ${{ secrets.GODADDY_PAT }}
+          SINCE: ${{ steps.ship.outputs.started_at }}
+        run: scripts/godaddy-release.sh receipt "$SINCE"
 
       - name: Collect diagnostics
         if: (failure() || cancelled()) && steps.record.outputs.id
@@ -226,7 +219,7 @@ jobs:
           DEPLOYMENT_ID: ${{ steps.record.outputs.id }}
           VERIFY: ${{ steps.verify.outcome }}
           ROLLBACK: ${{ steps.rollback.outcome || 'not run' }}
-          BACKUP: ${{ steps.guard.outputs.migrate == 'true' && 'Export SQL confirmed by operator' || 'not required (no migration)' }}
+          BACKUP: ${{ steps.guard.outputs.migrate == 'true' && (steps.receipt.outputs.backup || 'taken by the release (receipt not found in logs)') || 'not required (no migration)' }}
           GODADDY_DEPLOYMENT: ${{ steps.ship.outputs.godaddy_deployment }}
           LIVE: ${{ steps.live.outputs.release }}
           LIVE_SOURCE: ${{ steps.live.outputs.source }}

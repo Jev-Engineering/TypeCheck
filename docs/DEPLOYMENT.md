@@ -4,8 +4,6 @@ Production runs on GoDaddy Node.js Hosting. A release reaches it only through `.
 
 PR → `Validate` and review → merge to `main` → `Validate` succeeds on the push to `main` → `Deploy production` deploys that exact commit → post-deployment verification.
 
-Releases that add a database migration are the exception: they are held until a maintainer downloads an Export SQL backup and dispatches the release (see [Releases with a migration](#releases-with-a-migration)).
-
 ## Architecture (verified 2026-10-16)
 
 | Item | Value |
@@ -14,7 +12,7 @@ Releases that add a database migration are the exception: they are held until a 
 | Production URL | https://mxa13say2y.c24.airoapp.ai (GoDaddy platform hostname, TLS certificate issued by Google Trust Services) |
 | Variants | PREVIEW (GoDaddy-login gated) and PUBLISH (production). An upload builds PREVIEW, and `deployment publish` promotes that build to PUBLISH. |
 | Supported mechanism | `gddy hosting source upload` (zip) → `gddy hosting deployment publish`. There is no rollback API, so rollback redeploys a known-good commit. |
-| Database | GoDaddy managed MySQL shared by PREVIEW and PUBLISH. Its `DB_*` credentials are injected into the runtime only: neither the dashboard ("no manual login") nor the API reveals them, so CI cannot connect to the database. Backups are taken with the dashboard's **Export SQL** (Settings → Hosted Database) and restored with **Import SQL**. |
+| Database | GoDaddy managed MySQL shared by PREVIEW and PUBLISH. Its `DB_*` credentials are injected into the runtime only: neither the dashboard ("no manual login") nor the API reveals them, so CI cannot connect to the database. The release backs the database up itself before migrating (see [Backups and restore](#backups-and-restore)). The dashboard's **Export SQL** is not a usable backup: it writes every JSON value as the text `[object Object]`, and its output fails to restore (verified 2026-10-17). |
 | Edge / DNS | GoDaddy's own Cloudflare-fronted platform domain. The project's Cloudflare zones contain no record for this app, so there is nothing to change there unless a custom domain is adopted (see below). |
 | Discord Activity | URL mapping `/` → production host. `https://1560495911358955540.discordsays.com/api/health` reaches the production process. |
 | GitHub link | The app still shows `source: GITHUB` (`feat/mysql-store`) from initial setup. The `godaddy-node-js-hosting` GitHub App has `contents: read` and no webhook events, so pushes never trigger GoDaddy imports. The first zip upload replaces this source. |
@@ -49,10 +47,10 @@ To rotate the GoDaddy PAT, create a new token with the scopes above at https://d
    - A candidate older than the live release is refused unless dispatched with `rollback: true`. For an automatic run this means a newer release is already live (CI runs finished out of order), so the run ends as a successful no-op (`superseded`).
    - A diverged history is refused.
    - Migrations are classified by diffing `db/`. *Expand-only* means new files that only create tables and indexes, and write rows only into those new tables or `schema_migrations`. Anything else (ALTER, DROP, UPDATE, DELETE, edits to shipped migrations) is *incompatible* and blocks deployment.
-   - A forward release with an expand-only migration is **held** unless it was dispatched with `backup_confirmed: true`. The automatic run fails with `release held` and its summary lists the two steps in [Releases with a migration](#releases-with-a-migration).
+   - A forward release with an expand-only migration is marked `migrate`. Rollbacks never are.
 4. **Record.** A GitHub deployment is created for the exact candidate SHA (`in_progress`). It links to the run.
-5. **Ship.** `git archive` of the exact commit plus `release.json` (`commit`, `run`, `migrate`) is uploaded to PREVIEW, built by GoDaddy and then published. `migrate` is `true` only for an admitted, backup-confirmed migration release.
-6. **Migration** (only when `migrate` is `true`; never for rollbacks). The release migrates itself at startup with the runtime's own `DB_*` credentials, using `GET_LOCK('typecheck:migrate')` and writing the version receipt last, so PREVIEW and PUBLISH starting together migrate exactly once. PREVIEW starts the new code first while the previous release keeps serving on PUBLISH; expand-only schema is compatible with both. The same migrations run in CI against MySQL 8.4 (the `mysql` job) before a commit is eligible.
+5. **Ship.** `git archive` of the exact commit plus `release.json` (`commit`, `run`, `migrate`) is uploaded to PREVIEW, built by GoDaddy and then published. `migrate` is `true` only for an admitted expand-only forward release.
+6. **Backup, then migration** (only when `migrate` is `true`). The release migrates itself at startup with the runtime's own `DB_*` credentials, because nothing else can reach the database. Under `GET_LOCK('typecheck:migrate')`, and only if a migration is still pending, it first writes a full backup from one consistent snapshot to `OBJECT_DIR/backups/<time>-pre-migration.sql`, then applies the migration and writes the version receipt last. PREVIEW and PUBLISH starting together therefore back up and migrate exactly once. If the backup fails, nothing is migrated, the release does not start, verification fails and the previous release is redeployed. PREVIEW starts the new code first while the previous release keeps serving on PUBLISH; expand-only schema is compatible with both. CI runs the same path on MySQL 8.0 before a commit is eligible (`scripts/test-backup-databases.mjs`): populate the previous schema, back up and migrate concurrently, restore the backup with the `mysql` client and compare every row byte-for-byte.
 7. **Verify** (`scripts/verify-production.mjs`, read-only; up to 10 minutes for the release to appear, plus up to two 3-minute handoff retries):
    - HTTPS works.
    - `/api/health.release` equals the CI commit.
@@ -61,18 +59,10 @@ To rotate the GoDaddy PAT, create a new token with the scopes above at https://d
    - API and unauthenticated responses are `no-store` and not edge-cached.
    - The page and its release-scoped assets load, and the Discord proxy serves the same release.
    - The published process becomes `leader`. If PREVIEW holds the lock, PREVIEW is restarted (at most twice) to hand over ownership. If PREVIEW still leads, the run passes with a warning: one controller exists, but it is the PREVIEW process.
+   - For migration releases, the run reads the `database_migration` log line from GoDaddy's logs and shows the backup file, SHA-256, table and row counts, and variant in the summary. This is evidence only: a migrated release cannot have started without its backup.
 8. **Failure handling.** Platform logs (secrets redacted) are kept as an artifact. If publishing had started, the previous release is redeployed the same way and verified. Rollback is automatic only because the guard admitted no incompatible schema change. The GitHub deployment is marked `failure`, and the run fails.
 
 Concurrency group `production-deploy` serializes releases. A newer queued release replaces an older queued one. A running release, including its migration and cutover, is never cancelled.
-
-### Releases with a migration
-
-When the automatic run for a `main` commit ends with `release held: … migrates the database`:
-
-1. GoDaddy dashboard → **TypeCheck** → **Settings** → **Hosted Database** → **Export SQL**. Keep the `.sql` file somewhere private (it contains guild settings and encrypted credentials). It is the restore point for this release.
-2. GitHub → Actions → **Deploy production** → **Run workflow**: `commit=<the held sha>`, `reason=<why>`, tick **backup_confirmed**.
-
-The run summary records `Backup: Export SQL confirmed by operator`. The workflow cannot inspect the export; the checkbox is the maintainer's attestation.
 
 ## Controller ownership
 
@@ -100,20 +90,23 @@ Reverting code does not revert schema. Every shipped migration so far is expand-
 2. Actions → *Deploy production* → *Run workflow*: `commit=<sha>`, `rollback=true`, `reason=<why>`.
 3. The guard confirms that the target tolerates the live schema, then ships (never migrating), verifies and records.
 
-Data written by the newer release stays in the database. For example, usage rows written to `usage_attempts` by a newer release are not shown by a release older than `002`, and they reappear when rolling forward. If a future migration is ever incompatible, the guard refuses both the automatic deploy and the rollback. That change then needs a maintenance window: pause enforcement, stop PREVIEW and PUBLISH, Export SQL, migrate, deploy, verify, resume.
+Data written by the newer release stays in the database. For example, usage rows written to `usage_attempts` by a newer release are not shown by a release older than `002`, and they reappear when rolling forward. If a future migration is ever incompatible, the guard refuses both the automatic deploy and the rollback. That change then needs a maintenance window: pause enforcement, stop PREVIEW and PUBLISH, back up, migrate, deploy, verify, resume.
 
 ## Backups and restore
 
-Backups are the dashboard's **Export SQL** download (Settings → Hosted Database), taken by a maintainer before every migration release and kept outside the repository. Before restoring, load the file into a disposable MySQL and check it:
+Each migration release writes `OBJECT_DIR/backups/<time>-pre-migration.sql` (mode 600) on the volume of the process that migrated; the run summary names the file, its SHA-256 and the variant. It is plain MySQL SQL: one `CREATE TABLE` per table, then one `INSERT` per row, with every value hex-encoded so JSON, text and binary data survive exactly. It contains guild settings and encrypted guild credentials, so keep any copy private.
+
+To check a backup, download it from the dashboard's **Files** page, compare its SHA-256 with the run summary, and load it into a disposable MySQL:
 
 ```bash
-docker run -d --name restore-check -e MYSQL_ROOT_PASSWORD=local-only -p 127.0.0.1:13307:3306 mysql:8.4
-mysql -h127.0.0.1 -P13307 -uroot -p -e "CREATE DATABASE typecheck"
-mysql -h127.0.0.1 -P13307 -uroot -p typecheck < typecheck-export.sql
-mysql -h127.0.0.1 -P13307 -uroot -p typecheck -e "SELECT version FROM schema_migrations"
+sha256sum 2026-…-pre-migration.sql
+docker run -d --name restore-check -e MYSQL_ROOT_PASSWORD=local-only -e MYSQL_DATABASE=typecheck mysql:8.4
+docker exec -i restore-check mysql -uroot -plocal-only typecheck < 2026-…-pre-migration.sql
+docker exec restore-check mysql -uroot -plocal-only typecheck -e "SELECT version FROM schema_migrations"
+docker rm -f restore-check
 ```
 
-Then load it into production with **Import SQL** on the same page.
+To restore production, load the same file with **Import SQL** (Settings → Hosted Database). It drops and recreates each table it contains; tables added by later migrations are left in place and the next release re-applies their migrations.
 
 Restoring into production overwrites newer data and can replay moderation state. Follow OPERATIONS.md (pause enforcement, no Gateway until the action ledger is reconciled) and do it only as a deliberate incident action. Reference-image files are not in the SQL dump. The dashboard's **Files** page is the only way to copy them out.
 
@@ -135,7 +128,8 @@ PRODUCTION_URL=https://mxa13say2y.c24.airoapp.ai DISCORD_CLIENT_ID=1560495911358
 | `no successful Validate push run on main` | Dispatch named an unvalidated or non-main commit |
 | `candidate_older_than_live_release` | A newer release is live. Use `rollback: true` deliberately. |
 | `migration_requires_maintenance_window` | The migration is not expand-only. Follow the incompatible-migration procedure above. |
-| `release held: … migrates the database` | Expected for migration releases. Follow [Releases with a migration](#releases-with-a-migration). |
+| `release not serving` on a migration release | The release backs up before migrating. Check the PREVIEW log for `operational_error` during startup (for example a full or read-only volume); nothing was migrated. |
+| `no database_migration log line found` (warning) | Platform logs lagged or rotated. The backup is still listed on the **Files** page under `objects/backups/`. |
 | `AUTH_REQUIRED` from `gddy` | The PAT is missing one of the scopes above, or has expired |
 | Import or publish `FAILED` | `deployment-diagnostics-<run>` artifact. GoDaddy build output is in the PREVIEW log. |
 | `release not serving before timeout` | Startup failure on PUBLISH (for example `migration_002_required` or a missing secret). Check the PUBLISH log. |
