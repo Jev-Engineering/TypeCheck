@@ -193,7 +193,7 @@ export interface Job {
     error: string | null;
     createdAt: string;
 }
-export type Kind = 'groups' | 'images' | 'rules' | 'grants' | 'credentials' | 'calibrations' | 'evaluations' | 'events' | 'audit';
+export type Kind = 'definitions' | 'packs' | 'groups' | 'images' | 'rules' | 'grants' | 'credentials' | 'calibrations' | 'evaluations' | 'events' | 'audit';
 export interface Session {
     userId: string;
     guildId: string;

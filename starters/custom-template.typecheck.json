@@ -1,0 +1,90 @@
+{
+  "format": "typecheck-pack-v1",
+  "id": "custom-template",
+  "version": "1.0.0",
+  "description": "Adapt observable criteria and exclusions before testing and approving.",
+  "compatibility": {
+    "app": "0.1.0",
+    "schema": "004",
+    "prompt": "image-content-v1",
+    "model": "jev-1.14.0",
+    "normalization": "sha256-normalized-jpeg-768-contain-white-q90-v1:5b5fb5c68095f3cddb75b1279ccbd82ad2f2ac6e38d8569a599f7a3188cc61a4"
+  },
+  "provenance": {
+    "source": "TypeCheck supplied starter; reference images supplied and reviewed by project owner on 2026-10-17",
+    "redistribution": "Supplied image redistribution rights are not established. MIT code licensing does not grant image rights."
+  },
+  "components": [
+    {
+      "id": "analysis-definition",
+      "kind": "definitions",
+      "name": "Custom observable policy",
+      "dependencies": [],
+      "value": {
+        "content": {
+          "version": "image-content-v1",
+          "preset": "custom",
+          "presetVersion": 1,
+          "question": "Does the image satisfy the administrator-defined observable content policy?",
+          "positive": "Replace with specific observable inclusion criteria before enabling.",
+          "negative": "Replace with explicit exclusions and counterexamples before enabling.",
+          "exceptions": "Exclude reporting, warnings, education, satire and quotation without endorsement. A single cue, QR code, cryptocurrency reference, unfamiliar language, urgency or logo alone is insufficient. Do not infer identity, ownership, legality, truth, age, private intent or behavioral repetition from a screenshot.",
+          "contextRequirements": "Assess visible evidence only. Preserve speaker attribution in nested screenshots. Insufficient evidence requires review.",
+          "contextSource": "image_only",
+          "requirePromotion": false,
+          "requireReadableText": false,
+          "supporting": []
+        }
+      }
+    },
+    {
+      "id": "analysis-rule",
+      "kind": "rules",
+      "name": "Custom policy (configure first)",
+      "dependencies": [],
+      "value": {
+        "type": "content",
+        "content": {
+          "version": "image-content-v1",
+          "preset": "custom",
+          "presetVersion": 1,
+          "question": "Does the image satisfy the administrator-defined observable content policy?",
+          "positive": "Replace with specific observable inclusion criteria before enabling.",
+          "negative": "Replace with explicit exclusions and counterexamples before enabling.",
+          "exceptions": "Exclude reporting, warnings, education, satire and quotation without endorsement. A single cue, QR code, cryptocurrency reference, unfamiliar language, urgency or logo alone is insufficient. Do not infer identity, ownership, legality, truth, age, private intent or behavioral repetition from a screenshot.",
+          "contextRequirements": "Assess visible evidence only. Preserve speaker attribution in nested screenshots. Insufficient evidence requires review.",
+          "contextSource": "image_only",
+          "requirePromotion": false,
+          "requireReadableText": false,
+          "supporting": []
+        },
+        "referenceId": null,
+        "groupId": null,
+        "mode": "exact",
+        "threshold": 0.9,
+        "action": "review",
+        "timeoutSeconds": 600,
+        "deleteMessage": false,
+        "priority": 0,
+        "enabled": false,
+        "automatic": false,
+        "secondVerification": true,
+        "reason": "Review apparent scam content with visible context"
+      }
+    }
+  ],
+  "assets": [],
+  "policy": null,
+  "evidence": [
+    {
+      "kind": "template",
+      "digest": "20bbd6a4d1f88378d8ac165610350659e78449e447c9fc3b54e670eef3147a53",
+      "source": "Bundled TypeCheck starter",
+      "details": {
+        "modelEvaluation": "not performed",
+        "liveValidation": "not performed",
+        "limitations": "No accuracy claim, no held-out split, no destination approval."
+      }
+    }
+  ]
+}

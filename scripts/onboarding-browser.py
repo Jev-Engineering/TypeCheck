@@ -90,4 +90,3 @@ async def main():
     (root/'evidence'/'issue44-browser.json').write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(report,indent=2))
 asyncio.run(main())
-

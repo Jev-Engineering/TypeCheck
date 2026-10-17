@@ -1,0 +1,156 @@
+{
+  "format": "typecheck-pack-v1",
+  "id": "image-scam-analysis",
+  "version": "1.0.0",
+  "description": "Editable criteria, exclusions, readability and context gates. Supplied template; not evaluated.",
+  "compatibility": {
+    "app": "0.1.0",
+    "schema": "004",
+    "prompt": "image-content-v1",
+    "model": "jev-1.14.0",
+    "normalization": "sha256-normalized-jpeg-768-contain-white-q90-v1:5b5fb5c68095f3cddb75b1279ccbd82ad2f2ac6e38d8569a599f7a3188cc61a4"
+  },
+  "provenance": {
+    "source": "TypeCheck supplied starter; reference images supplied and reviewed by project owner on 2026-10-17",
+    "redistribution": "Supplied image redistribution rights are not established. MIT code licensing does not grant image rights."
+  },
+  "components": [
+    {
+      "id": "analysis-definition",
+      "kind": "definitions",
+      "name": "Image scam analysis",
+      "dependencies": [],
+      "value": {
+        "content": {
+          "version": "image-content-v1",
+          "preset": "scams",
+          "presetVersion": 1,
+          "question": "Does the submitted image contain an apparent deceptive solicitation intended to obtain money, credentials, account access, sensitive information, or another benefit through misleading claims or impersonation?",
+          "positive": "Apparent advance fees, fake prizes or giveaways, fraudulent refunds, recovery scams, fake support, job/task scams, investment inducements or marketplace payment diversion with both a solicitation and observable misleading claims.",
+          "negative": "A normal invoice, legitimate-looking giveaway with no fee or deceptive claim, or a scam warning.",
+          "exceptions": "Exclude reporting, warnings, education, satire and quotation without endorsement. A single cue, QR code, cryptocurrency reference, unfamiliar language, urgency or logo alone is insufficient. Do not infer identity, ownership, legality, truth, age, private intent or behavioral repetition from a screenshot.",
+          "contextRequirements": "Assess visible evidence only. Preserve speaker attribution in nested screenshots. Insufficient evidence requires review.",
+          "contextSource": "image_only",
+          "requirePromotion": true,
+          "requireReadableText": true,
+          "supporting": [
+            {
+              "id": "credentials",
+              "question": "Does the image request credentials, authentication codes or recovery secrets?"
+            },
+            {
+              "id": "advance_fee",
+              "question": "Does the image request payment to obtain a prize, job, refund or recovered asset?"
+            },
+            {
+              "id": "authority",
+              "question": "Does the image use apparent impersonation or fabricated authority?"
+            },
+            {
+              "id": "pressure",
+              "question": "Does the image use threats, artificial urgency or secrecy to induce compliance?"
+            },
+            {
+              "id": "returns",
+              "question": "Does the image make implausible or guaranteed financial-return claims?"
+            },
+            {
+              "id": "diversion",
+              "question": "Does the image direct recipients away from a normal transaction or support process?"
+            },
+            {
+              "id": "warning",
+              "question": "Does the image report or warn about a suspected scam?"
+            },
+            {
+              "id": "insufficient",
+              "question": "Is there insufficient readable evidence for assessment?"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "analysis-rule",
+      "kind": "rules",
+      "name": "Image scam analysis (review first)",
+      "dependencies": [],
+      "value": {
+        "type": "content",
+        "content": {
+          "version": "image-content-v1",
+          "preset": "scams",
+          "presetVersion": 1,
+          "question": "Does the submitted image contain an apparent deceptive solicitation intended to obtain money, credentials, account access, sensitive information, or another benefit through misleading claims or impersonation?",
+          "positive": "Apparent advance fees, fake prizes or giveaways, fraudulent refunds, recovery scams, fake support, job/task scams, investment inducements or marketplace payment diversion with both a solicitation and observable misleading claims.",
+          "negative": "A normal invoice, legitimate-looking giveaway with no fee or deceptive claim, or a scam warning.",
+          "exceptions": "Exclude reporting, warnings, education, satire and quotation without endorsement. A single cue, QR code, cryptocurrency reference, unfamiliar language, urgency or logo alone is insufficient. Do not infer identity, ownership, legality, truth, age, private intent or behavioral repetition from a screenshot.",
+          "contextRequirements": "Assess visible evidence only. Preserve speaker attribution in nested screenshots. Insufficient evidence requires review.",
+          "contextSource": "image_only",
+          "requirePromotion": true,
+          "requireReadableText": true,
+          "supporting": [
+            {
+              "id": "credentials",
+              "question": "Does the image request credentials, authentication codes or recovery secrets?"
+            },
+            {
+              "id": "advance_fee",
+              "question": "Does the image request payment to obtain a prize, job, refund or recovered asset?"
+            },
+            {
+              "id": "authority",
+              "question": "Does the image use apparent impersonation or fabricated authority?"
+            },
+            {
+              "id": "pressure",
+              "question": "Does the image use threats, artificial urgency or secrecy to induce compliance?"
+            },
+            {
+              "id": "returns",
+              "question": "Does the image make implausible or guaranteed financial-return claims?"
+            },
+            {
+              "id": "diversion",
+              "question": "Does the image direct recipients away from a normal transaction or support process?"
+            },
+            {
+              "id": "warning",
+              "question": "Does the image report or warn about a suspected scam?"
+            },
+            {
+              "id": "insufficient",
+              "question": "Is there insufficient readable evidence for assessment?"
+            }
+          ]
+        },
+        "referenceId": null,
+        "groupId": null,
+        "mode": "exact",
+        "threshold": 0.9,
+        "action": "review",
+        "timeoutSeconds": 600,
+        "deleteMessage": false,
+        "priority": 0,
+        "enabled": false,
+        "automatic": false,
+        "secondVerification": true,
+        "reason": "Review apparent scam content with visible context"
+      }
+    }
+  ],
+  "assets": [],
+  "policy": null,
+  "evidence": [
+    {
+      "kind": "template",
+      "digest": "2639ecc8c919f464cbb8b6831633e1a3aae82f7f8859ae6024faf239b73eec2b",
+      "source": "Bundled TypeCheck starter",
+      "details": {
+        "modelEvaluation": "not performed",
+        "liveValidation": "not performed",
+        "limitations": "No accuracy claim, no held-out split, no destination approval."
+      }
+    }
+  ]
+}

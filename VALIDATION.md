@@ -239,3 +239,7 @@ See [issue39 validation](evidence/issue39-validation.md) for 320 software tests,
 ## Agent onboarding / issue #44
 
 [Issue44 validation](evidence/issue44-validation.md) records check/build/tests, PostgreSQL/MySQL rollback/concurrency/receipts, desktop/mobile screenshots, unsupported-browser fallback, native Chrome in-page agent evidence and remaining live Discord/embedding/provider gates. Local results grant neither production acceptance nor deployment authority.
+
+## Reusable moderation packs
+
+See [the feature validation record](docs/PACK_VALIDATION.md) for exact local test commands, isolated PostgreSQL/MySQL persistence, real offline UI workflow/screenshots, CI links and limitations. Owner-reviewed starter images are not a negative/held-out evaluation dataset. No paid model evaluation or production deployment is authorized or claimed.

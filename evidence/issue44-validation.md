@@ -1,6 +1,6 @@
 # Issue #44 — browser onboarding validation
 
-Scope: isolated implementation and offline/synthetic validation, 2026-10-17. No production deployment, bot controller startup, live provider calls or production data changes. Remote confirmed as `git@github.com:Jev-Engineering/TypeCheck.git`; main is the default branch. No additional filesystem AGENTS.md was found in the repository/ancestor paths; supplied machine-wide instructions were followed. Unrelated deployment/branding work stays in its own checkouts/PRs. Starter overlap was recorded on issue #41.
+Scope: isolated implementation and offline/synthetic validation, 2026-10-17. No production deployment, bot controller startup, live provider calls or production data changes. Remote confirmed as `git@github.com:Jev-Engineering/TypeCheck.git`; main is the default branch. No additional filesystem AGENTS.md was found in the repository/ancestor paths; supplied machine-wide instructions were followed. Unrelated deployment/branding work stays in its own checkouts/PRs. Starter overlap was recorded on issue #41. PR #46 merged during implementation; its main commit 7e893ce was integrated, preserving pack UI/API/seeding. Cross-workflow tests protect marker portability, complete imports and shared image rule identity.
 
 ## Local checks
 
@@ -9,7 +9,7 @@ Scope: isolated implementation and offline/synthetic validation, 2026-10-17. No 
 | `npm ci --no-audit --no-fund` | Fresh locked dependency installation succeeded |
 | `npm run check` | Passed |
 | `npm run build` | Passed, including official Discord SDK bundle/notices |
-| `npm test` | 337 passed, no failures/skips; [output](issue44-tests.txt) |
+| `npm test` | 367 passed, no failures/skips; [output](issue44-tests.txt) |
 | `npm audit --audit-level=high` | Zero vulnerabilities |
 | `node scripts/review-dependencies.mjs` | 96 license declarations reviewed; existing native-library license constraints unchanged |
 | `node scripts/validate-text-dataset.mjs` | 70 cases; no paid calls, accuracy not measured |
@@ -20,6 +20,8 @@ Scope: isolated implementation and offline/synthetic validation, 2026-10-17. No 
 | `git diff --check` | Passed |
 
 HTTP/unit cases cover session expiry/logout, standalone state/guild/browser/origin binding and exact redirect URI, live permission revocation and tenant isolation; plan actor/session/digest binding, explicit acceptance, stale/expired denial, safe defaults, repeat/customize/delete/overlap reconciliation, redaction and inert untrusted strings. Failure injection and concurrent application verify atomic rollback and one persisted receipt. Both SQL dialects verify canonical JSON plans, rollback, concurrent application, receipt recovery through a new service instance, tombstones and isolation. These SQL tests are wired into both hosted CI database jobs.
+
+The original feature-head CI found a legacy persistence assertion expecting an extra duplicate text starter (11 instead of 10). The assertion now verifies one canonical preset each, correct deletion count and a durable marker; full PostgreSQL/MySQL integration passes. This changes the expected deduplication behavior without relaxing the gate. Post-integration pack persistence also passed on both dialects ([PostgreSQL](issue44-pack-postgres.txt), [MySQL](issue44-pack-mysql.txt)); full integration logs are [PostgreSQL](issue44-full-postgres.txt) and [MySQL](issue44-full-mysql.txt).
 
 ## Browser evidence and assets
 
@@ -34,7 +36,7 @@ Eight `issue44-{starters,plan,result,fallback}-{desktop,mobile}.png` screenshots
 ## Remaining live gates
 
 - Actual Discord Activity iframe/proxy: parent `tools` permission delegation, compatible-agent discovery and invocation are **unverified**. TypeCheck cannot control Discord's iframe attributes. Registration success in standalone Chrome is not embedded evidence.
-- Real standalone Discord OAuth: register the exact callback on an isolated test app, sign in as an administrator, verify revoked permissions and cross-guild denial in that environment. No isolated Discord test credentials/access path was provided or present in test configuration. Synthetic OAuth tests are not this acceptance.
+- Real standalone Discord OAuth: register the exact callback on an isolated test app, sign in as an administrator, verify revoked permissions and cross-guild denial in that environment. The project test credentials were verified with read-only Discord requests: application identity and membership in the administrator-selected server passed. An isolated API-only server with a separate local database is available; provider transport is disabled. The registered redirect still needs updating and the available automation browser requires human Discord sign-in. Synthetic OAuth tests are not this acceptance.
 - Real provider calibration/accuracy, operational acceptance and production deployment are unperformed and remain separate. The implementation offers no accuracy or readiness certificate.
 
-Required remaining maintainer action before declaring full live acceptance: supply the isolated Discord application/guild/browser access path, run and record embedded discovery/invocation separately from standalone sign-in, and resolve any compatibility failures without weakening existing gates. A reviewable PR may carry this work while those gates remain open; they must not be marked complete by offline tests. Production deployment is outside this task's authorization.
+Required remaining maintainer action before declaring full live acceptance: register the standalone callback and complete human Discord login in an accessible test browser, run and record embedded discovery/invocation separately from standalone sign-in, and resolve any compatibility failures without weakening existing gates. A reviewable PR may carry this work while those gates remain open; they must not be marked complete by offline tests. Production deployment is outside this task's authorization.

@@ -1,0 +1,26 @@
+// Opt-in isolated Discord validation server. No Gateway, worker or provider transport.
+import assert from 'node:assert/strict';
+import {loadConfig} from '../dist/server/config.js';
+import {openDatabase,migrateDatabase} from '../dist/server/database.js';
+import {DiscordRest} from '../dist/server/discord.js';
+import {Services} from '../dist/server/services.js';
+import {ObjectStore} from '../dist/server/images.js';
+import {Vault} from '../dist/server/security.js';
+import {JevClient} from '../dist/server/jev.js';
+import {AppError,snowflake} from '../dist/shared/domain.js';
+import {createHttp} from '../dist/server/http.js';
+const config=loadConfig(),guild=process.env.DISCORD_TEST_GUILD_ID;
+assert.ok(!config.production&&config.apiOnly&&snowflake(guild),'Explicit API_ONLY test configuration and guild are required');
+const url=new URL(config.databaseUrl);
+assert.ok(['127.0.0.1','localhost'].includes(url.hostname)&&url.pathname==='/guard_onboarding_live','Dedicated loopback guard_onboarding_live database required');
+const {pool,store,kind}=await openDatabase(config.databaseUrl);
+await migrateDatabase(pool,kind);
+const discord=new DiscordRest(config.botToken,config.clientId,config.clientSecret);
+await discord.initialize();assert.equal(discord.botId,config.clientId,'Bot must belong to the configured test application');
+const member=discord.memberInfo.bind(discord);
+discord.memberInfo=async(g,user)=>{if(g!==guild)throw new AppError('isolated_test_guild_only',403);return member(g,user);};
+const provider=new JevClient(async()=>{throw new AppError('live_provider_tests_disabled',403);});
+const services=new Services(store,new ObjectStore(config.objectDir),new Vault(config.masterKey),provider,discord);
+const server=createHttp(services,config,process.cwd(),async()=>true,()=> 'isolated_test_api_only');
+server.listen(config.port,'127.0.0.1',()=>console.log(JSON.stringify({testApplication:config.clientId,testGuild:guild,dashboard:config.publicOrigin+'/setup?guild='+guild,controllers:0,providerTransport:'disabled'})));
+process.once('SIGINT',async()=>{server.close();await pool.end();process.exit(0);});

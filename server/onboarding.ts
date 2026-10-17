@@ -4,6 +4,9 @@ import { TEXT_STARTERS } from '../shared/text-starters.js';
 import { ONBOARDING_PRESETS, ONBOARDING_NOTICE, type SetupSelection } from '../shared/onboarding.js';
 import type { Services } from './services.js';
 import type { Store } from './store.js';
+import { scamReferenceComponent } from './pack-starters.js';
+import { packHash } from './packs.js';
+type PackReceipt = import('../shared/domain.js').RecordBase & {pack: string; components: Record<string,string>};
 
 // Canonical hashing also works with MySQL JSON key reordering.
 export function canonical(value: any): string {
@@ -25,8 +28,8 @@ export function selection(value: unknown): SetupSelection {
     }
     return { presets, channels: ids(v.channels), excludedChannels: ids(v.excludedChannels), exemptRoles: ids(v.exemptRoles), logChannel: v.logChannel, customizations };
 }
-export function installedComponents(settings: Settings, rules: Rule[]): Set<string> {
-    return new Set([...(settings.onboardingStarters ?? []), ...rules.filter(r => r.type === 'text').map(r => r.text?.preset ?? ''), ...(settings.textStartersInstalled ? TEXT_STARTERS.map(s => s.id) : [])]);
+export function installedComponents(settings: Settings, rules: Rule[], packs: PackReceipt[] = []): Set<string> {
+    return new Set([...(settings.onboardingStarters ?? []), ...rules.filter(r => r.type === 'text').map(r => r.text?.preset ?? ''), ...(settings.textStartersInstalled ? TEXT_STARTERS.map(s => s.id) : []), ...(packs.some(p=>p.pack==='combined-scam-setup'&&Object.hasOwn(p.components,'reference-rule'))?['image_scams']:[])]);
 }
 async function snapshot(tx: Store, guild: string) {
     const settings = await tx.getSettings(guild);
@@ -34,7 +37,9 @@ async function snapshot(tx: Store, guild: string) {
     const groups = (await tx.all<Group>('groups', guild)).sort((a,b) => a.id.localeCompare(b.id));
     const images = (await tx.all<ReferenceImage>('images', guild)).map(({id, revision, groupId, enabled, createdBy}) => ({id, revision, groupId, enabled, createdBy})).sort((a,b) => a.id.localeCompare(b.id));
     const grants = (await tx.all('grants', guild)).sort((a,b) => a.id.localeCompare(b.id));
-    return { settings, rules, groups, images, revision: hash({ settings, rules, groups, images, grants }) };
+    const packs = (await tx.all<PackReceipt>('packs', guild)).sort((a,b)=>a.id.localeCompare(b.id));
+    const definitions = (await tx.all('definitions', guild)).sort((a,b)=>a.id.localeCompare(b.id));
+    return { settings, rules, groups, images, packs, revision: hash({ settings, rules, groups, images, grants, packs, definitions }) };
 }
 export class Onboarding {
     constructor(readonly services: Services) {}
@@ -59,7 +64,7 @@ export class Onboarding {
         assert(chosen.exemptRoles.every(r => meta.roles.some(v => v.id === r)), 'role_not_available');
         assert(!chosen.channels.some(c => chosen.excludedChannels.includes(c)), 'channel_selected_and_excluded');
         return this.services.store.withGuild(guild, async tx => {
-            const s = await snapshot(tx, guild), installed = installedComponents(s.settings.value, s.rules);
+            const s = await snapshot(tx, guild), installed = installedComponents(s.settings.value, s.rules, s.packs);
             const components: string[] = [...new Set(chosen.presets.flatMap(id => [...ONBOARDING_PRESETS.find(p => p.id === id)!.components]))].sort();
             assert(Object.keys(chosen.customizations).every(k => components.includes(k)), 'customization_outside_selection');
             const additions: Rule[] = [], skipped: string[] = [];
@@ -68,14 +73,15 @@ export class Onboarding {
                 const starter = TEXT_STARTERS.find(v => v.id === id), custom = chosen.customizations[id] ?? {};
                 let groupId: string | null = null;
                 if (!starter) {
-                    const groups = new Set(s.images.filter(i => i.createdBy === 'system-starter-references' && i.enabled && i.groupId).map(i => i.groupId));
+                    const groups = new Set([...s.packs.filter(p=>['reviewed-scam-references','combined-scam-setup'].includes(p.pack)).map(p=>p.components['scam-references']).filter(Boolean), ...s.images.filter(i => i.createdBy === 'system-starter-references' && i.enabled && i.groupId).map(i => i.groupId)]);
                     assert(groups.size === 1, 'starter_reference_group_missing_use_image_library', 409);
                     groupId = [...groups][0]!;
-                    assert(s.groups.some(g => g.id === groupId), 'starter_reference_group_missing', 409);
+                    assert(s.groups.some(g => g.id === groupId) && s.images.some(i=>i.groupId===groupId&&i.enabled), 'starter_reference_group_missing', 409);
                 }
                 const {name, ...definition} = custom;
-                const input = parseRule({ name: name ?? (starter?.name ?? 'Scam reference review'), type: starter ? 'text' : 'group', ...(starter ? { text: {...starter.definition, ...definition} } : {}), referenceId: null, groupId, mode: 'exact', threshold: .9, action: 'review', timeoutSeconds: 600, deleteMessage: false, priority: 0, enabled: false, automatic: false, secondVerification: true, reason: 'Administrator-reviewed onboarding policy' });
-                additions.push({ ...baseRecord(guild, randomUUID()), ...input, approval: null });
+                const component=scamReferenceComponent();
+                const input = parseRule(starter ? { name: name ?? starter.name, type:'text', text: {...starter.definition, ...definition}, referenceId: null, groupId:null, mode:'exact', threshold:.9, action:'review', timeoutSeconds:600, deleteMessage:false, priority:0, enabled:false, automatic:false, secondVerification:true, reason:'Administrator-reviewed onboarding policy' } : {...component.value, name:component.name,groupId});
+                additions.push({ ...baseRecord(guild, randomUUID()), ...input, approval: null, ...(!starter ? {packOrigin:{pack:'combined-scam-setup',component:component.id,digest:packHash(component),baseline:packHash({...input,approval:null})}} : {}) });
             }
             assert(s.rules.length + additions.length <= 250, 'rule_limit');
             // Union preserves existing configuration; excluded channels remain authoritative.

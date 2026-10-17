@@ -1,4 +1,124 @@
 import { setupPanel } from './onboarding.js';
+import type { Pack, PackPreview, ImportOptions, PackKind } from '../../shared/packs.js';
+async function editDefinition(d: any) {
+    const name = input(d.name), content = structuredClone(d.content), body = h('div', { class: 'form-stack' }, field('Definition name', name));
+    const fields: Record<string, HTMLTextAreaElement> = {};
+    for (const key of ['question', 'positive', 'negative', 'exceptions', 'contextRequirements']) {
+        const area = h('textarea', { rows: 4, value: content[key] });
+        fields[key] = area;
+        body.append(field(pretty(key), area));
+    }
+    const dialog = modal('Edit image-analysis definition', 'Existing rules retain their own prompt snapshots.', body, [button('Save definition', async () => { for (const [key, area] of Object.entries(fields))
+            content[key] = area.value; await api('packs/definitions/' + d.id, 'PUT', { revision: d.revision, name: name.value, content: parseContent(content) }); dialog.close(); await render(); })]);
+}
+async function packsPage(parent: HTMLElement) {
+    parent.classList.add('packs-page');
+    const [starters, images, groups, rules, definitions] = await Promise.all([
+        api<{
+            id: string;
+            name: string;
+            description: string;
+        }[]>('packs/starters'), api<ReferenceImage[]>('images'), api<Group[]>('groups'), api<Rule[]>('rules'), api<any[]>('packs/definitions')
+    ]);
+    const download = (p: Pack) => { const url = URL.createObjectURL(new Blob([JSON.stringify(p, null, 2)], { type: 'application/json' })); const a = h('a', { href: url, download: p.id + '.typecheck.json' }); a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); };
+    let loaded: Pack | null = null, plan: PackPreview | null = null;
+    let options: ImportOptions = {};
+    const previewArea = h('div', { 'aria-live': 'polite' }), mappingsArea = h('div', { class: 'form-stack' }), conflictsArea = h('div', { class: 'form-stack' });
+    const policy = check('Apply portable policy settings and delegated permissions', false, 'Requires mappings. Turns global enforcement and high-impact sanctions off. Existing grants with different capabilities must be reconciled in Permissions first.');
+    const restore = check('Restore components previously deleted from this pack', false, 'Explicitly adds removed examples again. Leave off to preserve deletions.');
+    const mappings: Record<string, HTMLSelectElement> = {}, choices: Record<string, HTMLSelectElement> = {};
+    const refreshOptions = () => { options = { policy: policy.box.checked, restoreDeleted: restore.box.checked, mappings: Object.fromEntries(Object.entries(mappings).filter(([, v]) => v.value).map(([k, v]) => [k, v.value])), choices: Object.fromEntries(Object.entries(choices).map(([k, v]) => [k, v.value as 'keep' | 'replace'])) }; };
+    const invalidate = () => { plan = null; apply.disabled = true; apply.dataset.locked = 'true'; };
+    const previewButton = button('Validate and preview import', async () => {
+        if (!loaded)
+            throw Error('Choose a file or starter first');
+        refreshOptions();
+        plan = await api<PackPreview>('packs/preview', 'POST', { pack: loaded, options });
+        for (const c of plan.components.filter(c => !['addition', 'previously deleted'].includes(c.status)))
+            if (!choices[c.id]) {
+                const choice = select([['keep', 'Keep destination (safe default)'], ['replace', 'Replace with pack version; remove approval']], 'keep');
+                choices[c.id] = choice;
+                choice.addEventListener('change', invalidate);
+                conflictsArea.append(field(c.name + ' · ' + c.status, choice));
+            }
+        previewArea.replaceChildren(panel('Import preview', `${plan.pack.id} · ${plan.pack.version}`, h('p', {}, plan.pack.description), ...plan.warnings.map(w => h('p', { class: 'notice' }, w)), table(['Component', 'Type', 'Change', 'Decision', 'Dependencies'], plan.components.map(c => [c.name, c.kind, c.status, c.choice, c.dependencies.join(', ') || 'None'])), h('h3', {}, 'Intended rule behavior'), ...plan.intendedRules.map(r => h('p', {}, `${r.name}: ${r.policy.type}, ${r.policy.action}, threshold ${r.policy.threshold}. Source enabled=${r.policy.enabled}, automatic=${r.policy.automatic}. Imported enabled=false, automatic=false, approval required.`)), h('details', {}, h('summary', {}, 'Included policy settings (destination values require mapping)'), h('pre', {}, JSON.stringify(plan.intendedSettings, null, 2))), h('h3', {}, 'Policy changes and permissions'), h('p', {}, policy.box.checked ? 'Policy application selected; mappings will be used.' : 'Policy application is off; existing settings and grants will be kept.'), table(['Setting', 'Destination', 'Pack intent'], plan.policyChanges.map(c => [c.setting, JSON.stringify(c.destination), JSON.stringify(c.intended)])), table(['Destination role / binding', 'Capabilities', 'Grant decision'], plan.grants.map(g => [g.role, g.capabilities.join(', '), g.status])), h('h3', {}, 'Validation evidence'), ...(plan.evidence.length ? plan.evidence.map(e => h('p', {}, `${e.kind}: ${e.status}. Source: ${e.source}`)) : [h('p', {}, 'No validation evidence supplied.')]), h('small', {}, 'Pack digest: ' + plan.digest)));
+        apply.disabled = false;
+        apply.dataset.locked = 'false';
+    });
+    const apply = button('Apply this preview', async () => {
+        if (!loaded || !plan)
+            throw Error('Preview required');
+        const result = await api('packs/apply', 'POST', { pack: loaded, options, token: plan.token });
+        if(options.policy) {
+            settings=await api<SettingsVersion>('settings');
+            const state=document.querySelector('.topbar .badge');
+            if(state) {state.textContent='MONITOR ONLY';state.className='badge amber';}
+        }
+        invalidate();
+        previewArea.append(panel('Import complete', 'Saved atomically; audit receipt recorded.', h('p', {}, `${result.added} added · ${result.replaced} replaced · ${result.kept} kept`), h('p', {}, 'Review rules, map channels, test with your examples, approve the destination configuration, then enable automatic enforcement separately.')));
+        message('Pack imported. Automatic enforcement is off for imported rules.');
+    });
+    apply.disabled = true;
+    apply.dataset.locked = 'true';
+    const load = (p: Pack) => {
+        if (!Array.isArray(p.components) || p.components.length > 1000 || (p.policy?.bindings?.length ?? 0) > 1000)
+            throw Error('Invalid pack or component limit exceeded');
+        loaded = p;
+        plan = null;
+        apply.disabled = true;
+        for (const k of Object.keys(mappings))
+            delete mappings[k];
+        for (const k of Object.keys(choices))
+            delete choices[k];
+        conflictsArea.replaceChildren();
+        mappingsArea.replaceChildren();
+        previewArea.replaceChildren(h('p', { class: 'notice' }, `${p.id} · ${p.version} loaded. Validate before applying.`));
+        for (const b of p.policy?.bindings ?? []) {
+            const values = b.kind === 'role' ? meta.roles : meta.channels;
+            const choice = select([['', 'Choose destination ' + b.kind], ...values.map(v => [v.id, v.name ?? v.id] as [
+                    string,
+                    string
+                ])], '');
+            mappings[b.id] = choice;
+            choice.addEventListener('change', invalidate);
+            mappingsArea.append(field(b.purpose + ' · ' + b.id, choice));
+        }
+    };
+    policy.box.addEventListener('change', invalidate);
+    restore.box.addEventListener('change', invalidate);
+    parent.append(panel('Start with a pack', 'Editable starting points. Human review, software compatibility, measured model evaluation and live validation are separate evidence categories.', ...starters.map(s => h('div', { class: 'pack-starter' }, h('div', {}, h('h3', {}, s.name), h('p', { class: 'muted' }, s.description)), button('Select ' + s.name, async () => { loaded = null; invalidate(); previewButton.disabled = true; try {
+        load(await api<Pack>('packs/starter/' + s.id));
+    }
+    finally {
+        previewButton.disabled = false;
+    } }, 'quiet')))));
+    const file = h('input', { type: 'file', accept: '.json,.typecheck.json,application/json' });
+    file.addEventListener('change', () => { void (async () => { const f = file.files?.[0]; if (!f)
+        return; if (f.size > 48 * 1024 * 1024)
+        throw Error('Pack exceeds 48 MiB'); load(JSON.parse(await f.text())); })().catch(fail); });
+    parent.append(panel('Import a pack', 'Upload → validate and preview → resolve conflicts and mappings → preview again → apply.', field('Pack file', file), policy.node, restore.node, mappingsArea, conflictsArea, h('div', { class: 'actions wrap' }, previewButton, apply), previewArea));
+    const selected: {
+        kind: PackKind;
+        id: string;
+        box: HTMLInputElement;
+    }[] = [];
+    const selection = h('div', { class: 'pack-component-list' });
+    for (const [kind, items] of [['groups', groups], ['images', images], ['definitions', definitions], ['rules', rules]] as const)
+        for (const item of items) {
+            const c = check(`${kind}: ${item.name}`, false);
+            selected.push({ kind, id: item.id, box: c.box });
+            selection.append(c.node);
+        }
+    const complete = check('Complete configuration', false, 'All reference images, groups, image/text rules, prompt definitions, policy settings and delegated permissions. Excludes credentials, history, jobs and operational state. Destination channels and roles become mapping placeholders.');
+    const name = input('my-moderation-pack'), version = input('1.0.0'), exportArea = h('div');
+    let exported: Pack | null = null;
+    parent.append(panel('Export components or a complete setup', 'Required image and group dependencies are included automatically. Settings travel as policy; applying them is explicit at the destination.', field('Pack identity (lowercase letters, numbers and hyphens)', name), field('Pack version', version), complete.node, h('details', {}, h('summary', {}, 'Select individual components or a collection'), selection), button('Preview export', async () => { exported = await api<Pack>('packs/export', 'POST', { complete: complete.box.checked, components: selected.filter(c => c.box.checked).map(({ kind, id }) => ({ kind, id })), name: name.value, version: version.value }); exportArea.replaceChildren(h('p', {}, `${exported.components.length} components · ${exported.assets.length} bundled images. Dependencies resolved.`), table(['Included component', 'Type', 'Dependencies'], exported.components.map(c => [c.name, c.kind, c.dependencies.join(', ') || 'None'])), button('Download pack file', () => download(exported!))); }), exportArea));
+    const history = await api<any[]>('packs/history');
+    if (history.length)
+        parent.append(panel('Imported pack evidence', 'Historical declarations remain separate from destination approval.', table(['Pack', 'Imported versions', 'Evidence status'], history.map(r => [r.id, r.versions.join(', '), r.status]))));
+    if (definitions.length)
+        parent.append(panel('Saved image-analysis definitions', 'Standalone prompts are editable. Rules contain independent snapshots; editing a definition does not silently change a rule.', ...definitions.map(d => h('div', {}, h('h3', {}, d.name), h('p', {}, d.content.question), button('Create rule from ' + d.name, () => editRule(undefined, d.content), 'quiet'), button('Edit definition', () => editDefinition(d), 'quiet')))));
+}
 import { TEXT_STARTERS } from '../../shared/text-starters.js';
 import { TEXT_LIMITS, parseText } from '../../shared/text.js';
 import type { HistoricalScan } from '../../shared/historical.js';
@@ -105,7 +225,7 @@ function fail(e: unknown) {
 }
 function button(label: string, run: () => void | Promise<unknown>, kind = 'primary') {
     const b = h('button', { type: 'button', class: `button ${kind}` }, label);
-    b.addEventListener('click', () => { b.disabled = true; Promise.resolve().then(run).catch(fail).finally(() => { b.disabled = false; }); });
+    b.addEventListener('click', () => { b.disabled = true; Promise.resolve().then(run).catch(fail).finally(() => { b.disabled = b.dataset.locked === 'true'; }); });
     return b;
 }
 function field(label: string, input: HTMLElement, hint?: string) { return h('label', { class: 'field' }, h('span', { class: 'field-label' }, label), input, hint ? h('small', {}, hint) : null); }
@@ -151,7 +271,7 @@ function confirmAction(title: string, description: string): Promise<boolean> { r
     resolve(false); }); }); }
 function links() {
     return [
-        ['Agent setup', admin() && !preview], ['Overview', can('dashboard.view')], ['Historical scans', admin()], ['Cost & Usage', can('dashboard.view')], ['Image library', can('images.view') || can('images.add')], ['Rules & tests', can('rules.view') || can('rules.create')],
+        ['Agent setup', admin() && !preview], ['Moderation packs', admin() && !preview], ['Overview', can('dashboard.view')], ['Historical scans', admin()], ['Cost & Usage', can('dashboard.view')], ['Image library', can('images.view') || can('images.add')], ['Rules & tests', can('rules.view') || can('rules.create')],
         ['Activity log', can('logs.view')], ['Permissions', admin() || can('moderators.delegate')], ['Settings', admin() || can('channels.configure')]
     ] as const;
 }
@@ -208,6 +328,8 @@ async function render() {
     try {
         authority = await api<Authority>('me');
         if (page === 'Agent setup') { const setup=h('section', {class:'form-stack'}); content.append(setup); agentSetup?.mount(setup); }
+        else if (page === 'Moderation packs')
+            await packsPage(content);
         else if (page === 'Overview')
             await overview(content);
         else if (page === 'Historical scans')
@@ -340,12 +462,12 @@ async function rulesPage(parent: HTMLElement) {
         } }, 'danger') : null)
     ])) : empty('No rules configured', 'Create a native text policy, image-content rule, or reference-image matching rule.')));
 }
-async function editRule(old?: Rule) {
+async function editRule(old?: Rule, initialContent?: import('../../shared/content.js').ContentDefinition) {
     if(old?.type==='text') return editTextRule(old);
     const floors = await api<Settings['thresholds']>('match-thresholds');
     const images = can('images.view') ? await api<ReferenceImage[]>('images') : [], groups = can('images.view') ? await api<Group[]>('groups') : [];
-    const name = input(old?.name ?? ''), type = select(RULE_TYPES.map(t => [t, t === 'text' ? 'Native message text' : t === 'content' ? 'Image content analysis' : pretty(t)]), old?.type ?? 'individual'), mode = select(MODES.map(m => [m, m === 'semantic' ? 'semantic (review only)' : m]), old?.mode ?? 'exact');
-    let definition = structuredClone(old?.content ?? CONTENT_PRESETS[0]!.definition);
+    const name = input(old?.name ?? ''), type = select(RULE_TYPES.map(t => [t, t === 'text' ? 'Native message text' : t === 'content' ? 'Image content analysis' : pretty(t)]), old?.type ?? (initialContent ? 'content' : 'individual')), mode = select(MODES.map(m => [m, m === 'semantic' ? 'semantic (review only)' : m]), old?.mode ?? 'exact');
+    let definition = structuredClone(old?.content ?? initialContent ?? CONTENT_PRESETS[0]!.definition);
     const question = h('textarea', { rows: '3', maxlength: '1000' }), positive = h('textarea', { rows: '4', maxlength: '2000' }), negative = h('textarea', { rows: '4', maxlength: '2000' }), exceptions = h('textarea', { rows: '3', maxlength: '1000' }), contextRequirements = h('textarea', { rows: '3', maxlength: '1000' });
     const contextSource = select([['image_only', 'Image only'], ['posting_message', 'Image + posting message (server opt-in required)']], definition.contextSource);
     const promotion = check('Require visible promotion or solicitation by this post', definition.requirePromotion), readable = check('Require readable policy-relevant text', definition.requireReadableText);

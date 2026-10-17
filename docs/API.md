@@ -160,6 +160,25 @@ All routes below are under `/api/g/:guild/onboarding/` and require a guild-bound
 | POST `accept` | Same identity; user/session/guild/digest/revision-bound acceptance, deliberately absent from WebMCP |
 | POST `apply` | Same identity; accepted state required, atomic policy/audit receipt commit |
 
-Customizations are keyed by selected text component ID; only `name`, `question`, `positive`, `negative`, `exceptions` are allowed. Destinations must exist in Discord metadata. Channels/exclusions/exemptions union with current settings; a supplied log destination replaces the current value. No arbitrary settings, grants, removals or activation. Both starter marker fields are read-only in ordinary Settings. Snapshot revisions cover settings, rules, groups, reference metadata and grants. Errors include `plan_binding_mismatch` (403), `plan_stale`, `plan_expired`, `explicit_acceptance_required`, `discord_inventory_changed` (409). Reprepare/review as applicable. Applied-plan receipt recovery works after plan expiry while its original management session is valid.
+Customizations are keyed by selected text component ID; only `name`, `question`, `positive`, `negative`, `exceptions` are allowed. Destinations must exist in Discord metadata. Channels/exclusions/exemptions union with current settings; a supplied log destination replaces the current value. No arbitrary settings, grants, removals or activation. Both starter marker fields are read-only in ordinary Settings. Snapshot revisions cover settings, rules, groups, reference metadata, grants, pack receipts and saved definitions. Errors include `plan_binding_mismatch` (403), `plan_stale`, `plan_expired`, `explicit_acceptance_required`, `discord_inventory_changed` (409). Reprepare/review as applicable. Applied-plan receipt recovery works after plan expiry while its original management session is valid.
 
 Browser tools: `typecheck_context`, `typecheck_inventory`, `typecheck_starters`, `typecheck_plan`, `typecheck_inspect_plan`, `typecheck_apply_plan`, `typecheck_test_rule`, `typecheck_pause`. Test reuses `POST rules/:id/test`, accepts one supplied text/image sample and optional expected boolean, requires `providerUseAccepted: true`, and executes no sanctions. Context-dependent image tests use the manual UI. No accept/credential/approval/grant/activation/generic HTTP or command tool. See [schemas](../activity/src/onboarding.ts) and [onboarding](AGENT_ONBOARDING.md).
+
+## Moderation packs (administrator only)
+
+All routes below use the existing authenticated `/api/g/:guildId/` boundary, live owner/administrator authority and origin checks. Members with delegated capabilities alone cannot import/export packs.
+
+| Method and route | Request / response |
+|---|---|
+| GET `packs/starters` | Four selectable starter descriptions |
+| GET `packs/starter/:id` | Self-contained pack, including actual embedded source image bytes |
+| GET `packs/definitions` | Saved standalone image-analysis definitions |
+| PUT `packs/definitions/:uuid` | `{revision,name,content}`; parsed content, revision check, audit; no implicit rule edits |
+| GET `packs/history` | Import identities/versions, source digest, historical evidence and stale destination status |
+| POST `packs/export` | `{complete?,components?:[{kind,id}],name?,version?}` → immutable snapshot pack with dependency closure |
+| POST `packs/preview` | `{pack,options?}` → token, digest, component additions/conflicts/skips, mappings, policy differences, grants, warnings, intended rules/settings and evidence status |
+| POST `packs/apply` | `{pack,options,token}` → `{added,replaced,kept,digest,version}`; atomic records/settings/audit |
+
+`options` supports `choices: {componentId: "keep" | "replace"}`, `policy: boolean`, `mappings: {bindingId: destinationSnowflake}`, `restoreDeleted: boolean`. Keep is the conflict default. Policy and deleted-component restoration default off. Include identical options/input at preview and apply. Mapping is mandatory for every binding when policy application is selected. Existing conflicting grants block application and require explicit reconciliation in Permissions.
+
+The ten-minute MAC binds full input, actor, guild, decisions and destination snapshot. Concurrent edits, expiry or vault-key rotation yield `pack_preview_stale_retry` (409); preview again. Source approvals are forbidden and imported rule authority is always reset. Applying global settings forces enforcement/high-impact off. Pack routes accept at most 48 MiB container plus 256 KiB request wrapper; other routes retain their 12 MiB bound. Parsing depth is bounded at 32. See [format, resource limits and recovery](MODERATION_PACKS.md). No model evaluation is dispatched by these endpoints.

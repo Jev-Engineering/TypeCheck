@@ -7,7 +7,7 @@ import type { Store, SettingsVersion, Usage, ActionRecord } from './store.js';
 import type { SqlClient } from './postgres.js';
 import type { MySqlPool } from './mysql-pool.js';
 export { openMySqlPool } from './mysql-pool.js';
-const TABLES: Record<Kind, string> = { groups: 'image_groups', images: 'reference_images', rules: 'moderation_rules', grants: 'role_grants', credentials: 'guild_credentials', calibrations: 'calibration_trials', evaluations: 'image_evaluations', events: 'moderation_events', audit: 'audit_events' };
+const TABLES: Record<Kind, string> = { definitions: 'pack_definitions', packs: 'moderation_packs', groups: 'image_groups', images: 'reference_images', rules: 'moderation_rules', grants: 'role_grants', credentials: 'guild_credentials', calibrations: 'calibration_trials', evaluations: 'image_evaluations', events: 'moderation_events', audit: 'audit_events' };
 export class MySqlStore implements Store {
     constructor(readonly pool: MySqlPool, private connection?: SqlClient, private defaultModel = DEFAULT_SETTINGS.model) { }
     get durable() { return new SqlDurable(this.pool, true); }

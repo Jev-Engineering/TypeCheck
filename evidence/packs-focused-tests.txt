@@ -1,0 +1,35 @@
+✔ individual grouped image export includes the container without unrelated sibling images (47.2962ms)
+✔ complete export supports full destination component and channel/role capacities (222.8418ms)
+✔ portable identifiers cannot inherit a conflict choice from Object.prototype (18.2112ms)
+✔ standalone definition round trip creates no rule; complete policy carries versioned native text definitions (35.0679ms)
+✔ individual reference round trip preserves exact asset bytes and excludes operational/private records (37.2943ms)
+✔ group and individual rules export required dependencies and policy floors (54.6101ms)
+✔ complete policy includes standalone prompts, rules and mapped grants without secrets (42.3667ms)
+✔ repeat import, version upgrade, local edits and unrelated configuration are preserved by default (19.5474ms)
+✔ deleted components remain deleted until explicitly restored (18.1628ms)
+✔ preview binds guild, actor, full input, choices and concurrent edits (14.0391ms)
+✔ mapping rechecks destination membership and channel permission at apply (34.8207ms)
+✔ software and human evidence are untrusted and digest changes visibly stale them (13.7624ms)
+✔ transaction failure rolls back policy, components, receipts and audit; orphan recovery keeps shared objects (173.986ms)
+✔ object-write failure does not commit partial import (1427.0521ms)
+✔ first-login seeding and both reference starters share assets and preserve deletion tombstones (3828.6815ms)
+✔ reject malicious or incompatible pack: version (0.6686ms)
+✔ reject malicious or incompatible pack: traversal (0.323ms)
+✔ reject malicious or incompatible pack: duplicate ids (0.336ms)
+✔ reject malicious or incompatible pack: dangling dependency (0.3946ms)
+✔ reject malicious or incompatible pack: private field (0.2877ms)
+✔ reject malicious or incompatible pack: source approval (0.2734ms)
+✔ reject malicious or incompatible pack: asset count (0.3045ms)
+✔ reject malicious or incompatible pack: component count (8.4623ms)
+✔ reject malicious or incompatible pack: unsupported schema (0.3316ms)
+✔ checksum, corrupt image, image pixel budget, parse depth and expanded limits reject before writing (54.8333ms)
+✔ decoded byte and structural-work limits reject small-dimension padded files and oversized input graphs (229.7435ms)
+✔ rule replacement removes fields from a former rule modality and invalidates source approval (17.4675ms)
+ℹ tests 27
+ℹ suites 0
+ℹ pass 27
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6440.1894

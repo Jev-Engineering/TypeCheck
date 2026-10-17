@@ -3,9 +3,12 @@ import assert from 'node:assert/strict';
 import {Onboarding, canonical} from '../server/onboarding.js';
 import {installTextStarters} from '../server/text-starters.js';
 import {registerTools, toolDefinitions, type BrowserTool} from '../activity/src/onboarding.js';
-import {fixture,rule,G,G2,ADMIN,MOD,CHANNEL,ROLE,API_KEY} from './helpers.js';
+import {fixture,rule,G,G2,ADMIN,MOD,BOT,CHANNEL,ROLE,API_KEY} from './helpers.js';
 import {baseRecord, type Rule, type Audit, type Group, type ReferenceImage} from '../shared/domain.js';
 import {randomUUID} from 'node:crypto';
+import {starterPack} from '../server/pack-starters.js';
+import {Packs,exportPack,validatePack} from '../server/packs.js';
+import {seedStarterReferences} from '../server/starter-references.js';
 const chosen = (presets = ['scam_phishing']) => ({presets,channels:[CHANNEL],excludedChannels:[],exemptRoles:[ROLE],logChannel:CHANNEL,customizations:{}});
 const binding='test-session-binding';
 const ref=(p:any)=>({planId:p.id,digest:p.digest});
@@ -74,7 +77,8 @@ test('image preset reuses the existing reference group and does not resurrect mi
     const f=await fixture(t),s=new Onboarding(f.services);
     await assert.rejects(s.plan(G,ADMIN,binding,chosen(['image_scams'])),/starter_reference_group_missing/);
     const group:Group={...baseRecord(G,randomUUID()),name:'Edited starter group'};await f.store.put('groups',group,0);
-    await f.store.put<ReferenceImage>('images',{...f.ref,revision:f.ref.revision+1,groupId:group.id,createdBy:'system-starter-references'},f.ref.revision);
+    await f.store.put<ReferenceImage>('images',{...f.ref,revision:f.ref.revision+1,groupId:group.id,createdBy:ADMIN},f.ref.revision);
+    await f.store.put('packs',{...baseRecord(G,randomUUID()),pack:'reviewed-scam-references',versions:['1.0.0'],components:{'scam-references':group.id}},0);
     const p=await s.plan(G,ADMIN,binding,chosen(['image_scams']));assert.equal(p.additions[0].groupId,group.id);assert.equal(p.additions[0].action,'review');
     await s.transition(G,ADMIN,binding,ref(p),'accept');await s.transition(G,ADMIN,binding,ref(p),'apply');
     assert.equal((await f.store.all('images',G)).length,1);assert.equal((await s.plan(G,ADMIN,binding,chosen(['image_scams']))).additions.length,0);
@@ -111,6 +115,28 @@ test('receipt persistence failure rolls back the entire configuration; legacy-in
     assert.equal((await f.store.all('rules',G)).length,0);assert.deepEqual((await f.store.getSettings(G)).value.channels,[]);
     f.store.put=put;await installTextStarters(f.services,G,ADMIN);
     assert.equal((await s.plan(G,ADMIN,binding,chosen(['scam_phishing','community','custom']))).additions.length,0);
+});
+test('pack imports preserve local onboarding markers and cannot transport another guild tombstones',async t=>{
+    const f=await fixture(t),s=new Onboarding(f.services),p=await s.plan(G,ADMIN,binding,chosen());await s.transition(G,ADMIN,binding,ref(p),'accept');await s.transition(G,ADMIN,binding,ref(p),'apply');
+    f.discord.members.set(BOT,{guildId:G,userId:BOT,roles:[],owner:false,administrator:false});
+    const portable=await exportPack(f.services,G,{complete:true});assert.equal(portable.policy!.settings.onboardingStarters,undefined);
+    const original=structuredClone(portable);portable.policy!.settings.onboardingStarters=[];
+    await assert.rejects(validatePack(portable),/starter_marker_not_portable/);
+    const packs=new Packs(f.services),preview=await packs.preview(G,ADMIN,original,{policy:true,mappings:Object.fromEntries(original.policy!.bindings.map(b=>[b.id,b.kind==='channel'?CHANNEL:ROLE]))});
+    await packs.apply(G,ADMIN,original,{policy:true,mappings:Object.fromEntries(original.policy!.bindings.map(b=>[b.id,b.kind==='channel'?CHANNEL:ROLE]))},preview.token);
+    assert.deepEqual((await f.store.getSettings(G)).value.onboardingStarters,['text_impersonation','text_phishing','text_scams']);
+});
+test('onboarding reference review and combined pack share identity in either installation order',async t=>{
+    const f=await fixture(t),s=new Onboarding(f.services);await f.store.remove('images',G,f.ref.id,f.ref.revision);await seedStarterReferences(f.services,G,process.cwd());
+    const p=await s.plan(G,ADMIN,binding,chosen(['image_scams']));await s.transition(G,ADMIN,binding,ref(p),'accept');await s.transition(G,ADMIN,binding,ref(p),'apply');
+    const packs=new Packs(f.services),pack=await starterPack(process.cwd(),'combined-scam-setup'),preview=await packs.preview(G,ADMIN,pack,{});
+    assert.equal(preview.components.find(c=>c.id==='reference-rule')!.choice,'keep');await packs.apply(G,ADMIN,pack,{},preview.token);
+    assert.equal((await f.store.all<Rule>('rules',G)).filter(r=>r.type==='group').length,1);assert.equal((await f.store.all('images',G)).length,33);
+    const groupRule=(await f.store.all<Rule>('rules',G)).find(r=>r.type==='group')!;await f.store.remove('rules',G,groupRule.id,groupRule.revision);
+    // A guild that imported the pack first has its own receipt, with no onboarding markers.
+    const settings=await f.store.getSettings(G);await f.store.putSettings(G,{...settings.value,onboardingStarters:[]},settings.revision);
+    assert.equal((await s.plan(G,ADMIN,binding,chosen(['image_scams']))).additions.length,0);
+    const again=await packs.preview(G,ADMIN,pack,{});assert.equal(again.components.find(c=>c.id==='reference-rule')!.choice,'keep');
 });
 test('browser registry uses current document API shape, exact semantic tools and abort lifecycle',async()=>{
     const tools=new Map<string,BrowserTool>(),controller=new AbortController();let calls=0;

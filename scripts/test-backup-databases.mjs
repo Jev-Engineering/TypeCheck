@@ -54,7 +54,7 @@ try {
     await assertMigrated(pool, 'mysql');
     eq(calls, 1);
     const receipt = results.map(r => r.before).find(Boolean);
-    eq(results.flatMap(r => r.applied), ['002']);
+    eq(results.flatMap(r => r.applied), ['002','003','004']);
     const candidate = 'a'.repeat(40);
     const receipts = results.flatMap((r, i) => extractReceipts({ data: [{ message: 'TYPECHECK_MIGRATION_RECEIPT_V1 ' + JSON.stringify({ event: 'database_migration', release: candidate, applied: r.applied, backup: r.before ?? null }) }] }, candidate, i ? 'PUBLISH' : 'PREVIEW'));
     assert.ok(summarizeReceipts(receipts).includes(receipt.sha256)); checks++;
@@ -72,6 +72,6 @@ try {
     eq(await snapshot(restored), before);
     eq((await restored.query("SELECT version FROM schema_migrations")).rows.map(r => r.version), ['001']);
     // The restored pre-migration copy upgrades again.
-    eq((await migrateDatabase(restored, 'mysql')).applied, ['002']);
+    eq((await migrateDatabase(restored, 'mysql')).applied, ['002','003','004']);
     console.log(`Backup drill: ${checks} assertions passed; ${receipt.tables} tables, ${receipt.rows} rows restored byte-for-byte from a consistent pre-migration snapshot; hook ran once under concurrent migration.`);
 } finally { await pool.end(); await restored.end(); await rm(dir, { recursive: true, force: true }); }

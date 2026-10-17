@@ -1,0 +1,40 @@
+postgres: pack persistence, second-connection readback, complete round trip, mapped settings, repeat import, local edits, rollback, isolation and concurrent-preview race passed
+PASS native text JSON persistence, concurrent starter installation, deletion, digest edit deduplication and rollback
+postgres: threshold defaults, legacy/custom persistence and missing-only fallback passed
+PostgreSQL integration passed: revisions, tenant FKs, rollback, durable jobs, concurrent idempotency, reconnect persistence, leader recovery, unknown no-replay, quotas, nonces, payload erasure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 2003 (HY000): Can't connect to MySQL server on '127.0.0.1:3306' (111)
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 2003 (HY000): Can't connect to MySQL server on '127.0.0.1:3306' (111)
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 2003 (HY000): Can't connect to MySQL server on '127.0.0.1:3306' (111)
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 2003 (HY000): Can't connect to MySQL server on '127.0.0.1:3306' (111)
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 2003 (HY000): Can't connect to MySQL server on '127.0.0.1:3306' (111)
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 2003 (HY000): Can't connect to MySQL server on '127.0.0.1:3306' (111)
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 2003 (HY000): Can't connect to MySQL server on '127.0.0.1:3306' (111)
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 2003 (HY000): Can't connect to MySQL server on '127.0.0.1:3306' (111)
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 2003 (HY000): Can't connect to MySQL server on '127.0.0.1:3306' (111)
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 2003 (HY000): Can't connect to MySQL server on '127.0.0.1:3306' (111)
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 2003 (HY000): Can't connect to MySQL server on '127.0.0.1:3306' (111)
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 2003 (HY000): Can't connect to MySQL server on '127.0.0.1:3306' (111)
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 2003 (HY000): Can't connect to MySQL server on '127.0.0.1:3306' (111)
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 2003 (HY000): Can't connect to MySQL server on '127.0.0.1:3306' (111)
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 2003 (HY000): Can't connect to MySQL server on '127.0.0.1:3306' (111)
+mysql: [Warning] Using a password on the command line interface can be insecure.
+mysql: pack persistence, second-connection readback, complete round trip, mapped settings, repeat import, local edits, rollback, isolation and concurrent-preview race passed
+MySQL version: 8.0.46
+PASS native text JSON persistence, concurrent starter installation, deletion, digest edit deduplication and rollback
+mysql: threshold defaults, legacy/custom persistence and missing-only fallback passed
+MySQL integration passed: 104 assertions; migration retry/concurrency, tenant constraints, revisions, UTC, expiry, quota/claim/nonce concurrency, two-pool election, lock loss, leader-only reset, retention and durable no-replay.

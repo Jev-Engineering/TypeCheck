@@ -11,8 +11,9 @@ export async function textPersistence(store,pool,kind,guild) {
  const r={...baseRecord(guild,randomUUID()),...parseRule({name:'Text persistence',type:'text',text:TEXT_STARTERS[0].definition,referenceId:null,groupId:null,mode:'exact',threshold:.9,action:'review',timeoutSeconds:600,deleteMessage:false,priority:0,enabled:false,automatic:false,secondVerification:true,reason:'Synthetic persistence only'}),approval:null};
  await store.put('rules',r,0);assert.deepEqual((await store.get('rules',guild,r.id)).text,r.text);
  await Promise.all([installTextStarters(services,guild,'test'),installTextStarters(services,guild,'test')]);
- let rules=await store.all('rules',guild);assert.equal(rules.length,11);assert.ok(rules.every(r=>!r.enabled&&!r.automatic&&!r.approval));
- await store.remove('rules',guild,r.id,1);await installTextStarters(services,guild,'test');assert.equal((await store.all('rules',guild)).length,10);
+ let rules=await store.all('rules',guild);assert.equal(rules.length,TEXT_STARTERS.length);assert.equal(new Set(rules.map(r=>r.text.preset)).size,TEXT_STARTERS.length);assert.ok(rules.every(r=>!r.enabled&&!r.automatic&&!r.approval));
+ assert.ok((await store.getSettings(guild)).value.onboardingStarters.includes(r.text.preset));
+ await store.remove('rules',guild,r.id,1);await installTextStarters(services,guild,'test');assert.equal((await store.all('rules',guild)).length,TEXT_STARTERS.length-1);
  const message={guildId:guild,channelId:'123456789',messageId:'234567899',userId:'345678912',bot:false,webhook:false,attachments:[],textDigest:textDigest('transient synthetic sample')};
  assert.equal(await store.enqueue(message),true);assert.equal(await store.enqueue(message),false);assert.equal(await store.enqueue({...message,textDigest:textDigest('edited sample')}),true);
  const placeholder=kind==='mysql'?'?':'$1';const rows=(await pool.query(`SELECT message FROM jobs WHERE guild_id=${placeholder}`,[guild])).rows;

@@ -344,3 +344,9 @@ input::file-selector-button{background:var(--inverse);border:1px solid var(--lin
 
 /* Review plans retain the existing ink/pink control-panel language. */
 .setup-diff{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.setup-diff pre,.form-stack>pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:420px;overflow:auto;font-size:12px;padding:12px;border:1px solid var(--line)}@media(max-width:800px){.setup-diff{grid-template-columns:1fr}}
+.pack-starter{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 0;border-bottom:1px solid var(--border)}
+.pack-component-list{max-height:22rem;overflow:auto;padding:.5rem}.pack-component-list .check{margin-bottom:.5rem}
+.panel pre{max-width:100%;white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:650px){.pack-starter{align-items:flex-start;flex-direction:column}.pack-starter .button{width:100%}}
+
+.packs-page .panel{overflow-wrap:anywhere}.pack-starter{border-color:var(--line)}

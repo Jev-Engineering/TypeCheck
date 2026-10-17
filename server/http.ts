@@ -1,5 +1,8 @@
 import { Onboarding } from './onboarding.js';
 import { ONBOARDING_PRESETS, ONBOARDING_NOTICE } from '../shared/onboarding.js';
+import { Packs, exportPack } from './packs.js';
+import { starterPack, STARTER_PACKS } from './pack-starters.js';
+import { PACK_LIMITS } from '../shared/packs.js';
 import { TEXT_STARTERS } from '../shared/text-starters.js';
 import { TEXT_LIMITS } from '../shared/text.js';
 import { installTextStarters } from './text-starters.js';
@@ -31,19 +34,21 @@ const evolved = <T extends RecordBase>(old: T, changes: Partial<T>): T => ({ ...
 function requireAdmin(a: Authority) { assert(a.owner || a.administrator, 'administrator_required', 403); }
 function nullableUUID(v: unknown): string | null { assert(v === null || uuid(v), 'invalid_uuid'); return v; }
 function decodeImage(v: unknown): Buffer { assert(typeof v === 'string' && v.length <= 11184812 && /^[A-Za-z0-9+/]+={0,2}$/.test(v) && v.length % 4 === 0, 'invalid_image_base64'); return Buffer.from(v, 'base64'); }
-async function jsonBody(req: IncomingMessage): Promise<Record<string, unknown>> {
+async function jsonBody(req: IncomingMessage, max = MAX_BODY): Promise<Record<string, unknown>> {
     assert((req.headers['content-type'] ?? '').split(';')[0] === 'application/json', 'json_content_type_required', 415);
     const declared = Number(req.headers['content-length'] ?? 0);
-    assert(declared <= MAX_BODY, 'request_too_large', 413);
+    assert(declared <= max, 'request_too_large', 413);
     const parts: Buffer[] = [];
     let size = 0;
     for await (const part of req) {
         size += part.length;
-        assert(size <= MAX_BODY, 'request_too_large', 413);
+        assert(size <= max, 'request_too_large', 413);
         parts.push(part);
     }
     try {
-        return object(JSON.parse(Buffer.concat(parts).toString('utf8')));
+        const source=Buffer.concat(parts).toString('utf8'); let depth=0,quoted=false,escaped=false;
+        for(const char of source) { if(quoted) {if(escaped) escaped=false; else if(char==='\\') escaped=true; else if(char==='\"') quoted=false;} else if(char==='\"') quoted=true; else if(char==='{'||char==='[') {assert(++depth<=32,'json_depth_limit');} else if(char==='}'||char===']') depth--; }
+        return object(JSON.parse(source));
     }
     catch (e) {
         if (e instanceof AppError)
@@ -166,6 +171,26 @@ export function createHttp(services: Services, config: Config, root = process.cw
             if (route === 'onboarding/starters' && method === 'GET') return {body:{presets:ONBOARDING_PRESETS, textStarters:TEXT_STARTERS, notice:ONBOARDING_NOTICE}};
             if (route === 'onboarding/plans' && method === 'POST') return {body:await onboarding.plan(guild, a.userId, hash, await jsonBody(req))};
             if (['onboarding/plan', 'onboarding/accept', 'onboarding/apply'].includes(route) && method === 'POST') return {body:await onboarding.transition(guild, a.userId, hash, await jsonBody(req), route === 'onboarding/plan' ? 'inspect' : route === 'onboarding/accept' ? 'accept' : 'apply')};
+        }
+        if (p[3] === 'packs') {
+            requireAdmin(a);
+            if (route === 'packs/history' && method === 'GET') return {body:await new Packs(services).history(guild,a.userId)};
+            if (route === 'packs/starters' && method === 'GET') return {body:STARTER_PACKS};
+            if (p[4] === 'starter' && method === 'GET') return {body:await starterPack(root,p[5]!)};
+            if (route === 'packs/definitions' && method === 'GET') return {body:await store.all('definitions',guild)};
+            const b = await jsonBody(req, PACK_LIMITS.bytes + 262144);
+            if (p[4] === 'definitions' && uuid(p[5]) && method === 'PUT') {
+                onlyKeys(b,['revision','name','content']);
+                await store.withGuild(guild,async tx=>{const old=await tx.get('definitions',guild,p[5]!);assert(old,'definition_not_found',404);assert(old.revision===b.revision,'revision_conflict',409);await tx.put('definitions',{...old,name:text(b.name),content:parseContent(b.content),revision:old.revision+1,updatedAt:new Date().toISOString()},old.revision);await services.audit(guild,a.userId,'definition.updated',old.id,{},tx);});
+                return {body:{ok:true}};
+            }
+
+            if (route === 'packs/export' && method === 'POST') { onlyKeys(b,['complete','components','name','version']); return {body:await exportPack(services,guild,b)}; }
+            onlyKeys(b,['pack','options','token']);
+            const packs = new Packs(services), options = b.options ?? {};
+            if (route === 'packs/preview' && method === 'POST') return {body:await packs.preview(guild,a.userId,b.pack,options as any)};
+            if (route === 'packs/apply' && method === 'POST') return {body:await packs.apply(guild,a.userId,b.pack,options as any,text(b.token,200))};
+            throw new AppError('route_not_found',404);
         }
         if (route === 'me' && method === 'GET')
             return { body: a };

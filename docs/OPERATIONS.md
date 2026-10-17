@@ -75,3 +75,9 @@ coverage exclusions, migration 003, privacy and validation instructions.
 ## Native text moderation (October 17, 2026)
 
 Inspect native text status/blocked reasons and request correlation without logging message content. text_empty_or_unavailable requires intent/4014 and channel-access checks, never a safe fallback. Pause enforcement when diagnosing uncertainty; preserve action slots/job identity. Recovery refetches IDs/digests; stale edits requeue current content; deleted sources cannot punish. Historical scans remain image-only. Starter deletion is permanent. Before older-code downgrade, follow [JSON compatibility procedure](TEXT_MODERATION.md). Production publication requires separately authorized manual workflow dispatch after main CI.
+
+## Pack persistence and recovery
+
+Migration 004 adds `pack_definitions` and `moderation_packs`. Include these tables in database backups/restores alongside existing reference rows and the private object volume. Pack exports deliberately omit credentials, audit/history, jobs and action/usage ledgers and cannot replace operational backups. Preserve import receipts to retain repeat-import baselines and deletion tombstones. Older seeded guild recognition uses the retained seed audit event; missing historical receipts/events limit deletion recognition, as documented in [packs](MODERATION_PACKS.md).
+
+Database transactions protect policy, references, grants and receipts on both backends. Filesystem objects are content-addressed and written durably before their row is committed. A crash or rollback can leave safe orphans; existing hourly leader collection removes unreferenced files older than 24 hours. Failed import also attempts conservative collection. Do not manually delete shared/young objects. Preview MACs are purpose-separated and shared across replicas using the application vault key; expiry or key rotation requires a new preview. This does not justify restarting WSL or other shared workloads.
