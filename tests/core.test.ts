@@ -68,6 +68,15 @@ test('production rejects HTTP origin', () => throwsCode(() => loadConfig({ NODE_
 test('objects default to durable Private Storage when the host provides it', () => { assert.equal(defaultObjectDir(true), '/private/objects'); assert.equal(defaultObjectDir(false), './objects'); });
 
 
+test('OAuth renewal validates application binding, identify scope and token expiration', async () => {
+    let application = G, expires = new Date(Date.now() + 3600000).toISOString(), scopes = ['identify'];
+    const rest = new DiscordRest('bot', G, 'secret', (async () => Response.json({application: {id: application}, user: {id: MOD}, scopes, expires})) as typeof fetch);
+    assert.equal(await rest.oauthIdentity('oauth'), MOD);
+    application = G2; await assert.rejects(rest.oauthIdentity('oauth'), /oauth_identity_invalid/);
+    application = G; scopes = []; await assert.rejects(rest.oauthIdentity('oauth'), /oauth_identity_invalid/);
+    scopes = ['identify']; expires = new Date(0).toISOString(); await assert.rejects(rest.oauthIdentity('oauth'), /oauth_identity_invalid/);
+});
+
 test('timeout duration selects matching presets and represents arbitrary durations as Custom', () => {
     for (const value of [60, 300, 600, 3600, 86400, 604800, 2419200]) assert.equal(timeoutPreset(value), String(value));
     for (const value of [1, 59, 61, 900, 2419201, NaN]) assert.equal(timeoutPreset(value), 'custom');

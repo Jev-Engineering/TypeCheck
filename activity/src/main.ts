@@ -1,3 +1,4 @@
+import { activityAuth, HttpError, serializeConnection } from './connection.js';
 import { timeoutPreset } from '../../shared/domain.js';
 import { CONTENT_PRESETS, CONTENT_VERSION, parseContent } from '../../shared/content.js';
 import { money, type AnalyticsReport, type Bucket, type Attempt, type Rate } from '../../shared/analytics.js';
@@ -107,7 +108,7 @@ async function api<T = any>(path: string, method = 'GET', body?: unknown, global
     if (!response.ok) {
         if (response.status === 401)
             session = '';
-        throw new Error(data.error ?? 'Request failed');
+        throw new HttpError(data.error ?? 'Request failed', response.status);
     }
     return data as T;
 }
@@ -134,7 +135,18 @@ function links() {
         ['Activity log', can('logs.view')], ['Permissions', admin() || can('moderators.delegate')], ['Settings', admin() || can('channels.configure')]
     ] as const;
 }
-async function connect(clientId: string) {
+interface AuthSession { accessToken?: string; sessionToken: string; authority: Authority }
+let connectionClientId = '';
+const authenticateSession = activityAuth<AuthSession>({
+    start: async () => (await api('/api/auth/start', 'POST', {}, true)).nonce,
+    authorize: async nonce => (await sdk!.commands.authorize({ client_id: connectionClientId, response_type: 'code', state: nonce, prompt: 'none', scope: ['identify'] })).code,
+    exchange: (code, nonce) => api('/api/auth/exchange', 'POST', { code, nonce, guildId: guild }, true),
+    renew: (accessToken, nonce) => api('/api/auth/renew', 'POST', { accessToken, nonce, guildId: guild }, true),
+    authenticate: async auth => { await sdk!.commands.authenticate({ access_token: auth.accessToken! }); },
+    accessToken: auth => { const token = auth.accessToken!; auth.accessToken = undefined; return token; }
+});
+const connectOnce = serializeConnection(async () => {
+    const clientId = connectionClientId;
     message('Connecting to Discord…');
     const modulePath = '../../vendor/discord-sdk.js';
     const { DiscordSDK } = await import(modulePath);
@@ -143,11 +155,7 @@ async function connect(clientId: string) {
     if (!sdk.guildId)
         throw new Error('Launch this Activity in a Discord server, not a direct message');
     guild = sdk.guildId;
-    const { nonce } = await api('/api/auth/start', 'POST', {}, true);
-    const { code } = await sdk.commands.authorize({ client_id: clientId, response_type: 'code', state: nonce, prompt: 'none', scope: ['identify'] });
-    const auth = await api('/api/auth/exchange', 'POST', { code, nonce, guildId: guild }, true);
-    await sdk.commands.authenticate({ access_token: auth.accessToken });
-    auth.accessToken = '';
+    const auth = await authenticateSession();
     session = auth.sessionToken;
     authority = auth.authority;
     meta = await api<Metadata>('meta');
@@ -156,7 +164,8 @@ async function connect(clientId: string) {
     const first = links().find(([, allowed]) => allowed);
     page = first?.[0] ?? 'Overview';
     await render();
-}
+});
+async function connect(clientId: string) { connectionClientId = clientId; return connectOnce(); }
 async function render() {
     app.replaceChildren();
     const nav = h('nav', { 'aria-label': 'Administration', class: 'nav' });
@@ -167,7 +176,7 @@ async function render() {
     status = h('div', { class: 'notice', role: 'status' });
     status.hidden = true;
     const enforcement = settings?.value.enforcement;
-    const header = h('header', { class: 'topbar' }, h('div', {}, h('p', { class: 'eyebrow' }, 'DISCORD ACTIVITY'), h('strong', {}, meta.name)), h('div', { class: 'actions' }, badge(enforcement ? 'ENFORCEMENT ON' : 'MONITOR ONLY', enforcement ? 'green' : 'amber'), button('Refresh', () => render(), 'quiet'), button('Reconnect', async () => { session = ''; await start(); }, 'quiet'), can('enforcement.pause') ? button('Pause enforcement', async () => { await api('pause', 'POST', {}); if (settings)
+    const header = h('header', { class: 'topbar' }, h('div', {}, h('p', { class: 'eyebrow' }, 'DISCORD ACTIVITY'), h('strong', {}, meta.name)), h('div', { class: 'actions' }, badge(enforcement ? 'ENFORCEMENT ON' : 'MONITOR ONLY', enforcement ? 'green' : 'amber'), button('Refresh', () => render(), 'quiet'), button('Reconnect', async () => { session = ''; authority = null; settings = null; await start(false); }, 'quiet'), can('enforcement.pause') ? button('Pause enforcement', async () => { await api('pause', 'POST', {}); if (settings)
         settings.value.enforcement = false; await render(); message('Automatic enforcement paused. Requests already in flight may still finish.'); }, 'danger') : null));
     const content = h('main', { class: 'content' }, h('div', { class: 'page-heading' }, h('div', {}, h('p', { class: 'eyebrow' }, 'CONTROL PANEL'), h('h1', {}, page)), badge('GUILD ' + guild)), status);
     if (preview)
@@ -539,14 +548,14 @@ async function settingsPage(parent: HTMLElement) {
         await render();
     } }, 'danger') : null)));
 }
-async function start() {
+async function start(autoConnect = true) {
     const config = await api('/api/config', 'GET', undefined, true);
     preview = config.preview === true;
     app.replaceChildren();
     status = h('div', { class: 'notice', role: 'status' });
     status.hidden = true;
     app.append(h('main', { class: 'login' }, h('div', { class: 'login-brand' }, h('span', { class: 'brand-mark' }, 'J'), h('p', { class: 'eyebrow' }, 'JEV / TYPECHECK')), badge(preview ? 'OFFLINE PREVIEW' : 'EXPERIMENTAL IMAGE MATCHING', 'amber'), h('h1', {}, 'Image moderation.\nUnder your control.'), h('p', { class: 'login-copy' }, 'Manage reference images, rules, permissions, and credentials inside Discord. The backend bot handles continuous monitoring.'), button(preview ? 'Open read-only preview' : 'Connect in Discord', () => connect(config.clientId)), status, h('p', { class: 'muted' }, 'Launch from a server Activity. Administrators have access automatically; moderators require an explicit role grant.')));
-    if (new URLSearchParams(location.search).has('frame_id'))
+    if (autoConnect && new URLSearchParams(location.search).has('frame_id'))
         await connect(config.clientId);
 }
 void start().catch(fail);

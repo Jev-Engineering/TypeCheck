@@ -329,6 +329,28 @@ test('retesting a negative sample cannot hide a false positive from approval', a
 });
 
 
+test('renewal replaces an expired app session using a live OAuth identity and one-use nonce', async t => {
+    const f = await setup(t); const initial = await f.login();
+    await f.store.createSession(digest(initial.data.sessionToken), {userId: ADMIN, guildId: G, expiresAt: Date.now() - 1});
+    assert.equal((await f.request(`/api/g/${G}/me`, 'GET', undefined, initial.data.sessionToken)).status, 401);
+    const nonce = (await f.request('/api/auth/start', 'POST', {})).data.nonce;
+    const payload = {accessToken: 'fake-oauth-token', nonce, guildId: G};
+    const renewed = await f.request('/api/auth/renew', 'POST', payload);
+    assert.equal(renewed.status, 200); assert.notEqual(renewed.data.sessionToken, initial.data.sessionToken);
+    assert.equal(renewed.data.accessToken, undefined); assert.equal(renewed.data.expiresIn, 900);
+    assert.equal((await f.request(`/api/g/${G}/me`, 'GET', undefined, renewed.data.sessionToken)).status, 200);
+    assert.equal((await f.request('/api/auth/renew', 'POST', payload)).status, 401);
+});
+
+test('renewal rejects invalid identity, wrong guild and revoked authority', async t => {
+    const f = await setup(t);
+    const renew = async (accessToken: string, guildId = G) => f.request('/api/auth/renew', 'POST', {accessToken, guildId, nonce: (await f.request('/api/auth/start', 'POST', {})).data.nonce});
+    assert.equal((await renew('expired-oauth-token')).status, 401);
+    assert.equal((await renew('fake-oauth-token', G2)).status, 403);
+    f.discord.members.delete(ADMIN);
+    assert.equal((await renew('fake-oauth-token')).status, 403);
+});
+
 test('message calibration rejects cross-guild links and missing live permissions', async t => {
     const f = await setup(t), r = rule(f.ref); await f.store.put('rules', r, 0);
     const admin = (await f.login()).data.sessionToken;
