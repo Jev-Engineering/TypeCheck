@@ -1,3 +1,4 @@
+import { Throttle, Deferred, retryAt, scopeHash } from './throttle.js';
 import { AppError, assert, snowflake, type Action, type ImageMessage, type MemberInfo, type Settings } from '../shared/domain.js';
 import { readBounded } from './images.js';
 const API = 'https://discord.com/api/v10';
@@ -49,6 +50,7 @@ export interface DiscordAdapter {
         channels: DiscordChannel[];
     }>;
     assertCanReadMessage(guild: string, user: string, channel: string): Promise<void>;
+    history?(guild: string, channel: string, before: string): Promise<ImageMessage[]>;
     currentMessage(channel: string, message: string): Promise<ImageMessage>;
     preflight(message: ImageMessage, action: Action, settings: Settings): Promise<void>;
     perform(message: ImageMessage, action: Action, seconds: number, reason: string): Promise<void>;
@@ -82,16 +84,27 @@ export function channelPermissions(guild: DiscordGuild, member: DiscordMember, c
 export class DiscordRest implements DiscordAdapter {
     online = false;
     botId = '';
+    throttle?: Throttle;
     private tail: Promise<unknown> = Promise.resolve();
     private waiting = 0;
     constructor(private token: string, private clientId: string, private clientSecret: string, private http: typeof fetch = fetch) { }
-    private async json(url: string, init: RequestInit): Promise<any> {
+    private async json(url: string, init: RequestInit, rate?: {route: string; major: string; global: string}): Promise<any> {
         let response: Response;
         try {
             response = await this.http(url, { ...init, redirect: 'error', signal: AbortSignal.timeout(15000) });
         }
         catch {
             throw new AppError('discord_network_unknown_outcome', 503);
+        }
+        if (rate && this.throttle) {
+            const bucket = response.headers.get('x-ratelimit-bucket');
+            const key = bucket ? rate.global+':'+bucket+':'+rate.major : rate.route;
+            if (bucket) await this.throttle.bind(rate.route,key);
+            if (response.headers.get('x-ratelimit-remaining') === '0') {
+                const seconds = Number(response.headers.get('x-ratelimit-reset-after'));
+                const absolute = Number(response.headers.get('x-ratelimit-reset'))*1000;
+                await this.throttle.delay(key, Math.max(Date.now()+100, seconds>0 ? Date.now()+seconds*1000 : absolute));
+            }
         }
         if (response.status === 204)
             return null;
@@ -105,37 +118,48 @@ export class DiscordRest implements DiscordAdapter {
             throw new AppError('discord_response_invalid', 502);
         }
         if (response.status === 429) {
-            const wait = Number(data?.retry_after);
-            assert(Number.isFinite(wait) && wait >= 0 && wait <= 30, 'discord_rate_limit_deferred', 503);
-            return { __rateLimit: wait };
+            const until=retryAt(response.headers,data?.retry_after);
+            if(rate && this.throttle) {
+                const global=data?.global===true || response.headers.get('x-ratelimit-global')==='true' || response.headers.get('x-ratelimit-scope')==='global';
+                await this.throttle.delay(global ? rate.global : (await this.throttle.bucket(rate.route) ?? rate.route),until);
+            }
+            throw new Deferred(until,'discord_rate_limit_deferred');
         }
+        if(response.status===401&&rate&&this.throttle) await this.throttle.delay(rate.global,8640000000000000);
         if (!response.ok)
             throw new AppError(`discord_http_${response.status}`, response.status === 401 ? 401 : response.status === 403 ? 403 : 502);
         return data;
     }
     async request(path: string, method = 'GET', body?: unknown, reason?: string): Promise<any> {
         assert(path.startsWith('/') && !path.includes('://'), 'invalid_discord_path');
-        assert(this.waiting < 500, 'discord_queue_full', 503);
+        assert(this.waiting < 64, 'discord_queue_full', 503);
         this.waiting++;
         const task = async () => {
             try {
-                for (let n = 0; n < 3; n++) {
-                    const headers: Record<string, string> = { Authorization: `Bot ${this.token}`, 'Content-Type': 'application/json' };
-                    if (reason)
-                        headers['X-Audit-Log-Reason'] = encodeURIComponent(reason.slice(0, 300));
-                    // Do NOT blindly retry mutation network errors or 5xx responses.
-                    const data = await this.json(API + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
-                    if (data?.__rateLimit !== undefined) {
-                        await new Promise(r => setTimeout(r, data.__rateLimit * 1000 + 100));
-                        continue;
+                const global='discord:'+scopeHash(this.token);
+                const parts=path.split('?')[0]!.split('/');
+                const major=['channels','guilds','webhooks'].includes(parts[1]??'') ? parts.slice(1,parts[1]==='webhooks'?4:3).join('/') : 'none';
+                const route=global+':'+method+':'+parts.map((p,i)=>i>2 && /^\d+$/.test(p)?':id':p).join('/');
+                await this.throttle?.check(global);
+                await this.throttle?.check(await this.throttle.bucket(route) ?? route);
+                const headers: Record<string,string>={Authorization:'Bot '+this.token,'Content-Type':'application/json'};
+                if(reason) headers['X-Audit-Log-Reason']=encodeURIComponent(reason.slice(0,300));
+                let release: (()=>Promise<void>)|undefined;
+                if(this.throttle) {
+                    const interval=Number(process.env.DISCORD_MIN_INTERVAL_MS??40);
+                    assert(Number.isSafeInteger(interval)&&interval>=20&&interval<=100,'invalid_discord_interval');
+                    const enter=()=>this.throttle!.enter(global+':admission',interval,20000);
+                    try { release=await enter(); } catch(e) {
+                        if(!(e instanceof Deferred)||e.until-Date.now()>100) throw e;
+                        await new Promise(r=>setTimeout(r,Math.max(1,e.until-Date.now()+1))); release=await enter();
                     }
-                    return data;
                 }
-                throw new AppError('discord_rate_limited', 503);
+                try { return await this.json(API+path,{method,headers,body:body===undefined?undefined:JSON.stringify(body)},{global,route,major}); }
+                finally { await release?.(); }
             }
             finally {
                 this.waiting--;
-                await new Promise(r => setTimeout(r, 75));
+
             }
         };
         const result = this.tail.then(task, task);
@@ -182,6 +206,11 @@ export class DiscordRest implements DiscordAdapter {
             assert(membership?.user_id === user, 'message_read_permission_required', 403);
         }
         assert((permissions & 1024n) !== 0n && (permissions & 65536n) !== 0n, 'message_read_permission_required', 403);
+    }
+    async history(guild: string, channel: string, before: string): Promise<ImageMessage[]> {
+        const rows=await this.request('/channels/'+channel+'/messages?limit=1&before='+before);
+        assert(Array.isArray(rows) && rows.length<=1,'invalid_history_page',502);
+        return rows.map(raw=>parseDiscordMessage({...raw,guild_id:guild,channel_id:channel}));
     }
     async currentMessage(channel: string, message: string): Promise<ImageMessage> {
         const [m, c] = await Promise.all([this.request(`/channels/${channel}/messages/${message}`), this.request(`/channels/${channel}`)]);
@@ -245,7 +274,7 @@ export class DiscordRest implements DiscordAdapter {
 export function parseDiscordMessage(raw: any, includeContext = false): ImageMessage {
     assert(snowflake(raw.guild_id) && snowflake(raw.channel_id) && snowflake(raw.id) && snowflake(raw.author?.id), 'incomplete_discord_message');
     assert(Array.isArray(raw.attachments) && raw.attachments.length <= 100, 'incomplete_discord_attachments');
-    return { ...(includeContext && typeof raw.content === 'string' ? { content: raw.content } : {}), guildId: raw.guild_id, channelId: raw.channel_id, messageId: raw.id, userId: raw.author.id, bot: raw.author.bot === true, webhook: !!raw.webhook_id,
+    return { editedAt: typeof raw.edited_timestamp==='string'?raw.edited_timestamp:null, ...(includeContext && typeof raw.content === 'string' ? { content: raw.content } : {}), guildId: raw.guild_id, channelId: raw.channel_id, messageId: raw.id, userId: raw.author.id, bot: raw.author.bot === true, webhook: !!raw.webhook_id,
         attachments: raw.attachments.filter((a: any) => snowflake(a.id) && typeof a.url === 'string' && Number.isFinite(a.size) && typeof a.filename === 'string')
             .map((a: any) => ({ id: a.id, url: a.url, size: a.size, contentType: typeof a.content_type === 'string' ? a.content_type : null, filename: a.filename })) };
 }

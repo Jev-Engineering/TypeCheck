@@ -31,9 +31,9 @@ export function parseRate(value: unknown): Rate {
     assert(typeof v.note === 'string' && v.note.length <= 300, 'invalid_pricing_note');
     return v as unknown as Rate;
 }
-export interface AnalyticsQuery { start: string; end: string; group: 'summary' | 'day' | 'model' | 'purpose' | 'verification' | 'outcome'; model?: string; purpose?: string; outcome?: string; verification?: boolean; limit: number; before?: string; beforeId?: string }
+export interface AnalyticsQuery { start: string; end: string; group: 'summary' | 'day' | 'model' | 'purpose' | 'verification' | 'outcome'; correlationId?: string; model?: string; purpose?: string; outcome?: string; verification?: boolean; limit: number; before?: string; beforeId?: string }
 export function analyticsQuery(p: URLSearchParams, now = new Date()): AnalyticsQuery {
-    const allowed = ['range', 'start', 'end', 'group', 'model', 'purpose', 'outcome', 'verification', 'limit', 'before', 'beforeId'];
+    const allowed = ['correlationId', 'range', 'start', 'end', 'group', 'model', 'purpose', 'outcome', 'verification', 'limit', 'before', 'beforeId'];
     for (const k of p.keys()) assert(allowed.includes(k) && p.getAll(k).length === 1, 'invalid_analytics_parameter');
     const day = now.toISOString().slice(0, 10), midnight = Date.parse(day), endDefault = new Date(midnight + 86400000).toISOString().slice(0, 10);
     const range = p.get('range') ?? 'today';
@@ -46,6 +46,7 @@ export function analyticsQuery(p: URLSearchParams, now = new Date()): AnalyticsQ
     const group = p.get('group') ?? 'summary'; assert(['summary','day','model','purpose','verification','outcome'].includes(group), 'invalid_group');
     const limit = p.get('limit') ?? '50'; assert(/^[1-9]\d*$/.test(limit) && Number(limit) <= 100, 'invalid_page_limit');
     const q: AnalyticsQuery = { start, end, group: group as AnalyticsQuery['group'], limit: Number(limit) };
+    if (p.has('correlationId')) { assert(uuid(p.get('correlationId')), 'invalid_correlation'); q.correlationId=p.get('correlationId')!; }
     if (p.has('model')) { const m = p.get('model')!; assert(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,99}$/.test(m), 'invalid_model'); q.model = m; }
     if (p.has('purpose')) { assert(PURPOSES.includes(p.get('purpose') as Purpose), 'invalid_purpose'); q.purpose = p.get('purpose')!; }
     if (p.has('outcome')) { assert((OUTCOMES as readonly string[]).includes(p.get('outcome')!), 'invalid_outcome'); q.outcome = p.get('outcome')!; }

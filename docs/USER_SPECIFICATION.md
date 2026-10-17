@@ -1037,4 +1037,8 @@ A user posts an image. Jev determines whether that image matches a configured re
 
 The Discord Activity exists exclusively to manage the images, rules, permissions, credentials, and operational settings that support that workflow.
 
-Do not expand beyond this purpose.
+Do not expand beyond this purpose.## Historical image scanning
+
+See [Historical scans](HISTORICAL_SCANS.md) for administrator scope selection,
+review-only results, permissions, fixed cutoffs, shared quotas, recovery,
+coverage exclusions, migration 003, privacy and validation instructions.

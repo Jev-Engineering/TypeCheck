@@ -1,3 +1,5 @@
+import { Deferred } from './throttle.js';
+import { Historical } from './historical.js';
 import { seedStarterReferences } from './starter-references.js';
 import { CONTENT_LIMITS, CONTENT_PRESETS, parseContent } from '../shared/content.js';
 import { analyticsQuery, parseRate } from '../shared/analytics.js';
@@ -158,6 +160,16 @@ export function createHttp(services: Services, config: Config, root = process.cw
         if (route === 'match-thresholds' && method === 'GET') {
             assert(['rules.create', 'rules.edit', 'rules.view'].some(c => a.capabilities.includes(c as typeof a.capabilities[number])), 'forbidden', 403);
             return { body: (await store.getSettings(guild)).value.thresholds };
+        }
+        if (p[3] === 'scans') {
+            requireAdmin(a);
+            const history=new Historical(services);
+            if(method==='GET') return {body:await history.list(guild)};
+            const b=await jsonBody(req);
+            if(method==='POST' && p[4]==='preview') return {body:await history.prepare(guild,session.userId,b)};
+            if(method==='POST' && !p[4]) return {body:await history.start(guild,session.userId,b)};
+            if(method==='POST' && p[4] && p[5]) return {body:await history.control(guild,session.userId,p[4],p[5])};
+            throw new AppError('route_not_found',404);
         }
         if (route === 'settings' && method === 'GET') {
             assert(a.capabilities.includes('dashboard.view') || a.capabilities.includes('channels.configure') || a.owner || a.administrator, 'forbidden', 403);
@@ -557,9 +569,10 @@ export function createHttp(services: Services, config: Config, root = process.cw
             res.end(req.method === 'HEAD' ? undefined : reply.bytes ?? JSON.stringify(reply.body ?? {}));
         }
         catch (e) {
+            if(e instanceof Deferred) res.setHeader('Retry-After',String(Math.max(1,Math.ceil((e.until-Date.now())/1000))));
             res.statusCode = e instanceof AppError ? e.status : 500;
             res.setHeader('Content-Type', 'application/json; charset=utf-8');
-            res.end(JSON.stringify({ error: safeError(e), requestId }));
+            res.end(JSON.stringify({ error: safeError(e), requestId, ...(e instanceof Deferred?{nextAttempt:e.until}:{}) }));
         }
     });
     server.headersTimeout = 15000;

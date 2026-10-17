@@ -1,0 +1,93 @@
+import assert from 'node:assert/strict';
+import { randomUUID, randomBytes } from 'node:crypto';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { openDatabase, migrateDatabase } from '../dist/server/database.js';
+import { Historical } from '../dist/server/historical.js';
+import { Services } from '../dist/server/services.js';
+import { Throttle, Deferred } from '../dist/server/throttle.js';
+import { ObjectStore, normalize } from '../dist/server/images.js';
+import { JevClient } from '../dist/server/jev.js';
+import { Vault } from '../dist/server/security.js';
+import { baseRecord, AppError } from '../dist/shared/domain.js';
+import { analyticsQuery } from '../dist/shared/analytics.js';
+import { PNG } from '../dist/tests/helpers.js';
+assert.equal(process.env.ALLOW_DATABASE_TESTS,'true');
+const url=new URL(process.env.TEST_DATABASE_URL);
+assert.ok(['127.0.0.1','localhost'].includes(url.hostname));
+const {pool,store,kind}=await openDatabase(url.href);
+const dir=await mkdtemp(join(tmpdir(),'typecheck-history-db-'));
+const guild=String(Date.now())+'36', actor=guild+'1',bot=guild+'2',channel=guild+'3',user=guild+'4';
+const placeholder=kind==='mysql'?'?':'$1';
+let release;
+try {
+    await migrateDatabase(pool,kind);await migrateDatabase(pool,kind);
+    await store.getSettings(guild);
+    const objects=new ObjectStore(dir),vault=new Vault(randomBytes(32).toString('base64')),image=await normalize(PNG);
+    const ref={...baseRecord(guild,randomUUID()),name:'Fixture',groupId:null,enabled:true,objectKey:await objects.put(guild,image),sha256:image.sha256,hashVersion:image.hashVersion,bytes:image.bytes.length,width:768,height:768,createdBy:actor};
+    await store.put('images',ref,0);
+    await store.put('rules',{...baseRecord(guild,randomUUID()),name:'Fixture',type:'individual',referenceId:ref.id,groupId:null,mode:'exact',threshold:0.99,action:'review',timeoutSeconds:60,deleteMessage:false,priority:0,enabled:true,automatic:false,secondVerification:false,reason:'Database fixture',approval:null},0);
+    await store.put('credentials',{...baseRecord(guild,randomUUID()),encrypted:vault.encrypt(guild,'not-a-real-credential-'+guild),status:'valid',validatedAt:new Date().toISOString(),lastError:null},0);
+    const msg={guildId:guild,channelId:channel,messageId:'100000000000000200',userId:user,bot:false,webhook:false,attachments:[{id:'100000000000000100',url:'https://cdn.discordapp.com/attachments/'+channel+'/100000000000000100/test.png',size:PNG.length,contentType:'image/png',filename:'test.png'}]};
+    let readable=true;
+    const discord={online:true,botId:bot,memberInfo:async(_g,id)=>({guildId:guild,userId:id,owner:false,administrator:id===actor,roles:[]}),metadata:async()=>({name:'Fixture',roles:[],channels:[{id:channel,type:0,name:'images'}]}),assertCanReadMessage:async()=>{if(!readable)throw new AppError('message_read_permission_required',403);},history:async(_g,_c,before)=>BigInt(before)>BigInt(msg.messageId)?[msg]:[],currentMessage:async()=>msg};
+    const services=new Services(store,objects,vault,new JevClient(async()=>assert.fail('hash must bypass provider')),discord);
+    const history=new Historical(services,async()=>image);
+    const scan=await history.start(guild,actor,{channels:'all',exclusions:[],budgets:{messages:100,images:100,requests:10}});
+    release=await store.acquireLeader();assert.ok(release);
+    await history.step();assert.equal((await history.get(guild,scan.id)).pending.message,msg.messageId);
+    await release();release=null;
+    // Recreate database connections and controller to prove no in-memory cursor dependency.
+    const reopened=await openDatabase(url.href);
+    const recovered=new Historical(new Services(reopened.store,objects,vault,services.jev,discord),async()=>image);
+    const resumed=await reopened.store.acquireLeader();assert.ok(resumed);
+    for(let i=0;i<8;i++) {
+        const row=await reopened.store.durable.get('scan:'+scan.id);
+        if(!['running','throttled'].includes(row.data.status))break;
+        await reopened.store.durable.change(row.id,row,r=>{r.due=0;r.data.nextAttempt=0;});
+        await recovered.step();
+    }
+    assert.equal((await recovered.get(guild,scan.id)).counters.images,1);
+    assert.equal((await reopened.store.all('events',guild)).length,1);
+    assert.equal((await reopened.store.actions(guild)).length,0);
+    await resumed();await reopened.pool.end();
+    const request={channels:'all',exclusions:[],budgets:{messages:100,images:100,requests:10}};
+    const controlled=await history.start(guild,actor,request);
+    await history.control(guild,actor,controlled.id,'pause');assert.equal(await history.step(),false);
+    await history.control(guild,actor,controlled.id,'resume');
+    await history.control(guild,actor,controlled.id,'cancel');assert.equal((await history.get(guild,controlled.id)).status,'cancelled');
+    await assert.rejects(history.get(guild+'9',controlled.id),/scan_not_found/);
+    const revoked=await history.start(guild,actor,request);readable=false;
+    await history.step();assert.equal((await history.get(guild,revoked.id)).channels[0].status,'failed');readable=true;
+    await history.control(guild,actor,revoked.id,'cancel');
+    const changed=await history.start(guild,actor,request),settings=await store.getSettings(guild);
+    await store.putSettings(guild,{...settings.value,processBots:true},settings.revision);await history.step();
+    assert.equal((await history.get(guild,changed.id)).status,'paused');
+    await history.control(guild,actor,changed.id,'cancel');
+    process.env.JEV_ACCOUNT_SCOPE='integration-'+guild;
+    let providerCalls=0;
+    const limited=new Services(store,objects,vault,new JevClient(async()=>{providerCalls++;return Response.json({usage:{input_tokens:17}},{status:429,headers:{'Retry-After':'3600'}});},undefined,new Throttle(store.durable)),discord);
+    await assert.rejects(limited.call(guild,image.bytes,image.bytes,'exact',settings.value.model),Deferred);
+    await assert.rejects(limited.call(guild,image.bytes,image.bytes,'exact',settings.value.model,false,undefined,'rule_test'),Deferred);
+    assert.equal(providerCalls,1);
+    const attempts=await store.analytics.attempts(guild,analyticsQuery(new URLSearchParams()));
+    assert.equal(attempts.items.length,1);assert.equal(attempts.items[0].inputTokens,17);assert.equal(attempts.items[0].outcome,'failure');
+    // Concurrent limiter admission is one atomic row lock across separate clients.
+    const key='db-test-'+randomUUID(),a=new Throttle(store.durable),b=new Throttle(store.durable);
+    const admissions=await Promise.allSettled([a.enter(key,0),b.enter(key,0)]);
+    assert.equal(admissions.filter(r=>r.status==='fulfilled').length,1);
+    for(const r of admissions)if(r.status==='fulfilled')await r.value();
+    await a.delay(key,Date.now()+3600000);await assert.rejects(b.check(key),Deferred);
+    await pool.query('DELETE FROM durable_work WHERE id='+placeholder,['rate:'+key]);
+    // Live deferred work survives leadership handover without immediate reclaims.
+    await store.enqueue(msg);const job=await store.claim();assert.ok(job);
+    await store.defer(job.id,Date.now()+3600000);assert.equal(await store.claim(),null);
+    const delay=await store.durable.get('job:'+job.id);await store.durable.change(delay.id,delay,r=>{r.due=0;});
+    assert.equal((await store.claim()).id,job.id);await store.finish(job.id,null);
+    console.log(kind+': historical restart/checkpoints, exact hash, review-only, lifecycle, isolation, permission/policy loss, partial-failure accounting, shared cooldown races and live deferral passed');
+} finally {
+    await release?.();
+    await pool.query('DELETE FROM guilds WHERE id='+placeholder,[guild]);
+    await pool.end();await rm(dir,{recursive:true,force:true});
+}

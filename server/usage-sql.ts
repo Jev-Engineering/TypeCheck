@@ -54,6 +54,7 @@ export class SqlAnalytics implements AnalyticsStore {
     private where(guild: string, q: AnalyticsQuery) {
         let sql = 'guild_id=? AND started_at>=? AND started_at<?'; const values: unknown[] = [guild,q.start+'T00:00:00.000Z',q.end+'T00:00:00.000Z'];
         for (const k of ['model','purpose','outcome','verification'] as const) if (q[k] !== undefined) { sql += ` AND ${k}=?`; values.push(k === 'verification' ? Number(q[k]) : q[k]); }
+        if(q.correlationId) { sql += this.kind==='postgres' ? " AND data->>'correlationId'=?" : " AND JSON_UNQUOTE(JSON_EXTRACT(data,'$.correlationId'))=?"; values.push(q.correlationId); }
         return { sql, values };
     }
     async report(guild: string, q: AnalyticsQuery): Promise<AnalyticsReport> {

@@ -165,6 +165,7 @@ export interface Attachment {
     filename: string;
 }
 export interface ImageMessage {
+    editedAt?: string | null;
     content?: string;
     guildId: string;
     channelId: string;

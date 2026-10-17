@@ -47,3 +47,10 @@ The evaluation CLI still runs without a database. Its `evaluation-results.json` 
 ## Content-analysis costs
 
 Questions batch per selected rule. Each attempt, retry and verification is counted once with rule IDs and correlation provenance; no per-question tokens are invented. Unknown usage and unpriced estimates remain explicit. See [limits](CONTENT_ANALYSIS.md#resource-use-and-costs). Paid evaluations require explicit authorization.
+
+
+## Historical image scanning
+
+See [Historical scans](HISTORICAL_SCANS.md) for administrator scope selection,
+review-only results, permissions, fixed cutoffs, shared quotas, recovery,
+coverage exclusions, migration 003, privacy and validation instructions.

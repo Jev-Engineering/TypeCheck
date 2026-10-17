@@ -1,3 +1,5 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { Deferred } from './throttle.js';
 import { CONTENT_LIMITS, CONTENT_VERSION, parseContent, type ContentDefinition } from '../shared/content.js';
 import { contentEligibility, type ContentResult } from './content.js';
 import { createHash } from 'node:crypto';
@@ -12,10 +14,12 @@ import { ObjectStore, normalize, NORMALIZATION_HASH_VERSION, type NormalizedImag
 import { fingerprint, referencesFor, resolvePolicy } from './policy.js';
 import type { DiscordAdapter } from './discord.js';
 export class EvaluationFailure extends AppError {
-    constructor(error: unknown, readonly matches: Match[], readonly inputTokens: number, readonly hashComparisons: number) {
-        super(safeError(error), 503);
+    constructor(readonly cause: unknown, readonly matches: Match[], readonly inputTokens: number, readonly hashComparisons: number) {
+        super(safeError(cause), 503);
     }
 }
+export interface HistoricalCallContext { scanId: string; cache: string; beforeAttempt: () => Promise<void> }
+export const historicalCall = new AsyncLocalStorage<HistoricalCallContext>();
 export class Services {
     constructor(readonly store: Store, readonly objects: ObjectStore, readonly vault: Vault, readonly jev: JevClient, readonly discord: DiscordAdapter) { }
     async audit(guild: string, actor: string, event: string, target: string, detail: Record<string, unknown> = {}, store: Store = this.store) {
@@ -26,9 +30,13 @@ export class Services {
     async credential(guild: string, store: Store = this.store): Promise<Credential | null> { return (await store.all<Credential>('credentials', guild))[0] ?? null; }
     async credentialStatus(guild: string) { const c = await this.credential(guild); return { configured: !!c, status: c?.status ?? 'missing', validatedAt: c?.validatedAt ?? null, lastError: c?.lastError ?? null, revision: c?.revision ?? 0 }; }
     async call(guild: string, submitted: Buffer, reference: Buffer, mode: Rule['mode'], model: string, verification = false, keyOverride?: string, purpose: Purpose = 'moderation', correlationId = randomUUID(), content?: { definition: ContentDefinition; context?: string; ruleId: string }): Promise<JevResult | ContentResult> {
+        const historical=historicalCall.getStore();
+        const cacheId=historical ? 'call:'+createHash('sha256').update(JSON.stringify([historical.cache,mode,model,verification,content?.definition,content?.context,createHash('sha256').update(reference).digest('hex')])).digest('hex') : null;
+        if(cacheId) { const cached=await this.store.durable.get(cacheId); if(cached) return cached.data; }
         const c = keyOverride ? null : await this.credential(guild);
         const key = keyOverride ?? (c ? this.vault.decrypt(guild, c.encrypted) : null);
         assert(key, 'jev_credential_missing', 503);
+        assert(!(c?.status==='error'&&c.lastError==='jev_authentication_failed'),'jev_authentication_failed',503);
         try {
             const persist = async (work: () => Promise<void>) => {
                 // Retry only the same idempotent database write, never the provider request.
@@ -40,19 +48,21 @@ export class Services {
             const options = { key, model, mode, verification,
                 onAttempt: async (info?: { id: string; retry: number; startedAt: string }) => {
                     assert(info, 'usage_attempt_missing', 503);
-                    const a: Attempt = { ...info, ...(content ? { ruleIds: [content.ruleId], analysisKind: 'content' as const } : {}), guildId:guild, correlationId, model, purpose, mode, verification, completedAt:null, outcome:'reserved', error:null, inputTokens:null, rate:null, costMicros:null };
+                    await historical?.beforeAttempt();
+                    const a: Attempt = { ...info, ...(content ? { ruleIds: [content.ruleId], analysisKind: 'content' as const } : {}), guildId:guild, correlationId:historical?.scanId ?? correlationId, model, purpose, mode, verification, completedAt:null, outcome:'reserved', error:null, inputTokens:null, rate:null, costMicros:null };
                     await persist(async () => { const settings = (await this.store.getSettings(guild)).value; await this.store.analytics.reserve(a, settings.dailyCallLimit); });
                 },
                 onDispatch: (id: string) => persist(() => this.store.analytics.dispatch(guild,id)),
                 onComplete: (id: string, completion: import('../shared/analytics.js').Completion) => persist(() => this.store.analytics.finalize(guild,id,completion))
             };
             const result = content ? await this.jev.analyze(submitted, content.definition, content.context, options) : await this.jev.compare(submitted, reference, options);
+            if(cacheId) await this.store.durable.change(cacheId,{id:cacheId,guild,kind:'call',due:0,data:result},()=>{});
             if (c?.status === 'error')
                 await this.store.put('credentials', { ...c, status: 'valid', lastError: null, revision: c.revision + 1, updatedAt: new Date().toISOString() }, c.revision).catch(() => { });
             return result;
         }
         catch (e) {
-            if (c && c.status !== 'error' && safeError(e).startsWith('jev_')) {
+            if (!(e instanceof Deferred) && c && c.status !== 'error' && safeError(e).startsWith('jev_')) {
                 const code = safeError(e);
                 await this.store.put('credentials', { ...c, status: 'error', lastError: code, revision: c.revision + 1, updatedAt: new Date().toISOString() }, c.revision).catch(() => { });
                 await this.audit(guild, 'system', 'jev.unhealthy', 'credential', { code }).catch(() => { });

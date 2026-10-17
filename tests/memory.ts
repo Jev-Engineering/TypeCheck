@@ -1,3 +1,4 @@
+import { MemoryDurable } from '../server/durable.js';
 import { MemoryAnalytics } from './memory-analytics.js';
 import { randomUUID } from 'node:crypto';
 import { assert, DEFAULT_SETTINGS, type Settings, type Kind, type RecordBase, type Job, type ImageMessage, type Session, type ReferenceImage, type Rule } from '../shared/domain.js';
@@ -5,6 +6,8 @@ import { digest } from '../server/security.js';
 import type { Store, SettingsVersion, Usage, ActionRecord } from '../server/store.js';
 const clone = <T>(v: T): T => structuredClone(v);
 export class MemoryStore implements Store {
+    readonly durable = new MemoryDurable();
+    async defer(id: string, until: number) { const j=this.state.jobs.get(id); if(j) j.status='queued'; await this.durable.change('job:'+id,{id:'job:'+id,guild:null,kind:'delay',due:until,data:{}},r=>{r.due=until;}); }
     readonly analytics: MemoryAnalytics = new MemoryAnalytics(this);
     private state = { settings: new Map<string, SettingsVersion>(), records: new Map<string, RecordBase>(), jobs: new Map<string, Job>(), seen: new Set<string>(), actions: new Map<string, ActionRecord>(), usage: new Map<string, Usage>(), nonces: new Map<string, {
             origin: string;
@@ -48,7 +51,7 @@ export class MemoryStore implements Store {
     } }; const result = this.tail.then(run, run); this.tail = result.catch(() => { }); return result; }
     async enqueue(message: ImageMessage) { const signature = digest(message.attachments.map(a => a.id).sort().join(',')); if ([...this.state.jobs.values()].some(j => j.guildId === message.guildId && j.message.messageId === message.messageId && j.signature === signature))
         return false; const job: Job = { id: randomUUID(), guildId: message.guildId, message: clone(message), signature, status: 'queued', error: null, createdAt: new Date().toISOString() }; this.state.jobs.set(job.id, job); return true; }
-    async claim() { const job = [...this.state.jobs.values()].find(j => j.status === 'queued'); if (job)
+    async claim() { const job = [...this.state.jobs.values()].find(j => j.status === 'queued' && (this.durable.rows.get('job:'+j.id)?.due??0)<=Date.now()); if (job)
         job.status = 'processing'; return job ? clone(job) : null; }
     async finish(id: string, error: string | null) { const j = this.state.jobs.get(id)!; j.status = error ? 'failed' : 'done'; j.error = error; }
     async seen(g: string, m: string, a: string) { return this.state.seen.has(`${g}:${m}:${a}`); }

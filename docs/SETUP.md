@@ -114,3 +114,10 @@ No schema migration or automatic backfill is required for the additive JSON fiel
 ## Content-analysis setup
 
 Create an Image content analysis rule, edit one preset or custom predicate, and label representative images. No reference is required. Posting context must be enabled in Settings and selected in the rule. New rules cannot enforce automatically. Follow [acceptance](CONTENT_ANALYSIS.md#testing-and-acceptance); provider image support is experimental.
+
+
+## Historical image scanning
+
+See [Historical scans](HISTORICAL_SCANS.md) for administrator scope selection,
+review-only results, permissions, fixed cutoffs, shared quotas, recovery,
+coverage exclusions, migration 003, privacy and validation instructions.

@@ -1,3 +1,4 @@
+import { Throttle, Deferred, retryAt, scopeHash } from './throttle.js';
 import { makeContentRequest, parseContentResult, type ContentResult } from './content.js';
 import type { ContentDefinition } from '../shared/content.js';
 import type { Completion } from '../shared/analytics.js';
@@ -57,7 +58,7 @@ export interface CompareOptions {
     onComplete?: (id: string, completion: Completion) => Promise<void>;
 }
 export class JevClient {
-    constructor(private http: typeof fetch = fetch, private sleep: (ms: number) => Promise<void> = ms => new Promise(r => setTimeout(r, ms))) { }
+    constructor(private http: typeof fetch = fetch, private sleep: (ms: number) => Promise<void> = ms => new Promise(r => setTimeout(r, ms)), readonly throttle?: Throttle) { }
     async analyze(submitted: Buffer, definition: ContentDefinition, context: string | undefined, o: CompareOptions): Promise<ContentResult> {
         const { body, request } = makeContentRequest(submitted, o.model, definition, context, o.verification);
         return this.request(body, o, data => parseContentResult(data, o.model, request.questions));
@@ -70,10 +71,29 @@ export class JevClient {
     private async request<T extends JevResult>(body: FormData, o: CompareOptions, parse: (data: unknown) => T): Promise<T> {
         assert(o.key.length >= 8 && o.key.length <= 4096 && !/[\r\n]/.test(o.key), 'invalid_api_key');
         for (let attempt = 0; attempt < 3; attempt++) {
+            const scope='jev:'+scopeHash(o.key);
+            const account='jev-account:'+scopeHash(process.env.JEV_ACCOUNT_SCOPE??'deployment');
+            const interval=Number(process.env.JEV_MIN_INTERVAL_MS??1000);
+            assert(Number.isSafeInteger(interval)&&interval>=0&&interval<=3600000,'invalid_jev_interval');
+            const releaseAccount=await this.throttle?.enter(account,0,60000);
+            let releaseCredential: (()=>Promise<void>)|undefined;
+            try { releaseCredential=await this.throttle?.enter(scope,interval,60000); }
+            catch(e) {await releaseAccount?.();throw e;}
+            const release=async()=>{try{await releaseCredential?.();}finally{await releaseAccount?.();}};
             const id = randomUUID(), startedAt = new Date().toISOString();
-            await o.onAttempt({ id, retry: attempt, startedAt });
+            try { await o.onAttempt({ id, retry: attempt, startedAt }); } catch(e) { await release?.(); throw e; }
+            // Account reservations are shared across credentials and guilds. Unknown external
+            // outcomes consume the reservation; this is a deployment ceiling, not a provider claim.
+            if(this.throttle) try {
+                const limit=Number(process.env.JEV_DAILY_REQUEST_LIMIT??1000);
+                assert(Number.isSafeInteger(limit)&&limit>=1&&limit<=10000000,'invalid_jev_daily_limit');
+                const day=startedAt.slice(0,10),quota='quota:'+account+':'+day;
+                const midnight=Date.parse(day)+86400000;
+                const admitted=await this.throttle.store.change(quota,{id:quota,guild:null,kind:'quota',due:midnight,data:{calls:0}},r=>{if(r.data.calls>=limit)return false;r.data.calls++;return true;});
+                if(!admitted) { await this.throttle.delay(account,midnight); throw new Deferred(midnight,'jev_account_budget_exhausted'); }
+            } catch(e) {await release();throw e;}
             // Persistence callbacks are outside provider retry catches.
-            await o.onDispatch?.(id);
+            try { await o.onDispatch?.(id); } catch(e) { await release?.(); throw e; }
             let response: Response | undefined, completion: Completion;
             let result: T | undefined, failure: unknown, retry = false, wait = 500 * 2 ** attempt;
             let tokens: number | null = null, responseComplete = false;
@@ -87,6 +107,13 @@ export class JevClient {
                 if (typeof n === 'number' && Number.isSafeInteger(n) && n >= 0) tokens = n;
                 if (!response.ok) {
                     retry = [429,529,502,503,504].includes(response.status) && attempt < 2;
+                    if (this.throttle && retry) {
+                        const until=retryAt(response.headers,undefined,Date.now(),await this.throttle.backoff(scope));
+                        await this.throttle.delay(scope,until);
+                        await this.throttle.delay(account,until);
+                        retry=false; throw new Deferred(until,'jev_rate_limit_deferred');
+                    }
+                    if(this.throttle && [401,403].includes(response.status)) await this.throttle.delay(scope,8640000000000000);
                     const h = response.headers.get('retry-after'), seconds = h ? Number(h) : NaN;
                     wait = Number.isFinite(seconds) ? Math.max(0, seconds * 1000) : wait;
                     if (retry && wait > 30000) { retry = false; throw new AppError('jev_rate_limit_deferred', 503); }
@@ -99,9 +126,13 @@ export class JevClient {
                 if (!response) retry = attempt < 2;
                 completion = { outcome: responseComplete ? 'failure' : 'uncertain', inputTokens: tokens, error: safeError(failure), completedAt: new Date().toISOString() };
             }
-            await o.onComplete?.(id, completion);
-            if (result) return result;
+            try { await o.onComplete?.(id, completion); } finally { await release?.(); }
+            if (result) { await this.throttle?.healthy(scope); return result; }
             if (!retry) throw failure;
+            if(this.throttle) {
+                const until=Date.now()+await this.throttle.backoff(scope);
+                await this.throttle.delay(scope,until); throw new Deferred(until,'jev_retry_deferred');
+            }
             await this.sleep(wait);
         }
         throw new AppError('jev_unavailable', 503);
