@@ -10,7 +10,7 @@ This is browser WebMCP: JavaScript tools on an authenticated web page, calling t
 
 Observed locally: Chromium 145.0.7632.6 had neither API and displayed the manual planner. Chrome 155.0.8059.82 with `--enable-features=WebMCP` passed native `getTools`/`executeTool` discovery and invocation through an author-provided in-page agent, with synthetic Discord/provider adapters. This is evidence for that browser/configuration, not universal browser/agent support or a live Discord result.
 
-Discord owns the Activity's cross-origin iframe and proxy. The current [explainer](https://github.com/webmachinelearning/webmcp) requires the `tools` permissions policy to be delegated to cross-origin frames. TypeCheck cannot add `allow="tools"` to Discord's parent iframe. Successful native registration in a top-level browser does not establish that a compatible agent can discover/invoke tools in Discord. **Actual Discord embedding remains unverified.** If registration is absent/denied, use the manual planner or the standalone dashboard. Never send the Activity session token through a link to the dashboard. No remote MCP workaround is provided.
+Discord owns the Activity's cross-origin iframe and proxy. The current [explainer](https://github.com/webmachinelearning/webmcp) requires the `tools` permissions policy to be delegated to cross-origin frames. TypeCheck cannot add `allow="tools"` to Discord's parent iframe. Successful native registration in a top-level browser does not establish that a compatible agent can discover/invoke tools in Discord. **Observed in the actual Discord web Activity iframe:** Chrome 155 exposes the API, but the parent allow list is only `autoplay; encrypted-media`; the tools policy is denied and a temporary constant-only registration probe fails with `NotAllowedError`. Tools therefore cannot register, be discovered or invoked in that tested embedded context. Use the standalone dashboard. Other Discord clients remain unverified. If registration is absent/denied, use the manual planner or the standalone dashboard. Never send the Activity session token through a link to the dashboard. No remote MCP workaround is provided.
 
 ## Administrator and agent workflow
 
@@ -40,6 +40,8 @@ Combinations union stable component IDs; repeated IDs install once. Per-componen
 ## Manual completion and validation
 
 Without WebMCP, the same planner works with preview, review acknowledgement, acceptance and application buttons. Administrators can also use existing Settings, Image library and Rules & tests entirely manually. Channel/role IDs in the planner can be copied from Discord Developer Mode; agents can retrieve bounded destination metadata from inventory. Missing credentials stay in the user-facing Settings flow.
+
+Real standalone Discord OAuth, live administrator authority, native discovery/planning, explicit user acceptance, application of nine disabled review rules to isolated local SQL, receipt recovery, pause and logout cleanup also passed. The provider test was refused without a configured credential; no paid call ran. The Activity probe touched no application services and did not modify parent policy. See [sanitized live evidence](../evidence/issue44-live.json).
 
 See [validation evidence](../evidence/issue44-validation.md) for exact commands and unresolved live gates. The screenshots below show the implemented UI with synthetic adapters, not mockup designs and not live integration evidence.
 

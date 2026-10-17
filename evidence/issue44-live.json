@@ -1,0 +1,37 @@
+{
+  "at": "2026-10-17T20:38:06.652672+00:00",
+  "scope": "Real Discord OAuth/identity and live administrator API checks; native Chrome tools; all configuration writes in a dedicated local SQL database, no bot controller, provider transport disabled. Test guild/user/channel identifiers redacted.",
+  "browser": "155.0.8059.82",
+  "flags": [
+    "--enable-features=WebMCP"
+  ],
+  "oauth": "real code exchange, exact registered redirect, browser state, bootstrap and live administrator authority passed",
+  "tools": 8,
+  "presets": 4,
+  "acceptance": "Explicit user agreement to the displayed exact plan, recorded through the authenticated review UI",
+  "disabledReviewRulesInstalled": 9,
+  "unacceptedApply": "rejected",
+  "receiptRecovery": "same committed receipt",
+  "safePause": "passed, enforcement off",
+  "providerTest": "safely rejected with missing credential; no provider call or accuracy claim",
+  "logout": "native registry empty after logout",
+  "remaining": [
+    "Other Discord clients/browser agents unverified",
+    "Live permission-revocation scenario with an isolated second Discord account",
+    "Real provider evaluations and deployment acceptance"
+  ],
+  "discordActivity": {
+    "secureContext": true,
+    "documentAPI": "function",
+    "policyAllowed": false,
+    "registrationError": "NotAllowedError",
+    "invoked": false,
+    "parentAllow": "autoplay; encrypted-media",
+    "scope": "Actual Discord web Activity iframe/proxy, native Chrome 155 with WebMCP enabled; temporary constant-only registration probe, no authentication or app-service operations; parent policy unmodified."
+  },
+  "cleanup": {
+    "activity": "temporary Activity session left; parent iframe removed",
+    "oauthRedirects": "temporary localhost callback removed and original redirect list read back from Discord",
+    "sessions": "management session logged out; native tools removed"
+  }
+}
