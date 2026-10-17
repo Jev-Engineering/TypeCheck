@@ -10,12 +10,16 @@ test('release metadata is read only when it names a full commit', async t => {
     assert.equal(await loadRelease(dir), null);
     const commit = 'c'.repeat(40);
     await writeFile(join(dir, 'release.json'), JSON.stringify({ commit, run: '38976073023-1' }));
-    assert.deepEqual(await loadRelease(dir), { commit, run: '38976073023-1' });
+    assert.deepEqual(await loadRelease(dir), { commit, run: '38976073023-1', migrate: false });
     assert.equal(assetVersion(await loadRelease(dir)), 'c'.repeat(12));
     await writeFile(join(dir, 'release.json'), JSON.stringify({ commit: 'main', run: '<script>' }));
     assert.equal(await loadRelease(dir), null);
     await writeFile(join(dir, 'release.json'), JSON.stringify({ commit, run: 'not a run' }));
-    assert.deepEqual(await loadRelease(dir), { commit, run: null });
+    assert.deepEqual(await loadRelease(dir), { commit, run: null, migrate: false });
+    await writeFile(join(dir, 'release.json'), JSON.stringify({ commit, run: '1-1', migrate: true }));
+    assert.equal((await loadRelease(dir))?.migrate, true);
+    await writeFile(join(dir, 'release.json'), JSON.stringify({ commit, run: '1-1', migrate: 'true' }));
+    assert.equal((await loadRelease(dir))?.migrate, false);
     await writeFile(join(dir, 'release.json'), '{');
     assert.equal(await loadRelease(dir), null);
     assert.equal(assetVersion(null), 'dev');

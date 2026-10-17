@@ -16,13 +16,15 @@ async function main() {
     const config = loadConfig();
     const { pool, store, kind } = await openDatabase(config.databaseUrl, config.model, config.databaseTls);
     pool.on?.('error', () => report('database_pool_error'));
-    if (config.migrateOnStart) await migrateDatabase(pool, kind);
+    const release = await loadRelease(process.cwd());
+    // Production database credentials exist only inside the GoDaddy runtime, so admitted
+    // migrations run here, once, under the migrator's named lock.
+    if (config.migrateOnStart || release?.migrate) await migrateDatabase(pool, kind);
     await assertMigrated(pool, kind);
     const discord = new DiscordRest(config.botToken, config.clientId, config.clientSecret);
     await discord.initialize();
     const objects = new ObjectStore(config.objectDir);
     const services = new Services(store, objects, new Vault(config.masterKey), new JevClient(), discord);
-    const release = await loadRelease(process.cwd());
     const storage = await objects.marker().catch(() => { report('object_storage_unavailable'); return null; });
     const leadership = new Leadership(store, () => {
         const worker = new Worker(services, undefined, !config.production || config.enforcementApproved === true);

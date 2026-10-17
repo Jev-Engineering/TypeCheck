@@ -243,13 +243,13 @@ test('hash upload provenance is server-derived and preserved by metadata edits; 
 
 test('health reports the deployed release and storage marker without credentials', async t => {
     const commit = 'a'.repeat(40);
-    const f = await setup(t, false, async () => true, () => 'leader', { release: { commit, run: '1-1' }, storage: 'b'.repeat(32) });
+    const f = await setup(t, false, async () => true, () => 'leader', { release: { commit, run: '1-1', migrate: false }, storage: 'b'.repeat(32) });
     assert.deepEqual((await f.request('/api/health')).data, { status: 'leader', release: commit, storage: 'b'.repeat(32) });
 });
 
 test('the page references release-scoped assets that resolve to the current build', async t => {
     const commit = '0123456789abcdef'.repeat(2) + '01234567';
-    const f = await setup(t, false, undefined, undefined, { release: { commit, run: null }, storage: null });
+    const f = await setup(t, false, undefined, undefined, { release: { commit, run: null, migrate: false }, storage: null });
     const page = await f.request('/', 'GET', undefined, undefined, '');
     assert.equal(page.status, 200);
     assert.match(page.raw, /href="\/r\/0123456789ab\/style\.css"/);

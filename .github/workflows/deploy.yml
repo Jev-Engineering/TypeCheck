@@ -3,6 +3,10 @@ name: Deploy production
 # runs, other branches and failed or cancelled runs never reach the deploy job.
 # workflow_run is used only to observe Validate's verdict for main. No pull request code is
 # checked out or executed here; the candidate is a main commit that already passed CI.
+# Database credentials exist only inside the GoDaddy runtime, so CI cannot back up or
+# migrate the database. A release that adds an (expand-only) migration is held until an
+# operator exports the database from the GoDaddy dashboard and dispatches it with
+# backup_confirmed; the release then applies the migration at startup under its lock.
 on: # zizmor: ignore[dangerous-triggers]
   workflow_run:
     workflows: [Validate]
@@ -20,6 +24,10 @@ on: # zizmor: ignore[dangerous-triggers]
       reason:
         description: Why this manual deployment is needed
         required: true
+      backup_confirmed:
+        description: I downloaded a fresh Export SQL backup from the GoDaddy Hosted Database page (required for releases that migrate)
+        type: boolean
+        default: false
 permissions:
   contents: read
 # One production release at a time. A newer queued run replaces an older queued one;
@@ -36,8 +44,8 @@ jobs:
        github.event.workflow_run.head_branch == 'main' &&
        github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-24.04
-    # Worst case: backup ~10, migrate ~5, ship <=20, verify <=16, rollback ship+verify <=36 minutes.
-    timeout-minutes: 100
+    # Worst case: ship <=20, verify <=16, rollback ship+verify <=36 minutes.
+    timeout-minutes: 80
     environment:
       name: production
       url: ${{ vars.PRODUCTION_URL }}
@@ -98,6 +106,7 @@ jobs:
         env:
           LIVE: ${{ steps.live.outputs.release }}
           ROLLBACK: ${{ inputs.rollback && '--rollback' || '' }}
+          BACKUP_CONFIRMED: ${{ inputs.backup_confirmed && 'true' || 'false' }}
         run: |
           set +e
           # shellcheck disable=SC2086 # ROLLBACK is empty or one flag
@@ -108,9 +117,24 @@ jobs:
           action="$(jq -r .action <<<"$result")"; reason="$(jq -r '.reason // empty' <<<"$result")"
           # Validate runs can finish out of order; a newer release already being live is not an error.
           if [[ "$GITHUB_EVENT_NAME" == workflow_run && "$reason" == candidate_older_than_live_release ]]; then action=superseded; code=0; fi
+          migrations="$(jq -r .migrations <<<"$result")"
           echo "action=$action" >> "$GITHUB_OUTPUT"
-          echo "migrations=$(jq -r .migrations <<<"$result")" >> "$GITHUB_OUTPUT"
+          echo "migrations=$migrations" >> "$GITHUB_OUTPUT"
           if [[ $code -ne 0 ]]; then echo "::error::release blocked: $reason"; exit 1; fi
+          # A rollback never migrates; a forward release with migrations needs a confirmed manual backup.
+          if [[ "$migrations" == expand && "$action" == deploy ]]; then
+            if [[ "$GITHUB_EVENT_NAME" != workflow_dispatch || "$BACKUP_CONFIRMED" != true ]]; then
+              {
+                echo "### Release held: database migration"
+                echo "\`$CANDIDATE\` adds an expand-only migration. Before it can deploy:"
+                echo "1. GoDaddy dashboard → TypeCheck → Settings → Hosted Database → **Export SQL**; keep the file."
+                echo "2. Run **Deploy production** with \`commit=$CANDIDATE\` and **backup_confirmed** checked."
+              } >> "$GITHUB_STEP_SUMMARY"
+              echo "::error::release held: $CANDIDATE migrates the database; export a backup, then dispatch with backup_confirmed"
+              exit 1
+            fi
+            echo "migrate=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Skip a commit that is already live or superseded
         id: noop
@@ -145,65 +169,18 @@ jobs:
           mkdir -p "$RUNNER_TEMP/gddy" && tar -xzf "$RUNNER_TEMP/gddy.tar.gz" -C "$RUNNER_TEMP/gddy"
           sudo install -m 0755 "$(find "$RUNNER_TEMP/gddy" -name gddy -type f | head -1)" /usr/local/bin/gddy
           gddy --version
-          sudo apt-get install -y -qq age >/dev/null
-
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        if: steps.noop.outputs.skip != 'true' && steps.guard.outputs.migrations == 'expand' && steps.guard.outputs.action != 'rollback'
-        with:
-          node-version: '22'
-
-      - name: Build the candidate migrator as an unprivileged user
-        if: steps.noop.outputs.skip != 'true' && steps.guard.outputs.migrations == 'expand' && steps.guard.outputs.action != 'rollback'
-        # Candidate code runs as a separate OS user: it cannot write this job's GITHUB_ENV/PATH
-        # files or read the environment of processes holding the GoDaddy PAT.
-        run: scripts/godaddy-release.sh build_migrator "$CANDIDATE"
-
-      - name: Back up production and run a restore drill
-        id: backup
-        if: steps.noop.outputs.skip != 'true'
-        # Mandatory before a migration; best effort for code-only releases.
-        continue-on-error: ${{ steps.guard.outputs.migrations == 'none' }}
-        env:
-          GDDY_PAT: ${{ secrets.GODADDY_PAT }}
-          DB_NAME: ${{ secrets.GODADDY_DB_NAME }}
-          DB_USER: ${{ secrets.GODADDY_DB_USER }}
-          DB_PASSWORD: ${{ secrets.GODADDY_DB_PASSWORD }}
-          BACKUP_AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
-        run: scripts/godaddy-release.sh backup "$RUNNER_TEMP/backup"
-
-      - name: Store the encrypted backup
-        if: steps.backup.outcome == 'success'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: production-db-backup-${{ github.run_id }}
-          path: |
-            ${{ runner.temp }}/backup/*.age
-            ${{ runner.temp }}/backup/SHA256SUMS
-            ${{ runner.temp }}/backup/source-counts.txt
-          retention-days: 90
-          if-no-files-found: error
-
-      - name: Rehearse the migration on the restored copy
-        if: steps.noop.outputs.skip != 'true' && steps.guard.outputs.migrations == 'expand' && steps.guard.outputs.action != 'rollback'
-        env:
-          DB_NAME: ${{ secrets.GODADDY_DB_NAME }}
-        run: scripts/godaddy-release.sh migrate drill
-
-      - name: Migrate production once (expand-only, application lock)
-        if: steps.noop.outputs.skip != 'true' && steps.guard.outputs.migrations == 'expand' && steps.guard.outputs.action != 'rollback'
-        env:
-          GDDY_PAT: ${{ secrets.GODADDY_PAT }}
-          DB_NAME: ${{ secrets.GODADDY_DB_NAME }}
-          DB_USER: ${{ secrets.GODADDY_DB_USER }}
-          DB_PASSWORD: ${{ secrets.GODADDY_DB_PASSWORD }}
-        run: scripts/godaddy-release.sh migrate tunnel
 
       - name: Upload the exact commit and publish
         id: ship
         if: steps.noop.outputs.skip != 'true'
         env:
           GDDY_PAT: ${{ secrets.GODADDY_PAT }}
-        run: scripts/godaddy-release.sh ship "$CANDIDATE" "$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          MIGRATE: ${{ steps.guard.outputs.migrate == 'true' && 'migrate' || '' }}
+        # PREVIEW starts the candidate first; with MIGRATE it applies the migration once under
+        # the application lock while the previous release keeps serving (expand-only).
+        run: |
+          # shellcheck disable=SC2086 # MIGRATE is empty or one word
+          scripts/godaddy-release.sh ship "$CANDIDATE" "$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" $MIGRATE
 
       - name: Verify production
         id: verify
@@ -229,7 +206,7 @@ jobs:
 
       - name: Roll back to the previous release
         id: rollback
-        # Safe only because the guard admitted no incompatible schema change.
+        # Safe only because the guard admitted no incompatible schema change; never migrates.
         if: (failure() || cancelled()) && steps.ship.outputs.publish_started == 'true' && steps.live.outputs.release != env.CANDIDATE
         env:
           GDDY_PAT: ${{ secrets.GODADDY_PAT }}
@@ -249,7 +226,7 @@ jobs:
           DEPLOYMENT_ID: ${{ steps.record.outputs.id }}
           VERIFY: ${{ steps.verify.outcome }}
           ROLLBACK: ${{ steps.rollback.outcome || 'not run' }}
-          BACKUP: ${{ steps.backup.outcome }}
+          BACKUP: ${{ steps.guard.outputs.migrate == 'true' && 'Export SQL confirmed by operator' || 'not required (no migration)' }}
           GODADDY_DEPLOYMENT: ${{ steps.ship.outputs.godaddy_deployment }}
           LIVE: ${{ steps.live.outputs.release }}
           LIVE_SOURCE: ${{ steps.live.outputs.source }}
