@@ -11,7 +11,7 @@ export class Leadership {
     private jobs: Promise<void>[] = [];
     private pending: Promise<void> | undefined;
     private timer: ReturnType<typeof setTimeout> | undefined;
-    constructor(private store: LeaderStore, private create: () => Controller[], private fatal: (code: string) => void, private report: (code: string) => void, private retryMs = 5000) { }
+    constructor(private store: LeaderStore, private create: () => Controller[], private fatal: (code: string) => void, private report: (code: string) => void, private retryMs = 5000, private startupDelayMs = 0) { }
     private lost = () => {
         if (this.state === 'lost' || this.state === 'stopping') return;
         this.state = 'lost'; clearTimeout(this.timer);
@@ -41,9 +41,12 @@ export class Leadership {
         }
     }
     async start() {
-        await this.attempt();
         const retry = async () => { await this.attempt(); if (this.state === 'standby') this.timer = setTimeout(() => void retry(), this.retryMs); };
-        if (this.state === 'standby') this.timer = setTimeout(() => void retry(), this.retryMs);
+        // Give an already-running standby a head start after a controlled restart.
+        // The database lock remains the sole authority to start controllers.
+        if (this.startupDelayMs > 0) {
+            if (this.state === 'standby') this.timer = setTimeout(() => void retry(), this.startupDelayMs);
+        } else await retry();
     }
     async stop() {
         this.state = 'stopping'; clearTimeout(this.timer);

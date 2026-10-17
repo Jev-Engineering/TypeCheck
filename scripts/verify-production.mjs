@@ -39,10 +39,12 @@ catch (e) { check('release serving', false, e.message); }
 if (health) try {
     check('https origin', origin.startsWith('https://'), origin);
     check('release matches CI commit', !expected || health.release === expected, `${health.release} (expected ${expected ?? 'any'})`);
+    check('controller state recognized', ['leader', 'standby'].includes(health.status), health.status);
     check('object storage persisted', !storage || health.storage === storage, `${health.storage} (expected ${storage ?? 'new marker'})`);
     check('object storage writable', !expected || /^[0-9a-f]{32}$/.test(health.storage ?? ''), health.storage);
     const ready = await get(`${origin}/api/ready`), r = json(ready.body);
     check('readiness (database + controller)', ready.status === 200 && r?.status === 'ready', `${ready.status} ${ready.body.slice(0, 100)}`);
+    if (health.status === 'leader') check('leader remains ready', r?.controller === 'leader', r?.controller);
     check('api responses not cached', /no-store/.test(ready.headers.get('cache-control') ?? '') && ready.headers.get('cf-cache-status') !== 'HIT', ready.headers.get('cache-control'));
     const auth = await get(`${origin}/api/session`);
     check('unauthenticated api denied and uncached', auth.status === 401 && /no-store/.test(auth.headers.get('cache-control') ?? ''), `${auth.status} ${auth.headers.get('cache-control')}`);

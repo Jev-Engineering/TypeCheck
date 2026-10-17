@@ -1,10 +1,13 @@
-name: Inspect hosting source
+name: Inspect hosting source and runtime
 on:
   workflow_dispatch:
     inputs:
       import_id:
         description: Existing source import to inspect (read-only)
-        required: true
+        required: false
+      log_since:
+        description: Optional UTC timestamp for read-only log-shape diagnostics
+        required: false
 permissions:
   contents: read
 jobs:
@@ -20,8 +23,24 @@ jobs:
           GDDY_PAT: ${{ secrets.GODADDY_PAT }}
           APP_ID: ${{ vars.GODADDY_APP_ID }}
           IMPORT_ID: ${{ inputs.import_id }}
+          LOG_SINCE: ${{ inputs.log_since }}
         run: |
-          [[ "$APP_ID" =~ ^NODEJS-[A-Za-z0-9_-]+$ && "$IMPORT_ID" =~ ^[A-Za-z0-9_-]{1,100}$ ]] || exit 1
+          [[ "$APP_ID" =~ ^NODEJS-[A-Za-z0-9_-]+$ ]] || exit 1
           base="https://api.godaddy.com/v1/hosting/apps/$APP_ID"
           curl -fsS --max-time 30 -H "Authorization: Bearer $GDDY_PAT" "$base" | jq '{id,source,sourceDetails,status}'
-          curl -fsS --max-time 30 -H "Authorization: Bearer $GDDY_PAT" "$base/imports/$IMPORT_ID" | jq '{importId,importType,status,gitHash,fields:keys}'
+          curl -fsS --max-time 30 -H "Authorization: Bearer $GDDY_PAT" "$base/status" | jq '{status,variants}'
+          if [[ -n "$IMPORT_ID" ]]; then
+            [[ "$IMPORT_ID" =~ ^[A-Za-z0-9_-]{1,100}$ ]] || exit 1
+            curl -fsS --max-time 30 -H "Authorization: Bearer $GDDY_PAT" "$base/imports/$IMPORT_ID" | jq '{importId,importType,status,gitHash,fields:keys}'
+          fi
+          if [[ -n "$LOG_SINCE" ]]; then
+            [[ "$LOG_SINCE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]] || exit 1
+            for variant in PREVIEW PUBLISH; do
+              # Inspect the raw API representation, but emit only field names and shape counts.
+              # No raw messages, credentials, SQL, or customer data enter the workflow log.
+              curl -fsS --max-time 30 --max-filesize 1048576 -G -H "Authorization: Bearer $GDDY_PAT" \
+                --data-urlencode "variant=$variant" --data-urlencode "since=$LOG_SINCE" \
+                --data-urlencode 'source=STDOUT' --data-urlencode 'pageSize=500' "$base/logs" |
+                jq --arg variant "$variant" '{variant:$variant,fields:keys,entryFields:([.items[]? | keys] | unique),count:(.items|length),hasNextPage:(.nextPageToken != null),migrationShapes:([.items[]? | select(.message? | strings | contains("database_migration") or contains("TYPECHECK_MIGRATION_RECEIPT")) | {fields:keys,messageIsJSON:(try (.message|fromjson|type == "object") catch false),framed:(.message|contains("TYPECHECK_MIGRATION_RECEIPT_V1 ")),collapsed:(.message|test("^(\\[INFO\\] )?database_migration$"))}])}'
+            done
+          fi

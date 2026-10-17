@@ -57,42 +57,39 @@ verify() {
     node scripts/verify-production.mjs || code=$?
     for attempt in 1 2; do
         [[ $code -eq 3 ]] || break
-        # PREVIEW (same code, same database) won the controller lock. Restarting it releases the
-        # lock; PUBLISH retries every five seconds and normally takes over.
+        # PUBLISH has finished its startup delay. Restarting PREVIEW drains its controllers,
+        # then its 30s election delay gives the running PUBLISH's 5s retries time to acquire.
         echo "::notice::PUBLISH is standby; restarting PREVIEW (attempt $attempt)"
         gddy hosting app restart --app-id "$APP_ID" --variant PREVIEW --output json >/dev/null
         code=0; TIMEOUT_SECONDS=180 node scripts/verify-production.mjs || code=$?
     done
     if [[ $code -eq 3 ]]; then
-        echo "::warning::Release verified, but PUBLISH is still standby: PREVIEW holds controller leadership. Check docs/DEPLOYMENT.md#controller-ownership."
-        return 0
+        echo "::error::PUBLISH is still standby after bounded handoff attempts; controller ownership is unconfirmed."
+        return 1
     fi
     return "$code"
 }
 
-receipt() { # receipt <since>: the release logs one database_migration line per migrating process
-    local since="$1" v found="" summary
+receipt() { # bounded retrieval; metadata only, never database contents
+    local since="$1" v found summary records
     : "${CANDIDATE:?}"
-    for _ in $(seq 1 12); do # platform logs can lag a few minutes
-        for v in PREVIEW PUBLISH; do
-            found+="$(gddy hosting log list --app-id "$APP_ID" --variant "$v" --since "$since" --source STDOUT --output json 2>/dev/null \
-                | jq -c --arg c "$CANDIDATE" --arg v "$v" '.data[]?.message | fromjson? | select(type == "object" and .event == "database_migration" and .release == $c) | . + {variant: $v}' 2>/dev/null || true)"
-            found+=$'\n'
-        done
-        [[ -n "${found//$'\n'/}" ]] && break
+    for _ in $(seq 1 12); do
         found=""
+        for v in PREVIEW PUBLISH; do
+            if ! records="$(timeout 30s gddy hosting log list --app-id "$APP_ID" --variant "$v" --since "$since" --source STDOUT --limit 500 --output json 2>/dev/null | node scripts/migration-receipt.mjs extract "$CANDIDATE" "$v")"; then
+                echo "::warning::migration log retrieval or validation failed for $v; backup status unknown"
+                return 1
+            fi
+            found+="$records"$'\n'
+        done
+        if summary="$(node scripts/migration-receipt.mjs summary "$CANDIDATE" <<<"$found")"; then
+            printf '%s\n' "$summary"
+            return 0
+        fi
         sleep 15
     done
-    [[ -n "$found" ]] || { echo "::warning::no database_migration log line found for $CANDIDATE"; return 1; }
-    echo "$found"
-    summary="$(jq -rs '[.[] | select(.backup != null)][0] // empty | "\(.backup.file) (sha256 \(.backup.sha256[0:16])…, \(.backup.tables) tables, \(.backup.rows) rows, \(.variant))"' <<<"$found")"
-    if [[ -n "$summary" ]]; then
-        echo "backup=$summary" >> "${GITHUB_OUTPUT:-/dev/null}"
-    elif jq -es 'all(.applied == [])' <<<"$found" >/dev/null; then
-        echo "backup=not needed: schema was already current" >> "${GITHUB_OUTPUT:-/dev/null}"
-    else
-        echo "::warning::migration applied without a backup receipt"; return 1
-    fi
+    echo "::warning::complete migration receipt unavailable for $CANDIDATE; backup status unknown"
+    return 1
 }
 
 logs() {

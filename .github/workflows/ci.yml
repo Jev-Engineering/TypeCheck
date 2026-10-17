@@ -79,7 +79,7 @@ jobs:
       - run: npm run check
       - run: npm run build
       - run: npm test
-      - run: node --test scripts/release-guard.test.mjs scripts/release-source.test.mjs
+      - run: node --test scripts/release-guard.test.mjs scripts/release-source.test.mjs scripts/migration-receipt.test.mjs scripts/hosting-handoff.test.mjs
       - run: node dist/server/migrate.js
         env:
           DATABASE_URL: postgresql://guard:test-only-password@localhost:5432/guard_test

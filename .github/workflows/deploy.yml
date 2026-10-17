@@ -177,8 +177,8 @@ jobs:
       - name: Confirm the pre-migration backup
         id: receipt
         if: steps.noop.outputs.skip != 'true' && steps.guard.outputs.migrate == 'true'
-        # Evidence only: the release cannot start migrated without a successful backup, and
-        # verification has already proved it started, so missing log lines only warn.
+        # Evidence only: readiness does not prove that a backup was made. Missing receipts
+        # remain explicitly unknown; startup still enforces backup before pending migrations.
         continue-on-error: true
         env:
           GDDY_PAT: ${{ secrets.GODADDY_PAT }}
@@ -221,7 +221,7 @@ jobs:
           DEPLOYMENT_ID: ${{ steps.record.outputs.id }}
           VERIFY: ${{ steps.verify.outcome }}
           ROLLBACK: ${{ steps.rollback.outcome || 'not run' }}
-          BACKUP: ${{ steps.guard.outputs.migrate == 'true' && (steps.receipt.outputs.backup || 'taken by the release (receipt not found in logs)') || 'not required (no migration)' }}
+          BACKUP: "${{ steps.guard.outputs.migrate == 'true' && (steps.receipt.outputs.backup || 'unknown: migration receipt unavailable') || 'not required (no migration)' }}"
           GODADDY_DEPLOYMENT: ${{ steps.ship.outputs.godaddy_deployment }}
           RELEASE_SOURCE: ${{ steps.ship.outputs.release_source }}
           RELEASE_BRANCH: ${{ steps.ship.outputs.release_branch }}

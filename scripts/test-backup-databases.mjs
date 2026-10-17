@@ -12,6 +12,7 @@ import { openDatabase, migrateDatabase, assertMigrated } from '../dist/server/da
 import { openMySqlPool } from '../dist/server/mysql-pool.js';
 import { backupMySql } from '../dist/server/backup.js';
 import { baseRecord } from '../dist/shared/domain.js';
+import { extractReceipts, summarizeReceipts } from './migration-receipt.mjs';
 assert.equal(process.env.ALLOW_DATABASE_TESTS, 'true');
 const source = new URL(process.env.TEST_DATABASE_URL), target = new URL(process.env.RESTORE_DATABASE_URL);
 for (const u of [source, target]) { assert.equal(u.protocol, 'mysql:'); assert.equal(u.hostname, '127.0.0.1'); }
@@ -54,6 +55,9 @@ try {
     eq(calls, 1);
     const receipt = results.map(r => r.before).find(Boolean);
     eq(results.flatMap(r => r.applied), ['002']);
+    const candidate = 'a'.repeat(40);
+    const receipts = results.flatMap((r, i) => extractReceipts({ data: [{ message: 'TYPECHECK_MIGRATION_RECEIPT_V1 ' + JSON.stringify({ event: 'database_migration', release: candidate, applied: r.applied, backup: r.before ?? null }) }] }, candidate, i ? 'PUBLISH' : 'PREVIEW'));
+    assert.ok(summarizeReceipts(receipts).includes(receipt.sha256)); checks++;
     eq((await migrateDatabase(pool, 'mysql', hook)).applied, []); eq(calls, 1);
     const body = await readFile(join(dir, receipt.file));
     eq(createHash('sha256').update(body).digest('hex'), receipt.sha256);

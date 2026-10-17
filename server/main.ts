@@ -25,7 +25,8 @@ async function main() {
     if (config.migrateOnStart || release?.migrate) {
         const backup = release?.migrate ? () => backupMySql(pool, resolve(config.objectDir, BACKUP_SUBDIR), 'pre-migration') : undefined;
         const result = await migrateDatabase(pool, kind, backup);
-        console.log(JSON.stringify({ event: 'database_migration', release: release?.commit ?? null, applied: result.applied, backup: result.before ?? null }));
+        // A plain-text envelope survives hosting log processors that collapse JSON to its event name.
+        console.log('TYPECHECK_MIGRATION_RECEIPT_V1 ' + JSON.stringify({ event: 'database_migration', release: release?.commit ?? null, applied: result.applied, backup: result.before ?? null }));
     }
     await assertMigrated(pool, kind);
     const discord = new DiscordRest(config.botToken, config.clientId, config.clientSecret);
@@ -37,7 +38,7 @@ async function main() {
         const worker = new Worker(services, undefined, !config.production || config.enforcementApproved === true);
         const gateway = new Gateway(discord, config.botToken, m => worker.ingest(m), report);
         return [gateway, worker];
-    }, code => { report(code); process.exit(1); }, report);
+    }, code => { report(code); process.exit(1); }, report, 5000, config.production || release ? 30000 : 0);
     const http = createHttp(services, config, process.cwd(), async () => {
         await pool.query('SELECT 1');
         return config.apiOnly || leadership.state === 'standby' || (leadership.state === 'leader' && discord.online);
