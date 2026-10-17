@@ -5,24 +5,25 @@
 <h1>Privacy Policy</h1>
 <p class="updated">Effective October 17, 2026</p>
 
-<p>TypeCheck is a Discord bot and Activity, operated by Jev Engineering ("we"), that checks images posted in Discord servers against reference images chosen by each server's administrators. This policy explains what TypeCheck processes, why, and for how long.</p>
+<p>TypeCheck is a Discord bot and Activity, operated by Jev Engineering ("we"), that checks administrator-configured native message text and images posted in Discord servers, including reference-image matching. This policy explains what TypeCheck processes, why, and for how long.</p>
 
 <h2>What we process</h2>
 <ul>
-<li><strong>Images posted in monitored channels.</strong> When a member posts or edits a message with an image attachment in a channel an administrator chose to monitor, TypeCheck downloads that image to compare it. Text-only messages are ignored.</li>
+<li><strong>Images posted in monitored channels.</strong> When a member posts or edits a message with an image attachment in a channel an administrator chose to monitor, TypeCheck downloads that image to compare it. Native text moderation is disabled by default. When explicitly enabled with configured text rules, the current message text is submitted directly to TypeSafe for analysis. Empty or unavailable text is not classified safe.</li>
 <li><strong>Discord identifiers.</strong> Server, channel, message, attachment and user IDs connected to each check and any moderation action.</li>
 <li><strong>Reference images.</strong> Images that administrators or delegated moderators upload into TypeCheck as references.</li>
 <li><strong>Activity sign-in.</strong> When you open the TypeCheck Activity, Discord tells us your user ID, your membership in the server and your permissions there. We use this only to decide what you may see and change.</li>
 <li><strong>Server settings and records.</strong> Rules, monitored channels, role grants, moderation logs, audit entries, usage counts and the server's Jev API key (stored encrypted and never shown back).</li>
 </ul>
-<p>We do not store message text. A rule can optionally use a message's text as context during a check; that text is not kept afterward.</p>
+<p>We do not retain raw submitted message text in jobs, logs, notifications, exports or decision evidence. Configured native text rules analyze it transiently; image-content rules can optionally use posting text as context. We retain a content digest, rule/model/prompt versions, labels, probabilities, thresholds, approval and verification evidence. Digests reveal equality and are not anonymization. Administrator-authored policies, reasons and approval notes are saved configuration; do not paste actual secrets or sensitive messages into those fields.</p>
 
-<h2>How images are compared</h2>
-<p>Each posted image is resized and normalized, then compared against the server's reference images. Exact matches are found locally. Remaining comparisons are sent to Jev, the image model provided by <a href="https://docs.typesafe.ai">TypeSafe</a>, using the server's own Jev API key. TypeSafe processes those requests under its own terms. Based on the result and the server's rules, TypeCheck may log the message, flag it for review, delete it, warn the member or time them out.</p>
+<h2>How text and images are analyzed</h2>
+<p>Native text uses a separate JSON request and no image rendering. Each rule receives its intended input; mixed results resolve through one policy engine. Links are literal evidence: linked websites, DMs and message history are not fetched. Pasted text and authorized same-server message-link tests never perform Discord moderation. TypeSafe processes selected text under its own terms and retention policies; this application does not guarantee provider zero retention.</p>
+<p>Each posted image is resized and normalized, then compared against the server's reference images. Exact matches are found locally. Remaining comparisons are sent to Jev, the decision model provided by <a href="https://docs.typesafe.ai">TypeSafe</a>, using the server's own Jev API key. TypeSafe processes those requests under its own terms. Based on the result and the server's rules, TypeCheck may log the message, flag it for review, delete it, warn the member or time them out.</p>
 
 <h2>How long we keep it</h2>
 <ul>
-<li>Posted images are discarded once the check finishes.</li>
+<li>Posted images and submitted text are discarded once the check finishes; digest-based decision records follow the configured retention rules.</li>
 <li>Moderation logs, evaluations and audit entries are kept for the period each server sets, between 1 and 365 days (30 days by default).</li>
 <li>Background job records are deleted after 7 days. Detailed usage records are deleted after 100 days and daily usage totals after 400 days.</li>
 <li>Reference images are kept until an administrator removes them.</li>

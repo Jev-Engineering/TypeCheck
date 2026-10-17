@@ -1,3 +1,6 @@
+import { TEXT_STARTERS } from '../shared/text-starters.js';
+import { TEXT_LIMITS } from '../shared/text.js';
+import { installTextStarters } from './text-starters.js';
 import { Deferred } from './throttle.js';
 import { Historical } from './historical.js';
 import { seedStarterReferences } from './starter-references.js';
@@ -184,6 +187,7 @@ export function createHttp(services: Services, config: Config, root = process.cw
                 const old = await tx.getSettings(guild);
                 assert(old.revision === revision, 'revision_conflict', 409);
                 const value = parseSettings(b.value, old.value);
+                assert(value.textStartersInstalled===old.value.textStartersInstalled,'starter_marker_read_only');
                 if (value.enforcement && !old.value.enforcement) {
                     assert(!config.production || config.enforcementApproved === true, 'deployment_acceptance_required', 403);
                     assert(b.acknowledgement === 'ENABLE_AUTOMATIC_ENFORCEMENT', 'enforcement_acknowledgement_required');
@@ -316,6 +320,8 @@ export function createHttp(services: Services, config: Config, root = process.cw
             await store.withGuild(guild, async (tx) => { assert(!(await tx.all<Rule>('rules', guild)).some(r => r.referenceId === id), 'image_used_by_rule', 409); await tx.remove('images', guild, id, revision); await services.audit(guild, a.userId, 'image.removed', id, {}, tx); });
             return { body: { ok: true } };
         }
+        if(route === 'text-starters' && method === 'GET') { requireCapability(a,'rules.view'); return {body:TEXT_STARTERS}; }
+        if(route === 'text-starters/install' && method === 'POST') { requireAdmin(a); onlyKeys(await jsonBody(req),[]); return {body:await installTextStarters(services,guild,a.userId)}; }
         if (route === 'content-presets' && method === 'GET') { requireCapability(a, 'rules.view'); return { body: CONTENT_PRESETS }; }
         if (route === 'rules' && method === 'GET') {
             requireCapability(a, 'rules.view');
@@ -332,7 +338,8 @@ export function createHttp(services: Services, config: Config, root = process.cw
                 const old = creating ? null : await tx.get<Rule>('rules', guild, id);
                 assert(creating || old, 'rule_not_found', 404);
                 const next = parseRule(b.rule, old?.threshold);
-                if (next.type === 'content' && (creating || old?.type !== 'content')) next.automatic = false;
+                if (['content','text'].includes(next.type) && (creating || old?.type !== next.type)) next.automatic = false;
+                if(next.type === 'text') { requireAdmin(a); if(next.enabled) assert((await tx.all<Rule>('rules',guild)).filter(r=>r.id!==id&&r.type==='text'&&r.enabled).length<TEXT_LIMITS.rules,'text_active_rule_limit'); }
                 if (old)
                     assert(old.revision === number(b.revision, 1, 1e9, true), 'revision_conflict', 409);
                 if (creating)
@@ -349,6 +356,7 @@ export function createHttp(services: Services, config: Config, root = process.cw
                     assert(await tx.get('groups', guild, next.groupId), 'group_not_found', 404);
                 const record: Rule = { ...(old ?? baseRecord(guild, id)), ...next, revision: (old?.revision ?? 0) + 1, updatedAt: new Date().toISOString(), approval: null };
                 if (next.type !== 'content') delete record.content;
+                if (next.type !== 'text') delete record.text;
                 await tx.put('rules', record, old?.revision ?? 0);
                 await services.audit(guild, a.userId, creating ? 'rule.created' : 'rule.updated', id, { approvalInvalidated: true }, tx);
                 return { status: creating ? 201 : 200, body: record };
@@ -366,10 +374,13 @@ export function createHttp(services: Services, config: Config, root = process.cw
             if (p[5] === 'test' && method === 'POST') {
                 requireCapability(a, 'matching.test');
                 const b = await jsonBody(req);
-                onlyKeys(b, ['base64', 'messageUrl', 'imageIds', 'expected', 'context']);
-                assert([b.base64, b.messageUrl, b.imageIds].filter(v => v !== undefined).length === 1, 'choose_one_sample_source');
+                onlyKeys(b, ['base64', 'messageUrl', 'imageIds', 'expected', 'context', 'text']);
+                assert([b.base64, b.messageUrl, b.imageIds, b.text].filter(v => v !== undefined).length === 1, 'choose_one_sample_source');
                 assert(b.context === undefined || typeof b.context === 'string' && b.context.length <= 2000, 'content_context_over_limit');
                 const expected = b.expected === undefined ? undefined : bool(b.expected);
+                const testRule=await store.get<Rule>('rules',guild,id);
+                assert(testRule,'rule_not_found',404);
+                if(b.text!==undefined) { assert(typeof b.text==='string','invalid_text_sample'); return {body:await services.testTextRule(guild,a.userId,id,b.text,expected)}; }
                 if (b.messageUrl !== undefined) {
                     assert(typeof b.messageUrl === 'string', 'invalid_message_url');
                     const link = /^https:\/\/(?:discord\.com|canary\.discord\.com|ptb\.discord\.com)\/channels\/(\d{6,22})\/(\d{6,22})\/(\d{6,22})$/.exec(b.messageUrl);
@@ -380,6 +391,7 @@ export function createHttp(services: Services, config: Config, root = process.cw
                     try { message = await discord.currentMessage(link[2]!, link[3]!); }
                     catch (e) { if (e instanceof AppError && e.code === 'discord_http_404') throw new AppError('message_not_found', 404); throw e; }
                     assert(message.guildId === guild && message.channelId === link[2] && message.messageId === link[3], 'message_wrong_guild', 403);
+                    if(testRule.type==='text') return {body:await services.testTextRule(guild,a.userId,id,message.content,expected)};
                     const attachments = message.attachments.filter(supportedAttachment);
                     assert(attachments.length, 'message_has_no_supported_images');
                     const results = [];
@@ -508,7 +520,7 @@ export function createHttp(services: Services, config: Config, root = process.cw
             const html = await readFile(resolve(root, legal[pathname]), 'utf8');
             return { bytes: Buffer.from(html.replace('href="/legal.css"', `href="/r/${version}/legal.css"`)), type: 'text/html; charset=utf-8' };
         }
-        const fixed: Record<string, string> = { '/style.css': 'activity/style.css', '/legal.css': 'activity/legal/legal.css', '/vendor/discord-sdk.js': 'dist/activity/vendor/discord-sdk.js', '/vendor/THIRD_PARTY_NOTICES.txt': 'dist/activity/vendor/THIRD_PARTY_NOTICES.txt', '/shared/analytics.js':'dist/shared/analytics.js','/shared/content.js':'dist/shared/content.js','/shared/domain.js': 'dist/shared/domain.js' };
+        const fixed: Record<string, string> = { '/style.css': 'activity/style.css', '/legal.css': 'activity/legal/legal.css', '/vendor/discord-sdk.js': 'dist/activity/vendor/discord-sdk.js', '/vendor/THIRD_PARTY_NOTICES.txt': 'dist/activity/vendor/THIRD_PARTY_NOTICES.txt', '/shared/analytics.js':'dist/shared/analytics.js','/shared/content.js':'dist/shared/content.js','/shared/text.js':'dist/shared/text.js','/shared/text-starters.js':'dist/shared/text-starters.js','/shared/domain.js': 'dist/shared/domain.js' };
         const fonts: Record<string, string> = { '/fonts/schibsted-grotesk-400.woff2': 'activity/fonts/schibsted-grotesk-400.woff2', '/fonts/schibsted-grotesk-500.woff2': 'activity/fonts/schibsted-grotesk-500.woff2', '/fonts/vt323-400.woff2': 'activity/fonts/vt323-400.woff2', '/fonts/jetbrains-mono-400.woff2': 'activity/fonts/jetbrains-mono-400.woff2' };
         if (fonts[pathname]) {
             let bytes: Buffer;

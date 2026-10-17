@@ -250,7 +250,7 @@ export class DiscordRest implements DiscordAdapter {
             return;
         }
         if (action === 'warn') {
-            await this.request(`/channels/${m.channelId}/messages`, 'POST', { content: `<@${m.userId}> Image moderation warning: ${reason}`, allowed_mentions: { parse: [], users: [m.userId] } });
+            await this.request(`/channels/${m.channelId}/messages`, 'POST', { content: `<@${m.userId}> Moderation warning: ${reason}`, allowed_mentions: { parse: [], users: [m.userId] } });
             return;
         }
         if (action === 'timeout') {

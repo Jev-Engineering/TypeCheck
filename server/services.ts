@@ -1,3 +1,5 @@
+import { TEXT_VERSION, TEXT_LIMITS, parseText, textBoundary, type TextDefinition, type TextEvidence } from '../shared/text.js';
+import { textDigest, textEligibility, type TextResult } from './text.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { Deferred } from './throttle.js';
 import { CONTENT_LIMITS, CONTENT_VERSION, parseContent, type ContentDefinition } from '../shared/content.js';
@@ -29,7 +31,8 @@ export class Services {
     async authority(guild: string, user: string): Promise<Authority> { return effectiveAuthority(await this.discord.memberInfo(guild, user), await this.store.all<RoleGrant>('grants', guild)); }
     async credential(guild: string, store: Store = this.store): Promise<Credential | null> { return (await store.all<Credential>('credentials', guild))[0] ?? null; }
     async credentialStatus(guild: string) { const c = await this.credential(guild); return { configured: !!c, status: c?.status ?? 'missing', validatedAt: c?.validatedAt ?? null, lastError: c?.lastError ?? null, revision: c?.revision ?? 0 }; }
-    async call(guild: string, submitted: Buffer, reference: Buffer, mode: Rule['mode'], model: string, verification = false, keyOverride?: string, purpose: Purpose = 'moderation', correlationId = randomUUID(), content?: { definition: ContentDefinition; context?: string; ruleId: string }): Promise<JevResult | ContentResult> {
+    private textInFlight = 0;
+    async call(guild: string, submitted: Buffer, reference: Buffer, mode: Rule['mode'], model: string, verification = false, keyOverride?: string, purpose: Purpose = 'moderation', correlationId = randomUUID(), content?: { definition: ContentDefinition | TextDefinition; context?: string; ruleId: string; text?: string }): Promise<JevResult | ContentResult | TextResult> {
         const historical=historicalCall.getStore();
         const cacheId=historical ? 'call:'+createHash('sha256').update(JSON.stringify([historical.cache,mode,model,verification,content?.definition,content?.context,createHash('sha256').update(reference).digest('hex')])).digest('hex') : null;
         if(cacheId) { const cached=await this.store.durable.get(cacheId); if(cached) return cached.data; }
@@ -49,13 +52,13 @@ export class Services {
                 onAttempt: async (info?: { id: string; retry: number; startedAt: string }) => {
                     assert(info, 'usage_attempt_missing', 503);
                     await historical?.beforeAttempt();
-                    const a: Attempt = { ...info, ...(content ? { ruleIds: [content.ruleId], analysisKind: 'content' as const } : {}), guildId:guild, correlationId:historical?.scanId ?? correlationId, model, purpose, mode, verification, completedAt:null, outcome:'reserved', error:null, inputTokens:null, rate:null, costMicros:null };
+                    const a: Attempt = { ...info, ...(content ? { ruleIds: [content.ruleId], analysisKind: content.text === undefined ? 'content' as const : 'text' as const } : {}), guildId:guild, correlationId:historical?.scanId ?? correlationId, model, purpose, mode, verification, completedAt:null, outcome:'reserved', error:null, inputTokens:null, rate:null, costMicros:null };
                     await persist(async () => { const settings = (await this.store.getSettings(guild)).value; await this.store.analytics.reserve(a, settings.dailyCallLimit); });
                 },
                 onDispatch: (id: string) => persist(() => this.store.analytics.dispatch(guild,id)),
                 onComplete: (id: string, completion: import('../shared/analytics.js').Completion) => persist(() => this.store.analytics.finalize(guild,id,completion))
             };
-            const result = content ? await this.jev.analyze(submitted, content.definition, content.context, options) : await this.jev.compare(submitted, reference, options);
+            const result = content ? content.text !== undefined ? await this.jev.analyzeText(content.text, content.definition as TextDefinition, options) : await this.jev.analyze(submitted, content.definition as ContentDefinition, content.context, options) : await this.jev.compare(submitted, reference, options);
             if(cacheId) await this.store.durable.change(cacheId,{id:cacheId,guild,kind:'call',due:0,data:result},()=>{});
             if (c?.status === 'error')
                 await this.store.put('credentials', { ...c, status: 'valid', lastError: null, revision: c.revision + 1, updatedAt: new Date().toISOString() }, c.revision).catch(() => { });
@@ -68,7 +71,7 @@ export class Services {
                 await this.audit(guild, 'system', 'jev.unhealthy', 'credential', { code }).catch(() => { });
                 const settings = (await this.store.getSettings(guild)).value;
                 if (settings.logChannel)
-                    await this.discord.notify(guild, settings.logChannel, `TypeCheck: image evaluations are unhealthy (${code}). No punishment is performed for failed evaluations.`).catch(() => { });
+                    await this.discord.notify(guild, settings.logChannel, `TypeCheck: moderation evaluations are unhealthy (${code}). No punishment is performed for failed evaluations.`).catch(() => { });
             }
             throw e;
         }
@@ -105,7 +108,7 @@ export class Services {
         const contentRules = rules.filter(r => r.guildId === guild && r.enabled && r.type === 'content');
         assert(contentRules.length <= CONTENT_LIMITS.rules, 'content_active_rule_limit', 503);
         assert(contentRules.reduce((n, r) => n + 5 + parseContent(r.content).supporting.length, 0) <= CONTENT_LIMITS.questions, 'content_question_limit', 503);
-        for (const rule of rules.filter(r => r.guildId === guild && r.enabled)) {
+        for (const rule of rules.filter(r => r.guildId === guild && r.enabled && r.type !== 'text')) {
             if (rule.mode === 'semantic' && !settings.semanticEnabled)
                 continue;
             if (rule.type === 'any_image') {
@@ -177,9 +180,74 @@ export class Services {
         } catch (error) { throw new EvaluationFailure(error, matches, inputTokens, hashComparisons); }
         return { matches, inputTokens, hashComparisons };
     }
+
+    async evaluateText(guild: string, submitted: unknown, rules: Rule[], images: ReferenceImage[], settings: Settings, purpose: Purpose = 'moderation', testing = false) {
+        const active = rules.filter(r => r.guildId === guild && r.type === 'text' && r.enabled && (testing || settings.textModerationEnabled === true));
+        const matches: Match[] = [];
+        let inputTokens = 0;
+        if (!active.length)
+            return { matches, inputTokens, hashComparisons: 0 };
+        assert(active.length <= TEXT_LIMITS.rules, 'text_active_rule_limit', 503);
+        const boundary = textBoundary(submitted), digest = textDigest(submitted), correlationId = randomUUID();
+        // Bounded admission, including tests; no unbounded in-memory wait queue.
+        assert(this.textInFlight < 2, 'text_concurrency_limit', 429);
+        this.textInFlight++;
+        const deadline = Date.now() + 120000;
+        try {
+            for (const rule of active) {
+                const d = parseText(rule.text), floor = effectiveThreshold(rule, settings);
+                const evidence: TextEvidence = { modality: 'text', promptVersion: TEXT_VERSION, definition: d, sampleSha256: digest, correlationId, normalizationVersion: 'utf8-exact-v1', decision: { ruleRevision: rule.revision, ruleThreshold: rule.threshold, actionFloor: settings.thresholds[rule.action], effectiveThreshold: floor, approvalFingerprint: rule.approval?.fingerprint ?? null }, eligible: false, status: 'insufficient_evidence', blockedReasons: [boundary ?? 'not_evaluated'], context: 'insufficient_context', promotionProbability: null, sufficientProbability: null };
+                const match: Match = { ruleId: rule.id, referenceId: null, provenance: 'text', probability: null, verified: false, model: settings.model, attachmentId: 'text', policyFingerprint: fingerprint(rule, images, settings), text: evidence };
+                matches.push(match);
+                if (boundary)
+                    continue;
+                const analyze = async (verification: boolean) => {
+                    assert(Date.now() < deadline, 'evaluation_deadline_exceeded', 503);
+                    const r = await this.call(guild, Buffer.alloc(0), Buffer.alloc(0), 'exact', settings.model, verification, undefined, purpose, correlationId, { definition: d, ruleId: rule.id, text: submitted as string }) as TextResult;
+                    inputTokens += r.inputTokens;
+                    assert(Date.now() < deadline, 'evaluation_deadline_exceeded', 503);
+                    return r;
+                };
+                const first = await analyze(false), gate = textEligibility(first, d, floor);
+                Object.assign(evidence, gate, { context: first.context, promotionProbability: first.promotionProbability, sufficientProbability: first.sufficientProbability });
+                match.probability = first.probability;
+                if (gate.eligible && (rule.secondVerification || isSevere(rule.action))) {
+                    const second = await analyze(true), secondGate = textEligibility(second, d, floor);
+                    evidence.verification = { probability: second.probability, eligible: secondGate.eligible, context: second.context, promotionProbability: second.promotionProbability, sufficientProbability: second.sufficientProbability };
+                    match.verified = secondGate.eligible;
+                    if (!secondGate.eligible)
+                        Object.assign(evidence, { eligible: false, status: 'insufficient_evidence', blockedReasons: ['verification_conflict'] });
+                }
+            }
+        }
+        catch (e) {
+            for (const m of matches)
+                if (m.text)
+                    Object.assign(m.text, { eligible: false, status: 'insufficient_evidence', blockedReasons: ['evaluation_failed'] });
+            throw new EvaluationFailure(e, matches, inputTokens, 0);
+        }
+        finally {
+            this.textInFlight--;
+        }
+        return { matches, inputTokens, hashComparisons: 0 };
+    }
+    async testTextRule(guild: string, actor: string, ruleId: string, submitted: unknown, expected?: boolean) {
+        const rule = await this.store.get<Rule>('rules', guild, ruleId);
+        assert(rule?.type === 'text', 'text_rule_not_found', 404);
+        const settings = (await this.store.getSettings(guild)).value, images = await this.store.all<ReferenceImage>('images', guild);
+        const result = await this.evaluateText(guild, submitted, [{ ...rule, enabled: true }], images, settings, 'rule_test', true);
+        const match = result.matches[0]!, evidence = match.text!, fp = fingerprint(rule, images, settings);
+        await this.store.put('evaluations', { ...baseRecord(guild, randomUUID()), messageId: 'test', channelId: 'test', userId: actor, attachmentId: 'text', matches: result.matches, outcome: evidence.status, error: null, inputTokens: result.inputTokens, model: settings.model, test: true } as import('../shared/domain.js').Evaluation, 0);
+        if (expected !== undefined)
+            await this.store.put('calibrations', { ...baseRecord(guild, randomUUID()), text: evidence, ruleId, fingerprint: fp, model: settings.model, expected, predicted: evidence.eligible, probability: match.probability, provenance: 'jev', sampleSha256: evidence.sampleSha256, actor } as Calibration, 0);
+        await this.audit(guild, actor, 'text_rule.tested', ruleId, { expected: expected ?? null, status: evidence.status });
+        const decision = resolvePolicy([{ ...rule, enabled: true }], result.matches, settings, images);
+        return { ...result, status: evidence.status, predicted: evidence.eligible, probability: match.probability, ruleThreshold: rule.threshold, actionFloor: settings.thresholds[rule.action], effectiveThreshold: effectiveThreshold(rule, settings), verification: evidence.verification ?? null, expected: expected ?? null, policyOutcome: decision ? { action: decision.action, reason: decision.reason, wouldExecute: decision.execute } : { action: 'none', reason: settings.textModerationEnabled === true ? evidence.status : 'text_moderation_disabled', wouldExecute: false }, executed: false };
+    }
     async testRule(guild: string, actor: string, ruleId: string, image: NormalizedImage, expected?: boolean, postingContext?: string) {
         const rule = await this.store.get<Rule>('rules', guild, ruleId);
         assert(rule, 'rule_not_found', 404);
+        assert(rule.type !== 'text', 'text_rule_requires_text_sample');
         const images = await this.store.all<ReferenceImage>('images', guild);
         const settings = (await this.store.getSettings(guild)).value;
         assert(rule.type !== 'any_image' || settings.anyImageEnabled, 'any_image_mode_disabled');
@@ -215,16 +283,17 @@ export class Services {
             const settings = (await tx.getSettings(guild)).value;
             const fp = fingerprint(rule, images, settings);
             assert(rule.mode !== 'semantic', 'semantic_automatic_enforcement_not_supported');
+            if(rule.type === 'text') assert(parseText(rule.text).configured, 'text_policy_configuration_required');
             let positives = 0, negatives = 0, falsePositives = 0, truePositives = 0;
             if (rule.type !== 'any_image') {
-                assert(rule.type === 'content' || referencesFor(rule, images).length > 0, 'no_active_references');
+                assert(rule.type === 'text' || rule.type === 'content' || referencesFor(rule, images).length > 0, 'no_active_references');
                 const currentTrials = (await tx.all<Calibration>('calibrations', guild)).filter(t => t.ruleId === ruleId && t.fingerprint === fp);
                 // Deterministic false positives must not disappear from approval review.
                 assert(!currentTrials.some(t => t.provenance === 'exact_hash' && !t.expected && t.predicted), 'calibration_failed');
-                const trials = currentTrials.filter(t => t.model === settings.model && t.provenance !== 'exact_hash' && t.content?.status !== 'insufficient_evidence');
+                const trials = currentTrials.filter(t => t.model === settings.model && t.provenance !== 'exact_hash' && t.content?.status !== 'insufficient_evidence' && t.text?.status !== 'insufficient_evidence' && (rule.type === 'text' ? t.text?.modality === 'text' : !t.text));
                 const bySample = new Map<string, Calibration>();
                 for (const t of trials) {
-                    const sampleKey = t.content ? `${t.sampleSha256}:${t.content.contextSha256 ?? 'image_only'}` : t.sampleSha256;
+                    const sampleKey = t.text ? `text:${t.sampleSha256}` : t.content ? `${t.sampleSha256}:${t.content.contextSha256 ?? 'image_only'}` : t.sampleSha256;
                     const old = bySample.get(sampleKey);
                     assert(!old || old.expected === t.expected, 'conflicting_calibration_labels');
                     if (!old)

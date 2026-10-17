@@ -52,11 +52,17 @@ export async function fixture(t: TestContext) {
     const dir = await mkdtemp(join(tmpdir(), 'jev-test-'));
     t.after(() => rm(dir, { recursive: true, force: true }));
     const store = new MemoryStore(), discord = new FakeDiscord(), vault = new Vault(randomBytes(32).toString('base64')), objects = new ObjectStore(dir);
-    const control = { probability: 0.9999, secondProbability: 0.9999, calls: 0, fail: false };
+    const control = { probability: 0.9999, secondProbability: 0.9999, calls: 0, fail: false, textContext: 'solicitation', sufficient: .9999, promotion: .9999, invalidText: false };
     const http = (async (_url: unknown, init?: RequestInit) => {
         control.calls++;
         if (control.fail || String((init?.headers as Record<string, string>)?.Authorization).includes('invalid-key'))
             return new Response('{}', { status: 401 });
+        if(typeof init!.body === 'string') {
+            if(control.invalidText) return Response.json({model:'wrong-model'});
+            const request=JSON.parse(init!.body), context=control.textContext;
+            const probability=request.questions.primary.instructions.trustedPolicy.verification.startsWith('Reassess')?control.secondProbability:control.probability;
+            return Response.json({model:request.model,usage:{input_tokens:100,output_tokens:0},answers:Object.fromEntries(Object.entries(request.questions).map(([id,q]:[string,any])=>[id,q.type==='noul'?{type:'noul',noul:id==='sufficient'?control.sufficient:id==='promotion'?control.promotion:probability}:{type:'choice',choice:context,confidence:1,probabilities:Object.fromEntries(Object.keys(q.criteria).map(k=>[k,k===context?1:0]))}]))});
+        }
         const form = init!.body as FormData;
         const request = JSON.parse(await (form.get('request') as Blob).text());
         const second = String(request.questions.match.instructions).includes('Recheck conservatively');

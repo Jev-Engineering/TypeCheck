@@ -19,3 +19,8 @@ Consulted October 15, 2026. These are documentation observations, not live API r
 The provider's dedicated image page accepts Jev 1.13/1.14 while model-summary fields may present narrower modality descriptions. This candidate follows the image-specific protocol with an explicit version and treats live validation as a release gate; it does not infer stable production readiness from documentation alone. Moving aliases are intentionally avoided.
 
 No TypeSafe persistent hosted reference library was assumed. No free API usage, unlimited throughput, exact accuracy, or image-token estimate was invented. Integration code and local tests remain independently inspectable.
+
+
+## Native text moderation (October 17, 2026)
+
+Official sources checked October 17, 2026: [TypeSafe quickstart](https://docs.typesafe.ai/introduction/quickstart), [models](https://docs.typesafe.ai/models), [primitives](https://docs.typesafe.ai/primitives), [Discord message-content restrictions](https://docs.discord.com/developers/events/gateway#message-content-intent). Native JSON text has no rendering/OCR workaround. Published contract verification is not paid evaluation or classifier accuracy evidence. See [design](TEXT_MODERATION.md).

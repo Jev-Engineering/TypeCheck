@@ -1,3 +1,4 @@
+import { textPersistence } from './test-text-persistence.mjs';
 import { thresholdPersistence } from './test-threshold-persistence.mjs';
 /** Destructive only to newly generated test guilds. Use a disposable database. */
 import assert from 'node:assert/strict';
@@ -9,6 +10,7 @@ assert.ok(process.env.TEST_DATABASE_URL,'TEST_DATABASE_URL is required; DATABASE
 let pool=await openPool(process.env.TEST_DATABASE_URL),store=new PostgresStore(pool);
 const g=String(Date.now())+'01',g2=String(Date.now())+'02';
 try{
+  await textPersistence(store,pool,'postgres',g+'8');
   await thresholdPersistence(store,pool,'postgres',g+'9');
   const s=await store.getSettings(g);await store.getSettings(g2);assert.equal(s.value.enforcement,false);
   await store.putSettings(g,{...s.value,channels:['123456789']},s.revision);

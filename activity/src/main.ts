@@ -1,3 +1,5 @@
+import { TEXT_STARTERS } from '../../shared/text-starters.js';
+import { TEXT_LIMITS, parseText } from '../../shared/text.js';
 import type { HistoricalScan } from '../../shared/historical.js';
 import { activityAuth, HttpError, serializeConnection } from './connection.js';
 import { timeoutPreset } from '../../shared/domain.js';
@@ -173,7 +175,7 @@ async function render() {
     for (const [label, allowed] of links())
         if (allowed)
             nav.append(button(label, async () => { page = label; await render(); }, label === page ? 'nav-active' : 'nav-item'));
-    const aside = h('aside', { class: 'sidebar' }, h('div', { class: 'brand' }, h('span', { class: 'brand-mark' }, 'J'), h('div', {}, h('strong', {}, 'TYPECHECK'), h('small', {}, 'Powered by Jev'))), h('p', { class: 'nav-label' }, 'ADMINISTRATION'), nav, h('div', { class: 'sidebar-footer' }, badge(preview ? 'OFFLINE PREVIEW' : 'EXPERIMENTAL', 'amber'), h('p', {}, 'Image-only moderation'), h('small', {}, 'v0.1.0 · Server-scoped access')));
+    const aside = h('aside', { class: 'sidebar' }, h('div', { class: 'brand' }, h('span', { class: 'brand-mark' }, 'J'), h('div', {}, h('strong', {}, 'TYPECHECK'), h('small', {}, 'Powered by Jev'))), h('p', { class: 'nav-label' }, 'ADMINISTRATION'), nav, h('div', { class: 'sidebar-footer' }, badge(preview ? 'OFFLINE PREVIEW' : 'EXPERIMENTAL', 'amber'), h('p', {}, 'Text + image moderation'), h('small', {}, 'v0.1.0 · Server-scoped access')));
     status = h('div', { class: 'notice', role: 'status' });
     status.hidden = true;
     const enforcement = settings?.value.enforcement;
@@ -220,7 +222,7 @@ async function overview(parent: HTMLElement) {
     parent.append(h('div', { class: 'stats' }, ...[[counts.images, 'Active reference images'], [counts.rules, 'Active rules'], [counts.evaluations, 'Retained evaluations'], [counts.successful, 'Events with successful actions']].map(([n, label]) => h('section', { class: 'stat' }, h('strong', {}, n), h('span', {}, label)))));
     const setup = h('div', { class: 'checklist' }, ...[[data.credential.configured, 'Configure a Jev key'], [counts.images > 0, 'Upload reference images'], [counts.rules > 0, 'Create and test a rule'], [settings!.value.channels.length > 0, 'Choose monitored channels'], [settings!.value.enforcement, 'Enable enforcement after approval']].map(([done, label]) => h('div', { class: 'checklist-row' }, badge(done ? 'DONE' : 'NEXT', done ? 'green' : 'neutral'), h('span', {}, label))));
     parent.append(h('div', { class: 'columns' }, panel('Setup checklist', 'New servers begin with no channels selected and enforcement off.', setup), panel('Usage & safeguards', 'A probability threshold is not an accuracy guarantee.', h('div', { class: 'usage' }, h('strong', {}, `${data.usage.calls} / ${settings!.value.dailyCallLimit}`), h('span', {}, 'Quota reservations today (UTC)'), h('progress', { value: data.usage.calls, max: settings!.value.dailyCallLimit }), h('p', {}, `${Number(data.usage.inputTokens).toLocaleString()} reported input tokens`)), h('p', { class: 'muted' }, 'Kick and ban require representative labeled examples, administrator approval, and a second Jev check.'))));
-    parent.append(panel('Recent moderation events', 'Outcomes are recorded separately from intended actions.', data.recent.length ? eventTable(data.recent) : empty('No moderation events', 'Upload and test a reference rule to begin. Text-only messages are ignored.')));
+    parent.append(panel('Recent moderation events', 'Outcomes are recorded separately from intended actions.', data.recent.length ? eventTable(data.recent) : empty('No moderation events', 'Create and test a text or image rule to begin. Native text rules are opt-in.')));
 }
 function eventTable(items: ModerationEvent[]) { return table(['Time', 'User / message', 'Intended', 'Actual result'], items.map(e => [date(e.createdAt), h('div', {}, h('code', {}, e.userId), h('small', {}, e.messageId)), badge(e.intended), h('span', { class: e.actual.includes('success') ? 'success-text' : 'muted' }, pretty(e.actual))])); }
 async function library(parent: HTMLElement) {
@@ -308,20 +310,22 @@ function editImage(image: ReferenceImage, groups: Group[]) {
 }
 async function rulesPage(parent: HTMLElement) {
     const rules = can('rules.view') ? await api<RuleView[]>('rules') : [];
-    parent.append(h('div', { class: 'notice' }, 'Default precedence: individual image → group → any matched reference → image content analysis → any image. Higher numeric priority overrides this order. One user-level sanction per message.'));
+    parent.append(h('div', { class: 'notice' }, 'Default precedence: individual image → group → any matched reference → image content analysis → native text → any image. Higher numeric priority overrides this order. One user-level sanction per message.'));
     if (can('rules.create'))
-        parent.append(h('div', { class: 'actions section-actions' }, button('Create rule', () => editRule())));
+        parent.append(h('div', { class: 'actions section-actions' }, button('Create rule', () => editRule()), admin() ? button('Create text rule', () => editTextRule(), 'quiet') : null));
+    if(can('rules.view')) parent.append(textStarterPanel());
     parent.append(panel('Moderation rules', 'Rules do not run automatically until their current configuration is approved and enforcement is enabled.', rules.length ? table(['Rule', 'Trigger', 'Action', 'Threshold / priority', 'Approval', 'Manage'], rules.map(r => [
-        h('div', {}, h('strong', {}, r.name), h('small', {}, r.enabled ? 'Enabled' : 'Disabled')), h('div', {}, pretty(r.type), h('small', {}, r.type === 'any_image' ? 'No Jev comparison' : r.type === 'content' ? r.content?.question ?? 'Content predicate' : r.mode)), h('div', {}, badge(r.action), r.deleteMessage ? h('small', {}, 'Also delete message') : null), h('div', {}, r.type === 'any_image' ? 'Not applicable' : `${r.threshold}`, h('small', {}, `Priority ${r.priority}`)), badge(r.approvalCurrent ? 'CURRENT' : 'REQUIRED', r.approvalCurrent ? 'green' : 'amber'), h('div', { class: 'actions wrap' }, can('rules.edit') ? button('Edit', () => editRule(r), 'quiet') : null, can('matching.test') ? button('Test', () => testRule(r), 'quiet') : null, admin() ? button('Approve', () => approveRule(r), 'quiet') : null, can('rules.delete') ? button('Delete', async () => { if (await confirmAction('Delete rule?', r.name)) {
+        h('div', {}, h('strong', {}, r.name), h('small', {}, r.enabled ? 'Enabled' : 'Disabled')), h('div', {}, pretty(r.type), h('small', {}, r.type === 'any_image' ? 'No Jev comparison' : r.type === 'text' ? r.text?.question ?? 'Text predicate' : r.type === 'content' ? r.content?.question ?? 'Content predicate' : r.mode)), h('div', {}, badge(r.action), r.deleteMessage ? h('small', {}, 'Also delete message') : null), h('div', {}, r.type === 'any_image' ? 'Not applicable' : `${r.threshold}`, h('small', {}, `Priority ${r.priority}`)), badge(r.approvalCurrent ? 'CURRENT' : 'REQUIRED', r.approvalCurrent ? 'green' : 'amber'), h('div', { class: 'actions wrap' }, can('rules.edit') ? button('Edit', () => editRule(r), 'quiet') : null, can('matching.test') ? button('Test', () => testRule(r), 'quiet') : null, admin() ? button('Approve', () => approveRule(r), 'quiet') : null, can('rules.delete') ? button('Delete', async () => { if (await confirmAction('Delete rule?', r.name)) {
             await api(`rules/${r.id}`, 'DELETE', { revision: r.revision });
             await render();
         } }, 'danger') : null)
-    ])) : empty('No rules configured', 'Create a rule that connects an image, image group, or matching library to a moderation action.')));
+    ])) : empty('No rules configured', 'Create a native text policy, image-content rule, or reference-image matching rule.')));
 }
 async function editRule(old?: Rule) {
+    if(old?.type==='text') return editTextRule(old);
     const floors = await api<Settings['thresholds']>('match-thresholds');
     const images = can('images.view') ? await api<ReferenceImage[]>('images') : [], groups = can('images.view') ? await api<Group[]>('groups') : [];
-    const name = input(old?.name ?? ''), type = select(RULE_TYPES.map(t => [t, t === 'content' ? 'Image content analysis' : pretty(t)]), old?.type ?? 'individual'), mode = select(MODES.map(m => [m, m === 'semantic' ? 'semantic (review only)' : m]), old?.mode ?? 'exact');
+    const name = input(old?.name ?? ''), type = select(RULE_TYPES.map(t => [t, t === 'text' ? 'Native message text' : t === 'content' ? 'Image content analysis' : pretty(t)]), old?.type ?? 'individual'), mode = select(MODES.map(m => [m, m === 'semantic' ? 'semantic (review only)' : m]), old?.mode ?? 'exact');
     let definition = structuredClone(old?.content ?? CONTENT_PRESETS[0]!.definition);
     const question = h('textarea', { rows: '3', maxlength: '1000' }), positive = h('textarea', { rows: '4', maxlength: '2000' }), negative = h('textarea', { rows: '4', maxlength: '2000' }), exceptions = h('textarea', { rows: '3', maxlength: '1000' }), contextRequirements = h('textarea', { rows: '3', maxlength: '1000' });
     const contextSource = select([['image_only', 'Image only'], ['posting_message', 'Image + posting message (server opt-in required)']], definition.contextSource);
@@ -381,7 +385,7 @@ async function editRule(old?: Rule) {
     }
     else
         verification.box.disabled = false; };
-    type.onchange = update;
+    type.onchange = () => { if(type.value==='text') { d.close(); void editTextRule(); } else update(); };
     action.onchange = update;
     update();
     let d: HTMLDialogElement;
@@ -393,6 +397,7 @@ async function editRule(old?: Rule) {
         })]);
 }
 async function testRule(rule: Rule) {
+    if(rule.type==='text') return testTextRule(rule);
     const files = h('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp,image/gif', multiple: true }), expected = select([['unlabeled', 'Do not label'], ['match', 'Should match'], ['nonmatch', 'Should not match']], 'unlabeled');
     const postingContext = h('textarea', { rows: '3', maxlength: '2000', placeholder: 'Author-supplied posting message, only when explicitly configured' });
     const source = select([['upload', 'Local files'], ['message', 'Discord message link'], ...(can('images.view') ? [['library', 'Image library'] as [string, string]] : [])], 'upload');
@@ -447,7 +452,7 @@ async function logs(parent: HTMLElement) {
             return;
         }
         results.append(table(['Time', 'Summary', 'Outcome', 'Details'], r.items.map((row: any) => [date(row.createdAt), h('div', {}, row.userId ?? row.actor ?? '', h('small', {}, row.messageId ?? row.target ?? '')), pretty(row.actual ?? row.outcome ?? row.event ?? row.status ?? ''), button('View', () => {
-                const body = h('div', { class: 'form-stack' }, ...(row.matches ?? []).map((m: any) => h('p', {}, `${m.provenance === 'exact_hash' ? 'Exact normalized-image match' : m.provenance === 'any_image' ? 'Any-image policy' : 'Jev estimate ' + m.probability} · Reference ${m.referenceId ?? 'none'} · ${row.reason ?? row.outcome ?? ''}`)), h('pre', { class: 'code-block' }, JSON.stringify(row, null, 2)));
+                const body = h('div', { class: 'form-stack' }, ...(row.matches ?? []).map((m: any) => h('p', {}, `${m.provenance === 'exact_hash' ? 'Exact normalized-image match' : m.provenance === 'any_image' ? 'Any-image policy' : m.provenance === 'text' ? 'Native text · '+m.text?.status+' · model probability '+m.probability+' · digest '+m.text?.sampleSha256?.slice(0,12) : 'Jev estimate ' + m.probability} · Reference ${m.referenceId ?? 'none'} · ${row.reason ?? row.outcome ?? ''}`)), h('pre', { class: 'code-block' }, JSON.stringify(row, null, 2)));
                 const actions: HTMLElement[] = [];
                 let d: HTMLDialogElement;
                 if (category.value === 'events' && can('rules.edit'))
@@ -499,6 +504,8 @@ function checklist(title: string, entries: {
 async function settingsPage(parent: HTMLElement) {
     settings = await api<SettingsVersion>('settings');
     const s = structuredClone(settings.value);
+    const textEnabled = check('Enable native message-text analysis', s.textModerationEnabled ?? false, 'Separate from image context. Only enabled, configured text rules run. Automatic actions additionally require current text calibration approval and global enforcement.');
+    parent.append(panel('Native text moderation', 'Disabled by default. Raw message text is refetched transiently and is not retained in jobs or decision evidence.', textEnabled.node));
     const contentContext = check('Allow posting-message text as labeled context for content rules', s.contentMessageContext ?? false, 'Never includes history, private messages or unrelated attachments.');
     parent.append(panel('Image content context', 'Opt-in applies only to rules configured to use the posting message.', contentContext.node));
     const channels = meta.channels.filter(c => [0, 5].includes(c.type)).map(c => ({ id: c.id, name: c.name ?? c.id }));
@@ -507,7 +514,7 @@ async function settingsPage(parent: HTMLElement) {
         parent.append(panel('Channel configuration', 'Monitoring uses exact channel IDs; no channel is monitored when none is selected.', h('div', { class: 'columns' }, monitored.node, excluded.node), button('Save channels', async () => { await api('channels', 'PUT', { channels: monitored.values(), excludedChannels: excluded.values(), revision: settings!.revision }); await render(); })));
         return;
     }
-    const monitoring = check('Monitor selected channels', s.monitoring), enforcement = check('Enable automatic enforcement', s.enforcement), high = check('Allow kick and ban policies', s.highImpactEnabled), any = check('Allow explicit any-image rules', s.anyImageEnabled, 'These rules do not require a Jev match.'), semantic = check('Enable semantic tests and review-only rules', s.semanticEnabled), bots = check('Inspect other bots’ image attachments', s.processBots), webhooks = check('Inspect webhook image attachments', s.processWebhooks, 'Webhook messages can be deleted; no user-level punishment is applied to webhook identities.'), dm = check('Send optional direct-message notifications', s.dmNotify);
+    const monitoring = check('Monitor selected channels', s.monitoring), enforcement = check('Enable automatic enforcement', s.enforcement), high = check('Allow kick and ban policies', s.highImpactEnabled), any = check('Allow explicit any-image rules', s.anyImageEnabled, 'These rules do not require a Jev match.'), semantic = check('Enable semantic tests and review-only rules', s.semanticEnabled), bots = check('Inspect other bots’ image attachments', s.processBots), webhooks = check('Inspect webhook messages', s.processWebhooks, 'Webhook messages can be deleted; no user-level punishment is applied to webhook identities.'), dm = check('Send optional direct-message notifications', s.dmNotify);
     const exempt = checklist('Exempt Discord roles', meta.roles, s.exemptRoles), log = select([['', 'No log channel'], ...channels.map(c => [c.id, c.name] as [
             string,
             string
@@ -532,7 +539,7 @@ async function settingsPage(parent: HTMLElement) {
         const enabling = enforcement.box.checked && !s.enforcement;
         if (enabling && !await confirmAction('Enable automatic enforcement?', 'Only approved rules will execute. Model errors and uncertain matches do not authorize punishment. False positives remain possible.'))
             return;
-        const value = { ...s, contentMessageContext: contentContext.box.checked, monitoring: monitoring.box.checked, enforcement: enforcement.box.checked, highImpactEnabled: high.box.checked, anyImageEnabled: any.box.checked, semanticEnabled: semantic.box.checked, processBots: bots.box.checked, processWebhooks: webhooks.box.checked, dmNotify: dm.box.checked, uncertain: uncertain.value, channels: monitored.values(), excludedChannels: excluded.values(), exemptRoles: exempt.values(), logChannel: log.value || null, dailyCallLimit: Number(daily.value), logRetentionDays: Number(retention.value), model: model.value, thresholds: Object.fromEntries([...thresholds].map(([a, v]) => [a, Number(v.value)])) };
+        const value = { ...s, textModerationEnabled: textEnabled.box.checked, contentMessageContext: contentContext.box.checked, monitoring: monitoring.box.checked, enforcement: enforcement.box.checked, highImpactEnabled: high.box.checked, anyImageEnabled: any.box.checked, semanticEnabled: semantic.box.checked, processBots: bots.box.checked, processWebhooks: webhooks.box.checked, dmNotify: dm.box.checked, uncertain: uncertain.value, channels: monitored.values(), excludedChannels: excluded.values(), exemptRoles: exempt.values(), logChannel: log.value || null, dailyCallLimit: Number(daily.value), logRetentionDays: Number(retention.value), model: model.value, thresholds: Object.fromEntries([...thresholds].map(([a, v]) => [a, Number(v.value)])) };
         await api('settings', 'PUT', { value: parseSettings(value), revision: settings!.revision, ...(enabling ? { acknowledgement: 'ENABLE_AUTOMATIC_ENFORCEMENT' } : {}) });
         await render();
         message('Settings saved. Review any stale rule approvals.');
@@ -561,7 +568,7 @@ async function start(autoConnect = true) {
     const showInstall = !preview && !inDiscord;
     const installUrl = new URL('https://discord.com/oauth2/authorize');
     installUrl.search = new URLSearchParams({ client_id: config.clientId, scope: 'bot applications.commands', permissions: '68608', integration_type: '0' }).toString();
-    app.append(h('main', { class: 'login' }, h('div', { class: 'login-brand' }, h('span', { class: 'brand-mark' }, 'J'), h('p', { class: 'eyebrow' }, 'JEV / TYPECHECK')), badge(preview ? 'OFFLINE PREVIEW' : 'EXPERIMENTAL IMAGE MATCHING', 'amber'), h('h1', {}, 'Image moderation.\nUnder your control.'), h('p', { class: 'login-copy' }, 'Manage reference images, rules, permissions, and credentials inside Discord. The backend bot handles continuous monitoring.'),
+    app.append(h('main', { class: 'login' }, h('div', { class: 'login-brand' }, h('span', { class: 'brand-mark' }, 'J'), h('p', { class: 'eyebrow' }, 'JEV / TYPECHECK')), badge(preview ? 'OFFLINE PREVIEW' : 'EXPERIMENTAL MODERATION', 'amber'), h('h1', {}, 'Text + image moderation.\nUnder your control.'), h('p', { class: 'login-copy' }, 'Manage text policies, reference images, permissions, and credentials inside Discord. The backend bot handles continuous monitoring.'),
         h('div', { class: 'actions login-actions' },
             showInstall ? h('a', { class: 'button primary', href: installUrl.href, target: '_blank', rel: 'noopener noreferrer', 'aria-describedby': 'install-help' }, 'Add to your server') : null,
             button(preview ? 'Open read-only preview' : 'Connect in Discord', () => connect(config.clientId), showInstall ? 'quiet' : 'primary')),
@@ -595,7 +602,7 @@ async function costsPage(parent: HTMLElement) {
     const content=h('div'), details=h('div'); let query='',cursor='';
     const loadDetails=async()=>{const page=await api<{items:Attempt[];next:{before:string;beforeId:string}|null}>('analytics/attempts?'+query+cursor);
         details.replaceChildren(panel('Attempt details','Reservations do not prove provider receipt or billing. Old pending dispatches can have uncertain outcomes.',
-            page.items.length?table(['Started (UTC)','Model / purpose','Mode / retry / verification','Outcome','Tokens','Estimated cost','Correlation / attempt'],page.items.map(a=>[a.startedAt,`${a.model} / ${a.purpose}`,`${a.analysisKind === 'content' ? 'image content analysis' : a.mode} / ${a.retry} / ${a.verification}`,`${a.outcome}${a.error?' / '+a.error:''}`,a.inputTokens??'Usage unknown',a.costMicros!==null?`Estimated ${a.rate!.currency} ${money(a.costMicros)}`:a.inputTokens===null?'Usage unknown':'Rate not configured',`${a.correlationId} / ${a.id}${a.ruleIds ? ' / rules ' + a.ruleIds.join(', ') : ''}`])):empty('No attempts','Choose a different date range.'),
+            page.items.length?table(['Started (UTC)','Model / purpose','Mode / retry / verification','Outcome','Tokens','Estimated cost','Correlation / attempt'],page.items.map(a=>[a.startedAt,`${a.model} / ${a.purpose}`,`${a.analysisKind === 'text' ? 'native text analysis' : a.analysisKind === 'content' ? 'image content analysis' : a.mode} / ${a.retry} / ${a.verification}`,`${a.outcome}${a.error?' / '+a.error:''}`,a.inputTokens??'Usage unknown',a.costMicros!==null?`Estimated ${a.rate!.currency} ${money(a.costMicros)}`:a.inputTokens===null?'Usage unknown':'Rate not configured',`${a.correlationId} / ${a.id}${a.ruleIds ? ' / rules ' + a.ruleIds.join(', ') : ''}`])):empty('No attempts','Choose a different date range.'),
             button('Export this page as CSV',async()=>download(await blobRequest('analytics/export?'+query+cursor),'estimated-jev-usage-page.csv'),'quiet'),
             cursor?button('First page',async()=>{cursor='';await loadDetails();},'quiet'):null,
             page.next?button('Next page',async()=>{cursor='&'+new URLSearchParams(page.next!).toString();await loadDetails();},'quiet'):null));};
@@ -656,4 +663,63 @@ async function historicalPage(parent: HTMLElement) {
             scan.failures.length?table(['Channel','Message','Failure'],scan.failures.map(f=>[f.channel,f.message??'',f.reason])):null,
             h('div',{class:'actions'},...(['pause','resume','cancel'] as const).map(action=>button(pretty(action),async()=>{await api('scans/'+scan.id+'/'+action,'POST',{});await render();},action==='cancel'?'danger':'quiet')))));
     }
+}
+
+function textStarterPanel() {
+    const choice = select(TEXT_STARTERS.map(s => [s.id, s.name]), TEXT_STARTERS[0]!.id), preview = h('div', { class: 'text-starter-preview', 'aria-live': 'polite' });
+    const show = () => { const s = TEXT_STARTERS.find(s => s.id === choice.value)!; preview.replaceChildren(h('p', { class: 'eyebrow' }, `TEXT / ${s.id} / v${s.version} / SYNTHETIC`), h('h3', {}, s.definition.question), h('p', {}, s.definition.positive), h('p', {}, `Exclusions: ${s.definition.negative}`), ...Object.entries(s.examples).map(([label, value]) => h('p', {}, h('strong', {}, label + ': '), value)), ...(s.requiresConfiguration ? [h('p', { class: 'notice' }, 'Concrete community configuration is required before enabling or approval.')] : [])); };
+    choice.onchange = show;
+    show();
+    return panel('Text starter policies', 'Ten editable plain-text templates. Separate synthetic examples; no reviewed-image provenance or automatic enforcement.', field('Preview a text starter', choice), preview, h('div', { class: 'actions wrap' }, admin() && can('rules.create') ? button('Customize selected starter', () => editTextRule(undefined, choice.value), 'quiet') : null, admin() ? button('Install all disabled text starters', async () => { if (await confirmAction('Install disabled text starters?', 'Adds ten review-only rules once for this server. Existing rules remain unchanged. Deleted starters stay deleted. No approval is granted.')) {
+        const result = await api('text-starters/install', 'POST', {});
+        message(`${result.installed} disabled starters installed${result.alreadyInstalled ? ' (already installed; no changes)' : ''}.`);
+        await render();
+    } }, 'quiet') : null));
+}
+async function editTextRule(old?: Rule, starterId = TEXT_STARTERS[0]!.id) {
+    const starter = TEXT_STARTERS.find(s => s.id === starterId)!, definition = structuredClone(old?.text ?? starter.definition);
+    const name = input(old?.name ?? starter.name), question = h('textarea', { rows: '3', maxlength: '1000' }), positive = h('textarea', { rows: '4', maxlength: '2000' }), negative = h('textarea', { rows: '3', maxlength: '2000' }), exceptions = h('textarea', { rows: '3', maxlength: '1000' }), context = h('textarea', { rows: '3', maxlength: '1000' });
+    question.value = definition.question;
+    positive.value = definition.positive;
+    negative.value = definition.negative;
+    exceptions.value = definition.exceptions;
+    context.value = definition.contextRequirements;
+    const configured = check('I have supplied concrete observable criteria and all required community context', definition.configured), promotion = check('Require solicitation or endorsement by the posting author', definition.requirePromotion), enabled = check('Enable this text rule', old?.enabled ?? false), automatic = check('Allow automatic enforcement after text calibration and approval', old?.automatic ?? false), verification = check('Require second verification', old?.secondVerification ?? true), deletion = check('Also delete message', old?.deleteMessage ?? false);
+    const action = select(ACTIONS.map(a => [a, a]), old?.action ?? 'review'), threshold = input(String(old?.threshold ?? .9), 'number'), priority = input(String(old?.priority ?? 0), 'number'), timeout = input(String(old?.timeoutSeconds ?? 600), 'number'), reason = input(old?.reason ?? 'Configured community text policy');
+    threshold.min = '.5';
+    threshold.max = '1';
+    threshold.step = 'any';
+    timeout.min = '1';
+    timeout.max = '2419200';
+    priority.min = '-1000';
+    priority.max = '1000';
+    const d = modal(old ? 'Edit native text rule' : 'Create native text rule', 'Plain Discord message text. No image, OCR, linked website or history is used. Saving clears approval. Templates and probabilities do not prove wrongdoing.', h('div', { class: 'form-stack' }, field('Rule name', name), field('Observable yes/no predicate', question), field('Positive inclusion criteria', positive), field('Exclusions and legitimate lookalikes', negative), field('Exceptions', exceptions), field('Required context available within this message', context), configured.node, promotion.node, h('div', { class: 'form-row' }, field('Action', action), field('Text threshold', threshold), field('Priority', priority)), field('Timeout seconds', timeout), field('Moderation reason', reason), enabled.node, automatic.node, verification.node, deletion.node), [button('Save text rule', async () => {
+            const text = parseText({ ...definition, question: question.value, positive: positive.value, negative: negative.value, exceptions: exceptions.value, contextRequirements: context.value, configured: configured.box.checked, requirePromotion: promotion.box.checked });
+            const rule = parseRule({ name: name.value, type: 'text', text, referenceId: null, groupId: null, mode: 'exact', threshold: Number(threshold.value), action: action.value, timeoutSeconds: Number(timeout.value), deleteMessage: deletion.box.checked, priority: Number(priority.value), enabled: enabled.box.checked, automatic: automatic.box.checked, secondVerification: verification.box.checked, reason: reason.value });
+            await api(old ? `rules/${old.id}` : 'rules', old ? 'PUT' : 'POST', { rule, ...(old ? { revision: old.revision } : {}) });
+            d.close();
+            await render();
+        })]);
+}
+async function testTextRule(rule: Rule) {
+    const submitted = h('textarea', { rows: '7', placeholder: 'Paste the complete message; preserve quotations, Markdown and code blocks.' }), url = input(''), source = select([['paste', 'Pasted message text'], ['message', 'Authorized same-guild message link']], 'paste'), expected = select([['unlabeled', 'Unlabeled / ambiguous'], ['positive', 'Should detect'], ['negative', 'Should not detect']], 'unlabeled'), results = h('div', { 'aria-live': 'polite' });
+    url.placeholder = 'https://discord.com/channels/guild/channel/message';
+    const pasteField = field('Complete message text', submitted, `Up to ${TEXT_LIMITS.characters} UTF-16 code units and ${TEXT_LIMITS.bytes} UTF-8 bytes. No silent truncation. Empty or unavailable text requires review.`), linkField = field('Discord message link', url);
+    const update = () => { pasteField.hidden = source.value !== 'paste'; linkField.hidden = source.value !== 'message'; };
+    source.onchange = update;
+    update();
+    const history = await api<Calibration[]>(`rules/${rule.id}/calibration`);
+    modal('Test native text: ' + rule.name, 'Tests never moderate users or delete messages. Submitted text is transient; only digests, labels and structured results are retained.', h('div', { class: 'form-stack' }, h('p', {}, rule.text?.question ?? ''), field('Text sample source', source), pasteField, linkField, field('Expected label', expected), results, h('h3', {}, 'Previous text calibration'), table(['Digest', 'Expected', 'Detected', 'Model'], history.map(t => [t.sampleSha256.slice(0, 12), String(t.expected), String(t.predicted), t.model ?? 'none']))), [button('Analyze text', async () => {
+            results.replaceChildren(h('p', { role: 'status' }, 'Analyzing text…'));
+            try {
+                const r = await api(`rules/${rule.id}/test`, 'POST', { ...(source.value === 'paste' ? { text: submitted.value } : { messageUrl: url.value.trim() }), ...(expected.value === 'unlabeled' ? {} : { expected: expected.value === 'positive' }) });
+                const e = r.matches[0]?.text;
+                results.replaceChildren(h('article', { class: 'test-result' }, h('h3', {}, String(r.status).replaceAll('_', ' ')), h('p', {}, `Model probability ${r.probability ?? 'unavailable (no result)'} · rule threshold ${r.ruleThreshold} · action floor ${r.actionFloor} · effective ${r.effectiveThreshold}`), h('p', {}, `Context: ${e?.context}. Verification: ${r.verification ? JSON.stringify(r.verification) : 'not performed'}. Expected: ${r.expected ?? 'unlabeled / ambiguous'}.`), h('p', {}, `Policy outcome: ${r.policyOutcome?.action} / ${r.policyOutcome?.reason}. No action executed.`), h('p', {}, `Input tokens from successful responses: ${r.inputTokens}. All attempts and estimated costs appear in Cost & Usage under native text analysis.`), h('p', {}, `Evidence digest: ${e?.sampleSha256}. Prompt: ${e?.promptVersion}. Blocked: ${e?.blockedReasons?.join(', ') || 'none'}.`)));
+                submitted.value = '';
+            }
+            catch (e) {
+                results.replaceChildren(h('p', { role: 'alert' }, 'Text analysis failed; no safe classification or punishment is authorized.'));
+                throw e;
+            }
+        })]);
 }

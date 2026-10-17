@@ -107,10 +107,8 @@ export class Gateway {
                         if (p.t === 'RESUMED')
                             this.rest.online = true;
                         if (['MESSAGE_CREATE', 'MESSAGE_UPDATE'].includes(p.t) && p.d.guild_id) {
-                            // Partial edits with no attachments cannot identify newly added images.
-                            if (!Array.isArray(p.d.attachments) || p.d.attachments.length === 0)
-                                return;
-                            const m = p.d.author ? parseDiscordMessage(p.d) : await this.rest.currentMessage(p.d.channel_id, p.d.id);
+                            // Refetch partial edits; content stays transient until ingestion hashes it.
+                            const m = p.d.author && Array.isArray(p.d.attachments) ? parseDiscordMessage(p.d, true) : await this.rest.currentMessage(p.d.channel_id, p.d.id);
                             if (m.userId !== this.rest.botId)
                                 await this.onMessage(m);
                         }

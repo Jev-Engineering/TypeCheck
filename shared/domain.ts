@@ -1,3 +1,4 @@
+import { parseText, type TextDefinition, type TextEvidence } from './text.js';
 import { parseContent, type ContentDefinition, type ContentEvidence } from './content.js';
 export const CAPABILITIES = [
     'dashboard.view', 'images.view', 'images.add', 'images.edit', 'images.delete',
@@ -9,8 +10,10 @@ export type Capability = typeof CAPABILITIES[number];
 export const ADMIN_ONLY: readonly Capability[] = ['credentials.manage', 'security.manage', 'permissions.manage'];
 export type Mode = 'exact' | 'transformed' | 'partial' | 'semantic';
 export type Action = 'none' | 'delete' | 'warn' | 'timeout' | 'kick' | 'ban' | 'review';
-export type RuleType = 'individual' | 'group' | 'any_match' | 'any_image' | 'content';
+export type RuleType = 'individual' | 'group' | 'any_match' | 'any_image' | 'content' | 'text';
 export interface Settings {
+    textModerationEnabled?: boolean;
+    textStartersInstalled?: boolean;
     contentMessageContext?: boolean;
     monitoring: boolean;
     enforcement: boolean;
@@ -34,7 +37,7 @@ export interface Settings {
 export const MATCH_THRESHOLDS = { standard: 0.70, strict: 0.90, min: 0.5, max: 1.0 } as const;
 export const DEFAULT_RULE_THRESHOLD = MATCH_THRESHOLDS.standard;
 export const DEFAULT_SETTINGS: Settings = {
-    contentMessageContext: false, monitoring: true, enforcement: false, anyImageEnabled: false, semanticEnabled: false,
+    textModerationEnabled: false, textStartersInstalled: false, contentMessageContext: false, monitoring: true, enforcement: false, anyImageEnabled: false, semanticEnabled: false,
     channels: [], excludedChannels: [], exemptRoles: [], processBots: false, processWebhooks: false,
     logChannel: null, dmNotify: false,
     thresholds: { none: MATCH_THRESHOLDS.standard, delete: MATCH_THRESHOLDS.standard, warn: MATCH_THRESHOLDS.standard, timeout: MATCH_THRESHOLDS.strict, kick: MATCH_THRESHOLDS.strict, ban: MATCH_THRESHOLDS.strict, review: MATCH_THRESHOLDS.standard },
@@ -69,6 +72,7 @@ export interface Approval {
     note: string;
 }
 export interface Rule extends RecordBase {
+    text?: TextDefinition;
     content?: ContentDefinition;
     name: string;
     type: RuleType;
@@ -103,6 +107,7 @@ export interface Credential extends RecordBase {
     lastError: string | null;
 }
 export interface Calibration extends RecordBase {
+    text?: TextEvidence;
     content?: ContentEvidence;
     ruleId: string;
     fingerprint: string;
@@ -115,10 +120,11 @@ export interface Calibration extends RecordBase {
     actor: string;
 }
 export interface Match {
+    text?: TextEvidence;
     content?: ContentEvidence;
     ruleId: string;
     referenceId: string | null;
-    provenance?: 'exact_hash' | 'jev' | 'any_image' | 'content';
+    provenance?: 'exact_hash' | 'jev' | 'any_image' | 'content' | 'text';
     probability: number | null;
     verified: boolean;
     model: string | null;
@@ -128,6 +134,7 @@ export interface Match {
     attachmentId: string;
 }
 export interface Evaluation extends RecordBase {
+    policySnapshot?: string;
     messageId: string;
     channelId: string;
     userId: string;
@@ -166,6 +173,7 @@ export interface Attachment {
 }
 export interface ImageMessage {
     editedAt?: string | null;
+    textDigest?: string;
     content?: string;
     guildId: string;
     channelId: string;
@@ -202,7 +210,7 @@ export interface Authority extends MemberInfo {
 }
 export const ACTIONS: Action[] = ['none', 'delete', 'warn', 'timeout', 'kick', 'ban', 'review'];
 export const MODES: Mode[] = ['exact', 'transformed', 'partial', 'semantic'];
-export const RULE_TYPES: RuleType[] = ['individual', 'group', 'any_match', 'any_image', 'content'];
+export const RULE_TYPES: RuleType[] = ['individual', 'group', 'any_match', 'any_image', 'content', 'text'];
 export const isPunitive = (a: Action): boolean => !['none', 'review'].includes(a);
 export const isSevere = (a: Action): boolean => a === 'kick' || a === 'ban';
 export const snowflake = (s: unknown): s is string => typeof s === 'string' && /^[0-9]{6,22}$/.test(s);
@@ -245,7 +253,7 @@ export function parseSettings(value: unknown, defaults: Settings = DEFAULT_SETTI
     const v = object(value);
     onlyKeys(v, Object.keys(DEFAULT_SETTINGS));
     const s = structuredClone(defaults);
-    for (const k of ['contentMessageContext', 'monitoring', 'enforcement', 'anyImageEnabled', 'semanticEnabled', 'processBots', 'processWebhooks', 'dmNotify', 'highImpactEnabled'] as const)
+    for (const k of ['textModerationEnabled', 'textStartersInstalled', 'contentMessageContext', 'monitoring', 'enforcement', 'anyImageEnabled', 'semanticEnabled', 'processBots', 'processWebhooks', 'dmNotify', 'highImpactEnabled'] as const)
         if (k in v)
             s[k] = bool(v[k]);
     for (const k of ['channels', 'excludedChannels', 'exemptRoles'] as const)
@@ -289,7 +297,7 @@ export function storedSettings(value: unknown): Settings {
 export type RuleInput = Omit<Rule, keyof RecordBase | 'approval'>;
 export function parseRule(value: unknown, defaultThreshold: number = DEFAULT_RULE_THRESHOLD): RuleInput {
     const v = object(value);
-    onlyKeys(v, ['name', 'type', 'referenceId', 'groupId', 'mode', 'threshold', 'action', 'timeoutSeconds', 'deleteMessage', 'priority', 'enabled', 'automatic', 'secondVerification', 'reason', 'content']);
+    onlyKeys(v, ['name', 'type', 'referenceId', 'groupId', 'mode', 'threshold', 'action', 'timeoutSeconds', 'deleteMessage', 'priority', 'enabled', 'automatic', 'secondVerification', 'reason', 'content', 'text']);
     assert(RULE_TYPES.includes(v.type as RuleType), 'invalid_rule_type');
     assert(MODES.includes(v.mode as Mode), 'invalid_matching_mode');
     assert(ACTIONS.includes(v.action as Action), 'invalid_action');
@@ -304,6 +312,8 @@ export function parseRule(value: unknown, defaultThreshold: number = DEFAULT_RUL
         secondVerification: bool(v.secondVerification), reason: text(v.reason, 300) };
     if (type === 'content') { r.content = parseContent(v.content); assert(r.mode === 'exact', 'content_has_no_similarity_mode'); }
     else assert(v.content === undefined, 'content_definition_requires_content_rule');
+    if (type === 'text') { r.text = parseText(v.text); assert(r.mode === 'exact', 'text_has_no_similarity_mode'); assert(!r.enabled || r.text.configured, 'text_policy_configuration_required'); }
+    else assert(v.text === undefined, 'text_definition_requires_text_rule');
     if (isSevere(r.action))
         r.secondVerification = true;
     assert(r.type !== 'any_image' || r.mode === 'exact', 'any_image_mode_not_similarity');

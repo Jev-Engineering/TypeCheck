@@ -70,3 +70,8 @@ Additive versioned fields use existing PostgreSQL/MySQL JSON persistence; no SQL
 See [Historical scans](HISTORICAL_SCANS.md) for administrator scope selection,
 review-only results, permissions, fixed cutoffs, shared quotas, recovery,
 coverage exclusions, migration 003, privacy and validation instructions.
+
+
+## Native text moderation (October 17, 2026)
+
+Inspect native text status/blocked reasons and request correlation without logging message content. text_empty_or_unavailable requires intent/4014 and channel-access checks, never a safe fallback. Pause enforcement when diagnosing uncertainty; preserve action slots/job identity. Recovery refetches IDs/digests; stale edits requeue current content; deleted sources cannot punish. Historical scans remain image-only. Starter deletion is permanent. Before older-code downgrade, follow [JSON compatibility procedure](TEXT_MODERATION.md). Production publication requires separately authorized manual workflow dispatch after main CI.

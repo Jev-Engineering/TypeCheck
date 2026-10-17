@@ -138,3 +138,8 @@ Administrator-only routes (normal guild session and Origin checks apply):
 
 No enforcement flag is accepted. Deferred responses include Retry-After and
 nextAttempt; restarting does not reset a persistent cooldown.
+
+
+## Native text moderation (October 17, 2026)
+
+`GET /api/g/:guild/text-starters` requires rules.view. `POST .../text-starters/install` with `{}` requires administrator and installs disabled rules transactionally once. Text RuleInput uses type:text, mode:exact, null referenceId/groupId and a text definition (version:message-text-v1, preset, presetVersion:1, question, positive, negative, exceptions, contextRequirements, requirePromotion, configured). Creation/editing requires administrator; new/conversion rules force automatic:false. Maximum eight enabled text rules. settings.textModerationEnabled defaults false; textStartersInstalled is read-only. `POST .../rules/:id/test` accepts exactly one of text:string or messageUrl:string, plus optional expected:boolean (omitted means unlabeled/ambiguous). Links must be same-guild and currently readable. Returns status, probability, thresholds, verification, expected label, matches with digest evidence, inputTokens, policyOutcome and executed:false. No moderation occurs. Usage labels analysisKind:text. See [bounds and evidence](TEXT_MODERATION.md).
