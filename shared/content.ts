@@ -86,7 +86,7 @@ const families = [
 export const CONTENT_PRESETS = families.map(([id, family, question, positive, negative]) => ({
     id, family, examples: { positive, negative },
     definition: { version: CONTENT_VERSION, preset: id, presetVersion: 1, question, positive, negative,
-        exceptions: exclusions, contextRequirements: 'Assess visible evidence only. Preserve speaker attribution in nested screenshots. Insufficient evidence requires review.',
+        exceptions: id === 'context' ? 'Do not mistake solicitation or endorsement for reporting merely because it quotes another speaker. Require visible contextual framing; do not infer private intent from a screenshot.' : exclusions, contextRequirements: 'Assess visible evidence only. Preserve speaker attribution in nested screenshots. Insufficient evidence requires review.',
         contextSource: 'image_only', requirePromotion: !['privacy', 'sensitive', 'context', 'custom'].includes(id), requireReadableText: !['sensitive', 'custom'].includes(id),
         supporting: id === 'scams' ? [
             ['credentials', 'Does the image request credentials, authentication codes or recovery secrets?'],

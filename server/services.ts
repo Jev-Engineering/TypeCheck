@@ -221,6 +221,8 @@ export class Services {
                         bySample.set(sampleKey, t);
                 }
                 const positiveImages = new Set<string>(), negativeImages = new Set<string>(), detectedImages = new Set<string>();
+                // Repeating a sample must not hide an earlier model false positive.
+                assert(!trials.some(t => !t.expected && t.predicted), 'calibration_failed');
                 for (const t of bySample.values()) {
                     if (t.expected) {
                         positiveImages.add(t.sampleSha256);

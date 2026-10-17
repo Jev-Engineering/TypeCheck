@@ -1,5 +1,5 @@
 import { seedStarterReferences } from './starter-references.js';
-import { CONTENT_PRESETS } from '../shared/content.js';
+import { CONTENT_LIMITS, CONTENT_PRESETS, parseContent } from '../shared/content.js';
 import { analyticsQuery, parseRate } from '../shared/analytics.js';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -325,6 +325,11 @@ export function createHttp(services: Services, config: Config, root = process.cw
                 if (creating)
                     assert((await tx.all('rules', guild)).length < 250, 'rule_limit');
                 rulePermissions(a, next, old ?? undefined);
+                if (next.type === 'content' && next.enabled) {
+                    const active = (await tx.all<Rule>('rules', guild)).filter(r => r.id !== id && r.type === 'content' && r.enabled);
+                    assert(active.length + 1 <= CONTENT_LIMITS.rules, 'content_active_rule_limit');
+                    assert([...active, next].reduce((n, r) => n + 5 + parseContent(r.content).supporting.length, 0) <= CONTENT_LIMITS.questions, 'content_question_limit');
+                }
                 if (next.referenceId)
                     assert(await tx.get('images', guild, next.referenceId), 'image_not_found', 404);
                 if (next.groupId)

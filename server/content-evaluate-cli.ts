@@ -35,9 +35,9 @@ try {
         const image = await normalize(await readFile(path)), correlationId = randomUUID();
         const answer = await jev.analyze(image.bytes, definition, c.postingContext, {
             key, model, mode: 'exact',
-            onAttempt: async info => { assert(info && attempts.length < 1000, 'evaluation_call_limit'); attempts.push({ ...info, guildId: 'cli-only', correlationId, model, purpose: 'rule_test', mode: 'exact', analysisKind: 'content', verification: false, completedAt: null, outcome: 'reserved', error: null, inputTokens: null, rate, costMicros: null }); },
+            onAttempt: async info => { assert(info && attempts.length < 1000, 'evaluation_call_limit'); attempts.push({ ...info, guildId: 'cli-only', correlationId, model, purpose: 'rule_test', mode: 'exact', analysisKind: 'content', verification: false, completedAt: null, outcome: 'reserved', error: null, inputTokens: null, rate: rate && rate.effectiveAt <= info.startedAt ? rate : null, costMicros: null }); },
             onDispatch: async id => { attempts.find(a => a.id === id)!.outcome = 'dispatching'; },
-            onComplete: async (id, completion) => { Object.assign(attempts.find(a => a.id === id)!, completion, { costMicros: estimate(completion.inputTokens, rate) }); }
+            onComplete: async (id, completion) => { const attempt = attempts.find(a => a.id === id)!; Object.assign(attempt, completion, { costMicros: estimate(completion.inputTokens, attempt.rate) }); }
         });
         const gate = contentEligibility(answer, definition, threshold);
         results.push({ id: c.id, category: c.category, language: c.language, split: c.split, expected: c.expected, predicted: gate.status === 'insufficient_evidence' ? null : gate.eligible, answer, ...gate, threshold, definition, sampleSha256: image.sha256, contextSha256: c.postingContext === undefined ? null : digest(c.postingContext), correlationId });

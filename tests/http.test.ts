@@ -289,3 +289,41 @@ test('content API starts monitoring, validates definitions, enforces permissions
     assert.equal(hugeContext.status, 400);
     const module = await f.request('/shared/content.js'); assert.equal(module.status, 200);
 });
+
+test('content rule capacity is enforced transactionally on creation and enabling', async t => {
+    const f = await setup(t), token = (await f.login()).data.sessionToken;
+    const { id, guildId, revision, createdAt, updatedAt, approval, ...input } = rule(f.ref, { type: 'content', referenceId: null, content: structuredClone(CONTENT_PRESETS[0]!.definition) });
+    const saved = [];
+    for (let i = 0; i < 8; i++) {
+        const response = await f.request(`/api/g/${G}/rules`, 'POST', { rule: input }, token);
+        assert.equal(response.status, 201); saved.push(response.data);
+    }
+    const blocked = await f.request(`/api/g/${G}/rules`, 'POST', { rule: input }, token);
+    assert.equal(blocked.status, 400); assert.equal(blocked.data.error, 'content_active_rule_limit');
+    const dormant = await f.request(`/api/g/${G}/rules`, 'POST', { rule: { ...input, enabled: false } }, token);
+    assert.equal(dormant.status, 201);
+    const enable = await f.request(`/api/g/${G}/rules/${dormant.data.id}`, 'PUT', { rule: input, revision: 1 }, token);
+    assert.equal(enable.status, 400); assert.equal(enable.data.error, 'content_active_rule_limit');
+    assert.equal((await f.store.get<Rule>('rules', G, dormant.data.id))!.revision, 1);
+    const edit = await f.request(`/api/g/${G}/rules/${saved[0].id}`, 'PUT', { rule: { ...input, name: 'Updated at capacity' }, revision: 1 }, token);
+    assert.equal(edit.status, 200);
+    assert.equal((await f.request(`/api/g/${G}/rules/${saved[0].id}`, 'PUT', { rule: { ...input, enabled: false }, revision: 2 }, token)).status, 200);
+    assert.equal((await f.request(`/api/g/${G}/rules/${dormant.data.id}`, 'PUT', { rule: input, revision: 1 }, token)).status, 200);
+});
+
+test('retesting a negative sample cannot hide a false positive from approval', async t => {
+    for (const type of ['individual', 'content'] as const) {
+        for (const predictions of [[true, false], [false, true]]) {
+            const f = await setup(t);
+            const r = rule(f.ref, { action: 'warn', type, ...(type === 'content' ? { referenceId: null, content: structuredClone(CONTENT_PRESETS[0]!.definition) } : {}) });
+            await f.store.put('rules', r, 0);
+            const settings = (await f.store.getSettings(G)).value;
+            for (const [i, predicted] of [true, ...predictions].entries()) {
+                const c: Calibration = { ...baseRecord(G, randomUUID()), ruleId: r.id, fingerprint: fingerprint(r, [f.ref], settings), model: settings.model, expected: i === 0, predicted, probability: predicted ? 1 : 0, sampleSha256: i === 0 ? 'positive' : 'negative', actor: ADMIN };
+                await f.store.put('calibrations', c, 0);
+            }
+            await assert.rejects(f.services.approveRule(G, ADMIN, r.id, 'Reviewed examples and residual risk.'), /calibration_failed/);
+            assert.equal((await f.store.get<Rule>('rules', G, r.id))!.approval, null);
+        }
+    }
+});

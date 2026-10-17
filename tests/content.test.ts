@@ -34,6 +34,15 @@ test('all versioned preset families validate; unknown fields and unbounded defin
     const old = storedSettings({ model: 'jev-1.13.0', thresholds: { warn: .82 } });
     assert.equal(old.model, 'jev-1.13.0'); assert.equal(old.thresholds.warn, .82); assert.equal(old.contentMessageContext, false);
 });
+test('context preset includes reporting rather than contradicting its positive criteria', () => {
+    const d = CONTENT_PRESETS.find(p => p.id === 'context')!.definition;
+    assert.match(d.positive, /warning, report, educational/);
+    assert.doesNotMatch(d.exceptions, /Exclude reporting/);
+    assert.equal(d.requirePromotion, false);
+    for (const context of ['warning', 'reporting', 'education', 'satire', 'quotation'] as const)
+        assert.equal(contentEligibility(result({ context, promotionProbability: 0 }), d, .7).eligible, true);
+});
+
 test('typed answers follow documented Noul, Choice, Score and Box schemas', () => {
     assert.equal(parseTypedAnswer({ type: 'noul', noul: .7 }, { type: 'noul' }), .7);
     assert.equal(parseTypedAnswer({ type: 'choice', choice: 'other', confidence: .2, probabilities: { other: .6, none: .4 } }, { type: 'choice', criteria: { other: 'Other', none: 'None' } }), 'other');
