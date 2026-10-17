@@ -24,6 +24,7 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/package.json ./package.json
 COPY activity/index.html activity/style.css ./activity/
+COPY activity/legal ./activity/legal
 COPY activity/fonts ./activity/fonts
 COPY db ./db
 COPY data/scams ./data/scams

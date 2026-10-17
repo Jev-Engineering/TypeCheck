@@ -265,6 +265,21 @@ test('the page references release-scoped assets that resolve to the current buil
     assert.equal((await f.request('/r/dev/style.css', 'GET', undefined, undefined, '')).status, 404);
 });
 
+test('terms and privacy pages are public and use the release-scoped stylesheet', async t => {
+    const commit = '0123456789abcdef'.repeat(2) + '01234567';
+    const f = await setup(t, false, undefined, undefined, { release: { commit, run: null, migrate: false }, storage: null });
+    for (const [path, title] of [['/terms', 'Terms of Service'], ['/privacy', 'Privacy Policy']] as const) {
+        const page = await f.request(path, 'GET', undefined, undefined, '');
+        assert.equal(page.status, 200);
+        assert.match(page.headers.get('content-type') ?? '', /^text\/html/);
+        assert.match(page.raw, new RegExp(`<h1>${title}</h1>`));
+        assert.match(page.raw, /href="\/r\/0123456789ab\/legal\.css"/);
+    }
+    const css = await f.request('/r/0123456789ab/legal.css', 'GET', undefined, undefined, '');
+    assert.equal(css.status, 200);
+    assert.match(css.headers.get('content-type') ?? '', /^text\/css/);
+});
+
 test('development pages use the dev asset scope', async t => {
     const f = await setup(t);
     assert.match((await f.request('/', 'GET', undefined, undefined, '')).raw, /src="\/r\/dev\/activity\/src\/main\.js"/);

@@ -563,7 +563,8 @@ async function start(autoConnect = true) {
             showInstall ? h('a', { class: 'button primary', href: installUrl.href, target: '_blank', rel: 'noopener noreferrer', 'aria-describedby': 'install-help' }, 'Add to your server') : null,
             button(preview ? 'Open read-only preview' : 'Connect in Discord', () => connect(config.clientId), showInstall ? 'quiet' : 'primary')),
         showInstall ? h('p', { class: 'install-help', id: 'install-help' }, 'Opens Discord in a new tab. You need Manage Server permission to install. Then open the TypeCheck Activity in your server; an administrator can choose channels, add a Jev API key, and configure rules. Automatic moderation stays off until approved and enabled.') : null,
-        status, h('p', { class: 'muted' }, 'Launch from a server Activity. Administrators have access automatically; moderators require an explicit role grant.')));
+        status, h('p', { class: 'muted' }, 'Launch from a server Activity. Administrators have access automatically; moderators require an explicit role grant.'),
+        showInstall ? h('p', { class: 'legal-links' }, h('a', { href: '/terms' }, 'Terms of Service'), h('a', { href: '/privacy' }, 'Privacy Policy')) : null));
     if (autoConnect && new URLSearchParams(location.search).has('frame_id'))
         await connect(config.clientId);
 }
