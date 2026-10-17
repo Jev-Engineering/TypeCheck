@@ -59,6 +59,31 @@ test('a transient acquisition error remains retryable standby', async () => {
     await a.attempt(); assert.equal(a.state, 'standby'); assert.equal(reports, 1);
     await a.attempt(); assert.equal(a.state, 'leader'); await a.stop();
 });
+
+test('restart delay lets an eligible standby take over before the restarted instance', async () => {
+    const f = fixture(), fatal: string[] = [];
+    const old = new Leadership(f.store, f.create, c => fatal.push(c), () => {});
+    const published = new Leadership(f.store, f.create, c => fatal.push(c), () => {}, 5);
+    const restarted = new Leadership(f.store, f.create, c => fatal.push(c), () => {}, 5, 100);
+    try {
+        await old.start(); await published.start();
+        await old.stop(); await restarted.start();
+        assert.equal(restarted.state, 'standby');
+        for (let i = 0; i < 100 && published.state === 'standby'; i++) await new Promise(r => setTimeout(r, 5));
+        assert.equal(published.state, 'leader');
+        await new Promise(r => setTimeout(r, 120));
+        assert.equal(restarted.state, 'standby');
+        assert.equal(f.starts, 4); assert.deepEqual(fatal, []);
+    } finally { await old.stop(); await published.stop(); await restarted.stop(); }
+});
+
+test('shutdown cancels a delayed first election without acquiring the lock', async () => {
+    let acquired = 0;
+    const a = new Leadership({ async acquireLeader() { acquired++; return null; } }, () => [], () => {}, () => {}, 5, 20);
+    await a.start(); await a.stop();
+    await new Promise(r => setTimeout(r, 40));
+    assert.equal(acquired, 0); assert.equal(a.state, 'stopping');
+});
 test('MySQL minimum version rejects old servers, MariaDB and malformed values', () => {
     for (const v of ['8.0.16', '8.0.46', '8.4.0-commercial', '9.0.0']) checkMySqlVersion(v);
     for (const v of ['5.7.44', '8.0.15', '10.11.9-MariaDB', '5.5.5-10.6.0-MariaDB', 'unknown'])
