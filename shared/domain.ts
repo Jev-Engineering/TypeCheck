@@ -1,3 +1,4 @@
+import { parseContent, type ContentDefinition, type ContentEvidence } from './content.js';
 export const CAPABILITIES = [
     'dashboard.view', 'images.view', 'images.add', 'images.edit', 'images.delete',
     'rules.view', 'rules.create', 'rules.edit', 'rules.delete', 'actions.change', 'timeouts.configure',
@@ -8,8 +9,9 @@ export type Capability = typeof CAPABILITIES[number];
 export const ADMIN_ONLY: readonly Capability[] = ['credentials.manage', 'security.manage', 'permissions.manage'];
 export type Mode = 'exact' | 'transformed' | 'partial' | 'semantic';
 export type Action = 'none' | 'delete' | 'warn' | 'timeout' | 'kick' | 'ban' | 'review';
-export type RuleType = 'individual' | 'group' | 'any_match' | 'any_image';
+export type RuleType = 'individual' | 'group' | 'any_match' | 'any_image' | 'content';
 export interface Settings {
+    contentMessageContext?: boolean;
     monitoring: boolean;
     enforcement: boolean;
     anyImageEnabled: boolean;
@@ -32,7 +34,7 @@ export interface Settings {
 export const MATCH_THRESHOLDS = { standard: 0.70, strict: 0.90, min: 0.5, max: 1.0 } as const;
 export const DEFAULT_RULE_THRESHOLD = MATCH_THRESHOLDS.standard;
 export const DEFAULT_SETTINGS: Settings = {
-    monitoring: true, enforcement: false, anyImageEnabled: false, semanticEnabled: false,
+    contentMessageContext: false, monitoring: true, enforcement: false, anyImageEnabled: false, semanticEnabled: false,
     channels: [], excludedChannels: [], exemptRoles: [], processBots: false, processWebhooks: false,
     logChannel: null, dmNotify: false,
     thresholds: { none: MATCH_THRESHOLDS.standard, delete: MATCH_THRESHOLDS.standard, warn: MATCH_THRESHOLDS.standard, timeout: MATCH_THRESHOLDS.strict, kick: MATCH_THRESHOLDS.strict, ban: MATCH_THRESHOLDS.strict, review: MATCH_THRESHOLDS.standard },
@@ -67,6 +69,7 @@ export interface Approval {
     note: string;
 }
 export interface Rule extends RecordBase {
+    content?: ContentDefinition;
     name: string;
     type: RuleType;
     referenceId: string | null;
@@ -100,6 +103,7 @@ export interface Credential extends RecordBase {
     lastError: string | null;
 }
 export interface Calibration extends RecordBase {
+    content?: ContentEvidence;
     ruleId: string;
     fingerprint: string;
     model: string | null;
@@ -111,9 +115,10 @@ export interface Calibration extends RecordBase {
     actor: string;
 }
 export interface Match {
+    content?: ContentEvidence;
     ruleId: string;
     referenceId: string | null;
-    provenance?: 'exact_hash' | 'jev' | 'any_image';
+    provenance?: 'exact_hash' | 'jev' | 'any_image' | 'content';
     probability: number | null;
     verified: boolean;
     model: string | null;
@@ -160,6 +165,7 @@ export interface Attachment {
     filename: string;
 }
 export interface ImageMessage {
+    content?: string;
     guildId: string;
     channelId: string;
     messageId: string;
@@ -195,7 +201,7 @@ export interface Authority extends MemberInfo {
 }
 export const ACTIONS: Action[] = ['none', 'delete', 'warn', 'timeout', 'kick', 'ban', 'review'];
 export const MODES: Mode[] = ['exact', 'transformed', 'partial', 'semantic'];
-export const RULE_TYPES: RuleType[] = ['individual', 'group', 'any_match', 'any_image'];
+export const RULE_TYPES: RuleType[] = ['individual', 'group', 'any_match', 'any_image', 'content'];
 export const isPunitive = (a: Action): boolean => !['none', 'review'].includes(a);
 export const isSevere = (a: Action): boolean => a === 'kick' || a === 'ban';
 export const snowflake = (s: unknown): s is string => typeof s === 'string' && /^[0-9]{6,22}$/.test(s);
@@ -238,7 +244,7 @@ export function parseSettings(value: unknown, defaults: Settings = DEFAULT_SETTI
     const v = object(value);
     onlyKeys(v, Object.keys(DEFAULT_SETTINGS));
     const s = structuredClone(defaults);
-    for (const k of ['monitoring', 'enforcement', 'anyImageEnabled', 'semanticEnabled', 'processBots', 'processWebhooks', 'dmNotify', 'highImpactEnabled'] as const)
+    for (const k of ['contentMessageContext', 'monitoring', 'enforcement', 'anyImageEnabled', 'semanticEnabled', 'processBots', 'processWebhooks', 'dmNotify', 'highImpactEnabled'] as const)
         if (k in v)
             s[k] = bool(v[k]);
     for (const k of ['channels', 'excludedChannels', 'exemptRoles'] as const)
@@ -282,7 +288,7 @@ export function storedSettings(value: unknown): Settings {
 export type RuleInput = Omit<Rule, keyof RecordBase | 'approval'>;
 export function parseRule(value: unknown, defaultThreshold: number = DEFAULT_RULE_THRESHOLD): RuleInput {
     const v = object(value);
-    onlyKeys(v, ['name', 'type', 'referenceId', 'groupId', 'mode', 'threshold', 'action', 'timeoutSeconds', 'deleteMessage', 'priority', 'enabled', 'automatic', 'secondVerification', 'reason']);
+    onlyKeys(v, ['name', 'type', 'referenceId', 'groupId', 'mode', 'threshold', 'action', 'timeoutSeconds', 'deleteMessage', 'priority', 'enabled', 'automatic', 'secondVerification', 'reason', 'content']);
     assert(RULE_TYPES.includes(v.type as RuleType), 'invalid_rule_type');
     assert(MODES.includes(v.mode as Mode), 'invalid_matching_mode');
     assert(ACTIONS.includes(v.action as Action), 'invalid_action');
@@ -295,6 +301,8 @@ export function parseRule(value: unknown, defaultThreshold: number = DEFAULT_RUL
         threshold: matchThreshold(Object.hasOwn(v, 'threshold') ? v.threshold : defaultThreshold), action: v.action as Action, timeoutSeconds: number(v.timeoutSeconds, 1, 2419200, true),
         deleteMessage: bool(v.deleteMessage), priority: number(v.priority, -1000, 1000, true), enabled: bool(v.enabled), automatic: bool(v.automatic),
         secondVerification: bool(v.secondVerification), reason: text(v.reason, 300) };
+    if (type === 'content') { r.content = parseContent(v.content); assert(r.mode === 'exact', 'content_has_no_similarity_mode'); }
+    else assert(v.content === undefined, 'content_definition_requires_content_rule');
     if (isSevere(r.action))
         r.secondVerification = true;
     assert(r.type !== 'any_image' || r.mode === 'exact', 'any_image_mode_not_similarity');

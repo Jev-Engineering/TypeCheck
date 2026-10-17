@@ -126,3 +126,8 @@ Legacy unversioned references remain on Jev fallback until explicitly re-uploade
 ### Match threshold configuration
 
 New rules use Standard (0.70). The Activity also offers Strict (0.90) and Custom numeric values from 0.5 to 1.0. Strict is a stricter threshold, not an accuracy claim; these practical starting points depend on the domain, model and images. Server action floors default to 0.70 for none/review/warn/delete and 0.90 for timeout/kick/ban. Matching uses `score >= max(rule threshold, action floor)`; the editor and test results explain the effective value. Existing saved thresholds remain intact, and threshold edits never enable enforcement or bypass approvals. Any-image rules do not use match thresholds. See [configuration and compatibility](docs/MATCHING.md#configurable-match-thresholds).
+
+
+## Configurable image content analysis
+
+Use **Image content analysis** for a reference-free administrator-defined Noul question about visible text and imagery. Editable presets, explicit context/readability gates and existing thresholds/approvals are described in [Content analysis](docs/CONTENT_ANALYSIS.md). New rules start with automatic enforcement off. Model quality and production acceptance remain separate from mocked tests and CI.

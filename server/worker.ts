@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { randomUUID } from 'node:crypto';
 import { assert, baseRecord, AppError, type Evaluation, type ImageMessage, type Match, type ModerationEvent, type ReferenceImage, type Rule, type Settings, type Action } from '../shared/domain.js';
 import { Services, EvaluationFailure } from './services.js';
@@ -20,7 +21,7 @@ export class Worker {
             return;
         const settings = (await this.services.store.getSettings(m.guildId)).value;
         if (monitored(m, settings))
-            await this.services.store.enqueue({ ...m, attachments: images });
+            await this.services.store.enqueue({ ...m, content: undefined, attachments: images });
     }
     async run() {
         while (!this.stopRequested) {
@@ -74,8 +75,8 @@ export class Worker {
                 continue;
             try {
                 const image = await this.download(a, live.channelId);
-                const result = await this.services.evaluate(guild, a.id, image, rules, images, settings);
-                const evaluation: Evaluation = { ...baseRecord(guild, randomUUID()), messageId: live.messageId, channelId: live.channelId, userId: live.userId, attachmentId: a.id, matches: result.matches, outcome: result.matches.some(m => m.provenance === 'exact_hash' || (m.probability !== null && m.probability >= 0.5)) ? 'evaluated' : 'no_match', error: null, inputTokens: result.inputTokens, hashComparisons: result.hashComparisons, model: result.matches.some(m => m.provenance === 'jev') ? settings.model : null, test: false };
+                const result = await this.services.evaluate(guild, a.id, image, rules, images, settings, 'moderation', live.content);
+                const evaluation: Evaluation = { ...baseRecord(guild, randomUUID()), messageId: live.messageId, channelId: live.channelId, userId: live.userId, attachmentId: a.id, matches: result.matches, outcome: result.matches.some(m => m.provenance === 'exact_hash' || (m.probability !== null && m.probability >= 0.5)) ? 'evaluated' : 'no_match', error: null, inputTokens: result.inputTokens, hashComparisons: result.hashComparisons, model: result.matches.some(m => m.provenance === 'jev' || m.provenance === 'content') ? settings.model : null, test: false };
                 await store.put('evaluations', evaluation, 0);
                 allMatches.push(...result.matches);
                 processed.push(a.id);
@@ -112,6 +113,10 @@ export class Worker {
             if (decision.match.provenance === 'exact_hash') event.reviewStatus = 'open';
             await store.put('events', event, 0);
             return;
+        }
+        if (decision.match.content?.contextSource === 'posting_message' && (typeof source.content !== 'string' || createHash('sha256').update(source.content).digest('hex') !== decision.match.content.contextSha256)) {
+            event.reason = 'posting_context_changed'; event.reviewStatus = 'open';
+            await store.put('events', event, 0); return;
         }
         const expected = fingerprint(decision.rule, snapshotImages, snapshotSettings);
         const actions: Action[] = [];

@@ -159,7 +159,7 @@ export class DiscordRest implements DiscordAdapter {
     async metadata(guild: string) { const g: DiscordGuild = await this.request(`/guilds/${guild}`); const channels: DiscordChannel[] = await this.request(`/guilds/${guild}/channels`); return { name: g.name, roles: g.roles, channels }; }
     async currentMessage(channel: string, message: string): Promise<ImageMessage> {
         const [m, c] = await Promise.all([this.request(`/channels/${channel}/messages/${message}`), this.request(`/channels/${channel}`)]);
-        return parseDiscordMessage({ ...m, guild_id: c.guild_id });
+        return parseDiscordMessage({ ...m, guild_id: c.guild_id }, true);
     }
     async preflight(message: ImageMessage, action: Action, settings: Settings) {
         const { guildId: guild, userId: user, channelId } = message;
@@ -216,10 +216,10 @@ export class DiscordRest implements DiscordAdapter {
     async notify(guild: string, channel: string, content: string) { const c = await this.request(`/channels/${channel}`); assert(c.guild_id === guild, 'log_channel_wrong_guild', 403); await this.request(`/channels/${channel}/messages`, 'POST', { content: content.slice(0, 1900), allowed_mentions: { parse: [] } }); }
     async dm(user: string, content: string) { const c = await this.request('/users/@me/channels', 'POST', { recipient_id: user }); await this.request(`/channels/${c.id}/messages`, 'POST', { content: content.slice(0, 1900), allowed_mentions: { parse: [] } }); }
 }
-export function parseDiscordMessage(raw: any): ImageMessage {
+export function parseDiscordMessage(raw: any, includeContext = false): ImageMessage {
     assert(snowflake(raw.guild_id) && snowflake(raw.channel_id) && snowflake(raw.id) && snowflake(raw.author?.id), 'incomplete_discord_message');
     assert(Array.isArray(raw.attachments) && raw.attachments.length <= 100, 'incomplete_discord_attachments');
-    return { guildId: raw.guild_id, channelId: raw.channel_id, messageId: raw.id, userId: raw.author.id, bot: raw.author.bot === true, webhook: !!raw.webhook_id,
+    return { ...(includeContext && typeof raw.content === 'string' ? { content: raw.content } : {}), guildId: raw.guild_id, channelId: raw.channel_id, messageId: raw.id, userId: raw.author.id, bot: raw.author.bot === true, webhook: !!raw.webhook_id,
         attachments: raw.attachments.filter((a: any) => snowflake(a.id) && typeof a.url === 'string' && Number.isFinite(a.size) && typeof a.filename === 'string')
             .map((a: any) => ({ id: a.id, url: a.url, size: a.size, contentType: typeof a.content_type === 'string' ? a.content_type : null, filename: a.filename })) };
 }

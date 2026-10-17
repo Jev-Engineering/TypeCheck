@@ -1,4 +1,5 @@
 import { test, type TestContext } from 'node:test';
+import { CONTENT_PRESETS } from '../shared/content.js';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { baseRecord, type RoleGrant, type Rule, type Calibration, type ModerationEvent } from '../shared/domain.js';
@@ -267,4 +268,24 @@ test('the page references release-scoped assets that resolve to the current buil
 test('development pages use the dev asset scope', async t => {
     const f = await setup(t);
     assert.match((await f.request('/', 'GET', undefined, undefined, '')).raw, /src="\/r\/dev\/activity\/src\/main\.js"/);
+});
+
+test('content API starts monitoring, validates definitions, enforces permissions and guild isolation', async t => {
+    const f = await setup(t), admin = await f.login(), token = admin.data.sessionToken;
+    const { id, guildId, revision, createdAt, updatedAt, approval, ...input } = rule(f.ref, { type: 'content', referenceId: null, content: structuredClone(CONTENT_PRESETS[0]!.definition) });
+    const created = await f.request(`/api/g/${G}/rules`, 'POST', { rule: input }, token);
+    assert.equal(created.status, 201); assert.equal(created.data.automatic, false); assert.equal(created.data.approval, null);
+    const invalid = await f.request(`/api/g/${G}/rules`, 'POST', { rule: { ...input, content: { ...input.content, unsupported: true } } }, token);
+    assert.equal(invalid.status, 400);
+    const foreign = await f.request(`/api/g/${G2}/rules/${created.data.id}`, 'PUT', { rule: input, revision: 1 }, token);
+    assert.equal(foreign.status, 403);
+    await f.grant(['rules.view']);
+    const mod = await f.login('moderator-code');
+    assert.equal((await f.request(`/api/g/${G}/rules`, 'POST', { rule: input }, mod.data.sessionToken)).status, 403);
+    assert.equal((await f.request(`/api/g/${G}/content-presets`, 'GET', undefined, token)).data.length, 13);
+    const stale = await f.request(`/api/g/${G}/rules/${created.data.id}`, 'PUT', { rule: input, revision: 9 }, token);
+    assert.equal(stale.status, 409);
+    const hugeContext = await f.request(`/api/g/${G}/rules/${created.data.id}/test`, 'POST', { base64: PNG.toString('base64'), context: 'x'.repeat(2001) }, token);
+    assert.equal(hugeContext.status, 400);
+    const module = await f.request('/shared/content.js'); assert.equal(module.status, 200);
 });

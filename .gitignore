@@ -8,3 +8,4 @@ objects/
 coverage/
 evaluation-results.json
 release.json
+content-evaluation-results.json

@@ -50,3 +50,8 @@ Local: 147 passing tests; compiled official SDK; fresh audit and license invento
 Keep `ACCEPTANCE_APPROVED=0`. A production process refuses enforcement without this operator attestation, even if an old database contains enabled settings. Only an authorized operator may change it after reviewing completed acceptance evidence; rule approvals, thresholds, second verification and high-impact settings still apply. Development test actions require explicit test-guild/account authorization.
 
 Runtime-image security is also OPEN: the final scan has 43 high package findings across 8 unique CVEs. The clean application npm audit does not close this gate. See DEPENDENCIES.md for retained results and vendor references.
+
+
+## Content-analysis acceptance
+
+Mocked tests and offline desktop/mobile rendering validate software behavior only. Paid held-out model evaluation, dedicated Discord validation and operational acceptance remain separate. Report false positives/negatives, precision, recall and coverage by category/language, separating tuning from held-out samples. Merge does not certify accuracy or deployment acceptance. See [acceptance](CONTENT_ANALYSIS.md#testing-and-acceptance).

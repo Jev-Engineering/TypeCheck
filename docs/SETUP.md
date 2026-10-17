@@ -97,3 +97,8 @@ Private object storage is still filesystem-based. Verify a durable, shared `OBJE
 ## Adopting exact normalized-image matching
 
 No schema migration or automatic backfill is required for the additive JSON fields in this change; PostgreSQL/MySQL migration 001 remains unchanged. Deploy only through the separately authorized acceptance process. Keep enforcement defaults and `ACCEPTANCE_APPROVED` unchanged. Matching fingerprints change, so old approvals must be refreshed through normal administrator calibration/approval. Legacy images remain functional through Jev fallback. To enable compatible hashes for a reference, explicitly re-upload its original source with the existing revision-checked API/Activity; a metadata-only edit is insufficient. Do not substitute its retained normalized JPEG and claim original-source equivalence. Hash-only rule tests do not supply model calibration positives; representative model-path samples remain necessary.
+
+
+## Content-analysis setup
+
+Create an Image content analysis rule, edit one preset or custom predicate, and label representative images. No reference is required. Posting context must be enabled in Settings and selected in the rule. New rules cannot enforce automatically. Follow [acceptance](CONTENT_ANALYSIS.md#testing-and-acceptance); provider image support is experimental.

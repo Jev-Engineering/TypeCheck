@@ -95,3 +95,8 @@ Hash-only labeled tests store a deterministic prediction with null probability/m
 ### Legacy references and backfill
 
 Inspection found `sha256` computed over normalized JPEGs, but no persisted pipeline/native-codec version. Original uploads are not retained. Existing hashes therefore cannot safely be marked compatible. Re-normalizing retained lossy JPEGs is not equivalent to normalizing their original source. There is deliberately no backfill, migration or silent rewrite in this change: missing/incompatible versions use Jev. An authorized source re-upload through the existing revision-checked image API derives a fresh versioned hash; metadata-only edits preserve its existing version (or absence). PostgreSQL and MySQL already retain these fields in JSON records; no Store interface, index or schema change is needed.
+
+
+## Content analysis
+
+[Content analysis](CONTENT_ANALYSIS.md) adds reference-free questions, readability/context gates and distinct abstention states. Reference matching and any-image semantics are preserved. Image text is evidence, never trusted instructions or verbatim OCR.

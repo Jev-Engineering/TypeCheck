@@ -58,3 +58,8 @@ Limits are deliberately modest: up to 250 references/rules per guild, 100 groups
 For hosting, schedule encrypted off-host backups of a quiesced DB/object pair, store key recovery material separately, document retention/RPO/RTO, alert on failures, and rerun restore drills on the actual target. Never start a restored production snapshot against Discord before reconciling post-backup actions; stale ledgers can permit duplicate sanctions. No backup scheduler or public TLS endpoint is provisioned by this repository.
 
 Terminate TLS at an authorized proxy; forward to loopback port 3000, preserve the Origin and Authorization headers without logging them, enforce request/body/time limits, and restrict database exposure. Verify TLS chain/renewal, the Activity proxy mapping, CSP, unauthorized routes and live OAuth on that target. An HTTPS `PUBLIC_ORIGIN` does not prove TLS is deployed.
+
+
+## Content-analysis operations
+
+Additive versioned fields use existing PostgreSQL/MySQL JSON persistence; no SQL migration or saved-policy rewrite is needed. Disable content rules before rollback to older code. Cap failures suppress incomplete-message punishment. Preserve backups, retention and isolation. See [compatibility](CONTENT_ANALYSIS.md).
