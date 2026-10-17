@@ -5,7 +5,7 @@ import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { releaseSpec, verifyArtifact, createReleaseSource } from './release-source.mjs';
+import { releaseSpec, verifyArtifact, createReleaseSource, verifyProviderSource } from './release-source.mjs';
 
 const commit = 'a'.repeat(40), oid = 'b'.repeat(40);
 const spec = releaseSpec('Jev-Engineering/TypeCheck', commit, '123-1', true);
@@ -61,26 +61,41 @@ test('collisions, concurrent branch changes and failed commit creation abort wit
     }
 });
 
+test('null provider hashes require exact operation, repository, branch and verified head binding', () => {
+    const result = { importId: 'i', importType: 'GITHUB', status: 'COMPLETED', gitHash: null };
+    const app = { source: 'GITHUB', sourceDetails: { repositoryFullName: spec.repository, branch: spec.branch } };
+    const expected = { kind: 'import', id: 'i', repository: spec.repository, branch: spec.branch, oid, head: oid };
+    assert.equal(verifyProviderSource(result, app, expected).providerHash, null);
+    assert.equal(verifyProviderSource({ ...result, gitHash: oid }, app, expected).providerHash, oid);
+    for (const change of [{ status: 'PENDING' }, { importId: 'other' }, { importType: 'ZIP' }, { gitHash: commit }, { gitHash: '' }])
+        assert.throws(() => verifyProviderSource({ ...result, ...change }, app, expected));
+    for (const change of [{ source: 'ZIP' }, { sourceDetails: { repositoryFullName: 'other/repo', branch: spec.branch } }, { sourceDetails: { repositoryFullName: spec.repository, branch: 'main' } }])
+        assert.throws(() => verifyProviderSource(result, { ...app, ...change }, expected));
+    assert.throws(() => verifyProviderSource(result, app, { ...expected, head: commit }));
+    assert.throws(() => verifyProviderSource(result, app, { ...expected, kind: 'deployment' }));
+});
+
 test('ship uses GitHub imports and prevents publication on failed or mismatched source', { skip: process.platform === 'win32' }, t => {
     const dir = mkdtempSync(join(tmpdir(), 'release-test-')); t.after(() => rmSync(dir, { recursive: true, force: true }));
     for (const name of ['gddy', 'gh', 'node']) {
-        const contents = name === 'node' ? `echo '{"branch":"releases/test","oid":"${oid}"}'` : name === 'gh' ? `echo "\${REF_HASH:-${oid}}"` : `
+        const contents = name === 'node' ? `if [[ "$1" == scripts/release-source.mjs ]]; then echo '{"branch":"releases/test","oid":"${oid}"}'; else exec '${process.execPath}' "$@"; fi` : name === 'gh' ? `echo "\${REF_HASH:-${oid}}"` : `
 echo "$*" >> "$CALLS"
 case "$1 $2 $3" in
   'hosting source github') echo '{"data":{"importId":"import-1"}}' ;;
-  'hosting source status') echo "{\\"data\\":{\\"status\\":\\"\${IMPORT_STATUS:-COMPLETED}\\",\\"gitHash\\":\\"\${IMPORT_HASH:-${oid}}\\"}}" ;;
+  'hosting source status') jq -cn --arg status "\${IMPORT_STATUS:-COMPLETED}" --arg hash "\${IMPORT_HASH:-${oid}}" '{data:{importId:"import-1",importType:"GITHUB",status:$status,gitHash:(if $hash == "null" then null else $hash end)}}' ;;
   'hosting deployment publish') echo '{"data":{"deploymentId":"deployment-1"}}' ;;
-  'hosting deployment get') echo "{\\"data\\":{\\"status\\":\\"COMPLETED\\",\\"gitHash\\":\\"\${PUBLISH_HASH:-${oid}}\\"}}" ;;
+  'hosting deployment get') jq -cn --arg hash "\${PUBLISH_HASH:-${oid}}" '{data:{deploymentId:"deployment-1",status:"COMPLETED",gitHash:(if $hash == "null" then null else $hash end)}}' ;;
+  'hosting app get') jq -cn --arg branch "\${SOURCE_BRANCH:-releases/test}" '{data:{source:"GITHUB",sourceDetails:{repositoryFullName:"Jev-Engineering/TypeCheck",branch:$branch}}}' ;;
   *) exit 91 ;;
 esac`;
         writeFileSync(join(dir, name), '#!/usr/bin/env bash\n' + contents + '\n', { mode: 0o755 });
     }
     const calls = join(dir, 'calls');
-    for (const overrides of [{}, { IMPORT_HASH: commit }, { IMPORT_HASH: 'missing' }, { IMPORT_STATUS: 'FAILED' }, { REF_HASH: commit }, { PUBLISH_HASH: commit }]) {
+    for (const overrides of [{}, { IMPORT_HASH: 'null', PUBLISH_HASH: 'null' }, { IMPORT_HASH: 'null', SOURCE_BRANCH: 'main' }, { IMPORT_HASH: commit }, { IMPORT_HASH: 'missing' }, { IMPORT_STATUS: 'FAILED' }, { REF_HASH: commit }, { PUBLISH_HASH: commit }]) {
         writeFileSync(calls, '');
         const r = spawnSync('bash', [resolve('scripts/godaddy-release.sh'), 'ship', commit, '123-1'], { encoding: 'utf8', timeout: 10000,
             env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, APP_ID: 'NODEJS-test', GITHUB_REPOSITORY: spec.repository, CALLS: calls, ...overrides } });
-        const success = Object.keys(overrides).length === 0;
+        const success = Object.keys(overrides).length === 0 || overrides.IMPORT_HASH === 'null' && !overrides.SOURCE_BRANCH;
         assert.equal(r.status === 0, success, r.stderr);
         const invoked = readFileSync(calls, 'utf8');
         assert.match(invoked, /source github .*--repo Jev-Engineering\/TypeCheck --branch releases\/test/);

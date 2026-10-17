@@ -27,7 +27,7 @@ poll() { # poll <command...>: up to 10 minutes; tolerates a few transient CLI/AP
 }
 
 ship() {
-    local commit="$1" run="$2" migration="${3:-no-migrate}" source branch oid imported published import_id deployment_id
+    local commit="$1" run="$2" migration="${3:-no-migrate}" source branch oid imported published import_id deployment_id app head
     [[ "$commit" =~ ^[0-9a-f]{40}$ && "$run" =~ ^[0-9]+-[0-9]+$ ]] || { echo "::error::invalid commit or run" >&2; return 1; }
     echo "started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${GITHUB_OUTPUT:-/dev/null}"
     source="$(node scripts/release-source.mjs "$commit" "$run" "$migration")"
@@ -38,13 +38,16 @@ ship() {
     echo "import_id=$import_id" | tee -a "${GITHUB_OUTPUT:-/dev/null}"
     imported="$(poll gddy hosting source status --app-id "$APP_ID" --import-id "$import_id")"
     jq -c '.data | {importId,importType,status,gitHash,fields:keys}' <<<"$imported"
-    [[ "$(jq -er '.data.gitHash' <<<"$imported")" == "$oid" ]] || { echo '::error::imported source does not match release commit'; return 1; }
-    [[ "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$branch" --jq '.object.sha')" == "$oid" ]] || { echo '::error::release branch changed during import'; return 1; }
+    app="$(gddy hosting app get --app-id "$APP_ID" --output json)"
+    head="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$branch" --jq '.object.sha')"
+    jq -s '.' <(printf '%s' "$imported") <(printf '%s' "$app") | node scripts/verify-provider-source.mjs import "$import_id" "$GITHUB_REPOSITORY" "$branch" "$oid" "$head"
     echo "publish_started=true" >> "${GITHUB_OUTPUT:-/dev/null}"
     deployment_id="$(gddy hosting deployment publish --app-id "$APP_ID" --output json | jq -er '.data.deploymentId')"
     echo "godaddy_deployment=$deployment_id" | tee -a "${GITHUB_OUTPUT:-/dev/null}"
     published="$(poll gddy hosting deployment get --app-id "$APP_ID" --deployment-id "$deployment_id")"
-    [[ "$(jq -er '.data.gitHash' <<<"$published")" == "$oid" ]] || { echo '::error::published source does not match release commit'; return 1; }
+    app="$(gddy hosting app get --app-id "$APP_ID" --output json)"
+    head="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$branch" --jq '.object.sha')"
+    jq -s '.' <(printf '%s' "$published") <(printf '%s' "$app") | node scripts/verify-provider-source.mjs deployment "$deployment_id" "$GITHUB_REPOSITORY" "$branch" "$oid" "$head"
 }
 
 verify() {
