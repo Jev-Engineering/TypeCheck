@@ -45,6 +45,8 @@ Pausing prevents new eligible dispatch where observed, but cannot cancel an HTTP
 
 ## Deployment gates and scaling
 
+Hosted releases, backups, migrations and rollback follow [DEPLOYMENT.md](DEPLOYMENT.md).
+
 Run the provided SQL integration helper against a disposable database. Build and launch containers. Verify non-root object writes, retention and orphan cleanup, TLS/proxy headers, OAuth launch, intent approval, rate limits, runtime restarts and the action ledger against real services. Pin reviewed dependency lockfiles and container digests. The local Compose drill passed; hosted CI has not been run.
 
 Limits are deliberately modest: up to 250 references/rules per guild, 100 groups, 1000 queued/processing jobs per guild, one serial worker, bounded provider/Discord queues and per-guild request caps. At higher traffic, logs must move to database-backed pagination/search, queues need admission/tenant fairness review, and image candidate reduction must be evaluated for false negatives. Do not treat the current caps as capacity benchmarks.

@@ -4,15 +4,15 @@ import { randomUUID } from 'node:crypto';
 import { baseRecord, type RoleGrant, type Rule, type Calibration, type ModerationEvent } from '../shared/domain.js';
 import { Worker } from '../server/worker.js';
 import { enable, message } from './helpers.js';
-import { createHttp } from '../server/http.js';
+import { createHttp, type Deployment } from '../server/http.js';
 import { digest } from '../server/security.js';
 import { fingerprint } from '../server/policy.js';
 import { fixture, rule, G, G2, ADMIN, MOD, ROLE, CHANNEL, API_KEY, PNG } from './helpers.js';
 const ORIGIN = 'http://localhost:3000';
-async function setup(t: TestContext, production = false, readiness?: () => Promise<boolean>, controllerState?: () => string) {
+async function setup(t: TestContext, production = false, readiness?: () => Promise<boolean>, controllerState?: () => string, deployment?: Deployment) {
     const f = await fixture(t);
     const config = { port: 3000, production, publicOrigin: ORIGIN, clientId: G, clientSecret: 'fake-secret', botToken: 'fake-token', databaseUrl: 'not-used', masterKey: 'not-used', objectDir: 'not-used', model: 'jev-1.14.0', apiOnly: true };
-    const server = createHttp(f.services, config, process.cwd(), readiness, controllerState);
+    const server = createHttp(f.services, config, process.cwd(), readiness, controllerState, deployment);
     await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
     const address = server.address() as {
         port: number;
@@ -239,4 +239,32 @@ test('hash upload provenance is server-derived and preserved by metadata edits; 
     assert.equal(result.status,200);assert.equal(result.data.probability,null);assert.equal(result.data.hashComparisons,1);
     assert.equal(result.data.matches[0].model,null);assert.equal(result.data.matches[0].provenance,'exact_hash');assert.equal(f.control.calls,0);
     assert.equal((await f.store.usage(G)).calls,0);assert.equal(f.discord.performed.length,0);
+});
+
+test('health reports the deployed release and storage marker without credentials', async t => {
+    const commit = 'a'.repeat(40);
+    const f = await setup(t, false, async () => true, () => 'leader', { release: { commit, run: '1-1', migrate: false }, storage: 'b'.repeat(32) });
+    assert.deepEqual((await f.request('/api/health')).data, { status: 'leader', release: commit, storage: 'b'.repeat(32) });
+});
+
+test('the page references release-scoped assets that resolve to the current build', async t => {
+    const commit = '0123456789abcdef'.repeat(2) + '01234567';
+    const f = await setup(t, false, undefined, undefined, { release: { commit, run: null, migrate: false }, storage: null });
+    const page = await f.request('/', 'GET', undefined, undefined, '');
+    assert.equal(page.status, 200);
+    assert.match(page.raw, /href="\/r\/0123456789ab\/style\.css"/);
+    assert.match(page.raw, /src="\/r\/0123456789ab\/activity\/src\/main\.js"/);
+    assert.equal(page.headers.get('cache-control'), 'no-store');
+    const css = await f.request('/r/0123456789ab/style.css', 'GET', undefined, undefined, '');
+    assert.equal(css.status, 200);
+    assert.equal(css.raw, await (await import('node:fs/promises')).readFile('activity/style.css', 'utf8'));
+    assert.equal((await f.request('/r/0123456789ab/.env', 'GET', undefined, undefined, '')).status, 404);
+    assert.equal((await f.request('/r/zzzzzzzzzzzz/style.css', 'GET', undefined, undefined, '')).status, 404);
+    assert.equal((await f.request('/r/ffffffffffff/style.css', 'GET', undefined, undefined, '')).status, 404);
+    assert.equal((await f.request('/r/dev/style.css', 'GET', undefined, undefined, '')).status, 404);
+});
+
+test('development pages use the dev asset scope', async t => {
+    const f = await setup(t);
+    assert.match((await f.request('/', 'GET', undefined, undefined, '')).raw, /src="\/r\/dev\/activity\/src\/main\.js"/);
 });

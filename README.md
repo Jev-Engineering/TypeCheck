@@ -104,7 +104,7 @@ evidence/       Actual local test output and offline browser screenshots
 docs/           Setup, security, permissions, API, operations and acceptance
 ```
 
-No user credentials, dependencies, or private Discord data are included. The source lives in the private repository [Jev-Engineering/TypeCheck](https://github.com/Jev-Engineering/TypeCheck); nothing has been deployed. `UNLICENSED` marks this private delivery; no unsolicited open-source license or third-party ownership assignment is imposed.
+No user credentials, dependencies, or private Discord data are included. The source lives in the private repository [Jev-Engineering/TypeCheck](https://github.com/Jev-Engineering/TypeCheck); production releases are deployed only by the CI-gated workflow described in [deployment](docs/DEPLOYMENT.md). `UNLICENSED` marks this private delivery; no unsolicited open-source license or third-party ownership assignment is imposed.
 
 ## MySQL and GoDaddy Node.js Hosting
 

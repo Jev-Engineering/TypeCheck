@@ -134,7 +134,7 @@ function links() {
 }
 async function connect(clientId: string) {
     message('Connecting to Discord…');
-    const modulePath = '/vendor/discord-sdk.js';
+    const modulePath = '../../vendor/discord-sdk.js';
     const { DiscordSDK } = await import(modulePath);
     sdk ??= new DiscordSDK(clientId) as SDK;
     await Promise.race([sdk.ready(), new Promise((_, reject) => setTimeout(() => reject(new Error('Open this application as a Discord Activity')), 12000))]);

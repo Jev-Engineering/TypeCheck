@@ -7,3 +7,4 @@ objects/
 *.log
 coverage/
 evaluation-results.json
+release.json
