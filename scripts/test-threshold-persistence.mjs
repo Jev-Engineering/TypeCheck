@@ -1,6 +1,7 @@
 /** Runs only against the disposable database selected by the integration runners. */
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { CONTENT_PRESETS } from '../dist/shared/content.js';
 import { baseRecord, DEFAULT_SETTINGS } from '../dist/shared/domain.js';
 export async function thresholdPersistence(store, pool, dialect, guild) {
   const bind = dialect === 'mysql' ? '?' : '$1';
@@ -18,6 +19,10 @@ export async function thresholdPersistence(store, pool, dialect, guild) {
     await reopened.put('rules', r, 0);
     assert.equal((await store.get('rules', guild, r.id)).threshold, .812345);
     assert.equal((await store.all('rules', guild))[0].threshold, .812345);
+    const content = { ...baseRecord(guild, randomUUID()), type: 'content', groupId: null, referenceId: null, threshold: .83, content: structuredClone(CONTENT_PRESETS[0].definition) };
+    await reopened.put('rules', content, 0);
+    assert.deepEqual(await store.get('rules', guild, content.id), content);
+    assert.equal(await store.get('rules', guild + '1', content.id), null);
     const missing = { ...baseRecord(guild, randomUUID()), groupId: null, referenceId: null };
     await store.put('rules', missing, 0);
     assert.equal((await reopened.get('rules', guild, missing.id)).threshold, .7);

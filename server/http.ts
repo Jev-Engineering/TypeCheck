@@ -1,3 +1,5 @@
+import { CONTENT_PRESETS } from '../shared/content.js';
+import { seedStarterReferences } from './starter-references.js';
 import { analyticsQuery, parseRate } from '../shared/analytics.js';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -94,6 +96,7 @@ export function createHttp(services: Services, config: Config, root = process.cw
             await store.getSettings(b.guildId);
             const a = await services.authority(b.guildId, auth.userId);
             assert(a.capabilities.length > 0, 'no_delegated_access', 403);
+            await seedStarterReferences(services, b.guildId, root);
             const sessionToken = token();
             await store.createSession(digest(sessionToken), { userId: auth.userId, guildId: b.guildId, expiresAt: Date.now() + 15 * 60000 });
             await services.audit(b.guildId, auth.userId, 'session.created', 'session');
@@ -300,6 +303,7 @@ export function createHttp(services: Services, config: Config, root = process.cw
             await store.withGuild(guild, async (tx) => { assert(!(await tx.all<Rule>('rules', guild)).some(r => r.referenceId === id), 'image_used_by_rule', 409); await tx.remove('images', guild, id, revision); await services.audit(guild, a.userId, 'image.removed', id, {}, tx); });
             return { body: { ok: true } };
         }
+        if (route === 'content-presets' && method === 'GET') { requireCapability(a, 'rules.view'); return { body: CONTENT_PRESETS }; }
         if (route === 'rules' && method === 'GET') {
             requireCapability(a, 'rules.view');
             const rules = await store.all<Rule>('rules', guild), images = await store.all<ReferenceImage>('images', guild), settings = (await store.getSettings(guild)).value;
@@ -315,6 +319,7 @@ export function createHttp(services: Services, config: Config, root = process.cw
                 const old = creating ? null : await tx.get<Rule>('rules', guild, id);
                 assert(creating || old, 'rule_not_found', 404);
                 const next = parseRule(b.rule, old?.threshold);
+                if (next.type === 'content' && (creating || old?.type !== 'content')) next.automatic = false;
                 if (old)
                     assert(old.revision === number(b.revision, 1, 1e9, true), 'revision_conflict', 409);
                 if (creating)
@@ -342,9 +347,10 @@ export function createHttp(services: Services, config: Config, root = process.cw
             if (p[5] === 'test' && method === 'POST') {
                 requireCapability(a, 'matching.test');
                 const b = await jsonBody(req);
-                onlyKeys(b, ['base64', 'expected']);
+                onlyKeys(b, ['base64', 'expected', 'context']);
+                assert(b.context === undefined || typeof b.context === 'string' && b.context.length <= 2000, 'content_context_over_limit');
                 const expected = b.expected === undefined ? undefined : bool(b.expected);
-                return { body: await services.testRule(guild, a.userId, id, await normalize(decodeImage(b.base64)), expected) };
+                return { body: await services.testRule(guild, a.userId, id, await normalize(decodeImage(b.base64)), expected, b.context as string | undefined) };
             }
             if (p[5] === 'calibration' && method === 'GET') {
                 requireCapability(a, 'matching.test');
@@ -445,7 +451,7 @@ export function createHttp(services: Services, config: Config, root = process.cw
             const html = await readFile(resolve(root, 'activity/index.html'), 'utf8');
             return { bytes: Buffer.from(html.replace(/(href|src)="\/(style\.css|activity\/src\/main\.js)"/g, `$1="/r/${version}/$2"`)), type: 'text/html; charset=utf-8' };
         }
-        const fixed: Record<string, string> = { '/style.css': 'activity/style.css', '/vendor/discord-sdk.js': 'dist/activity/vendor/discord-sdk.js', '/vendor/THIRD_PARTY_NOTICES.txt': 'dist/activity/vendor/THIRD_PARTY_NOTICES.txt', '/shared/analytics.js':'dist/shared/analytics.js','/shared/domain.js': 'dist/shared/domain.js' };
+        const fixed: Record<string, string> = { '/style.css': 'activity/style.css', '/vendor/discord-sdk.js': 'dist/activity/vendor/discord-sdk.js', '/vendor/THIRD_PARTY_NOTICES.txt': 'dist/activity/vendor/THIRD_PARTY_NOTICES.txt', '/shared/analytics.js':'dist/shared/analytics.js','/shared/content.js':'dist/shared/content.js','/shared/domain.js': 'dist/shared/domain.js' };
         const fonts: Record<string, string> = { '/fonts/schibsted-grotesk-400.woff2': 'activity/fonts/schibsted-grotesk-400.woff2', '/fonts/schibsted-grotesk-500.woff2': 'activity/fonts/schibsted-grotesk-500.woff2', '/fonts/vt323-400.woff2': 'activity/fonts/vt323-400.woff2', '/fonts/jetbrains-mono-400.woff2': 'activity/fonts/jetbrains-mono-400.woff2' };
         if (fonts[pathname]) {
             let bytes: Buffer;

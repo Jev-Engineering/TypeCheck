@@ -1,3 +1,5 @@
+import { makeContentRequest, parseContentResult, type ContentResult } from './content.js';
+import type { ContentDefinition } from '../shared/content.js';
 import type { Completion } from '../shared/analytics.js';
 import { safeError } from './security.js';
 import { randomUUID } from 'node:crypto';
@@ -56,16 +58,24 @@ export interface CompareOptions {
 }
 export class JevClient {
     constructor(private http: typeof fetch = fetch, private sleep: (ms: number) => Promise<void> = ms => new Promise(r => setTimeout(r, ms))) { }
+    async analyze(submitted: Buffer, definition: ContentDefinition, context: string | undefined, o: CompareOptions): Promise<ContentResult> {
+        const { body, request } = makeContentRequest(submitted, o.model, definition, context, o.verification);
+        return this.request(body, o, data => parseContentResult(data, o.model, request.questions));
+    }
     async compare(submitted: Buffer, reference: Buffer, o: CompareOptions): Promise<JevResult> {
         assert(o.key.length >= 8 && o.key.length <= 4096 && !/[\r\n]/.test(o.key), 'invalid_api_key');
         const { body } = makeComparison(submitted, reference, o.model, o.mode, o.verification);
+        return this.request(body, o, data => parseJev(data, o.model));
+    }
+    private async request<T extends JevResult>(body: FormData, o: CompareOptions, parse: (data: unknown) => T): Promise<T> {
+        assert(o.key.length >= 8 && o.key.length <= 4096 && !/[\r\n]/.test(o.key), 'invalid_api_key');
         for (let attempt = 0; attempt < 3; attempt++) {
             const id = randomUUID(), startedAt = new Date().toISOString();
             await o.onAttempt({ id, retry: attempt, startedAt });
             // Persistence callbacks are outside provider retry catches.
             await o.onDispatch?.(id);
             let response: Response | undefined, completion: Completion;
-            let result: JevResult | undefined, failure: unknown, retry = false, wait = 500 * 2 ** attempt;
+            let result: T | undefined, failure: unknown, retry = false, wait = 500 * 2 ** attempt;
             let tokens: number | null = null, responseComplete = false;
             try {
                 response = await this.http(JEV_ENDPOINT, { method: 'POST', headers: { Authorization: `Bearer ${o.key}`, 'TypeSafe-Danger-Zone-Images': 'true' }, body, redirect: 'error', signal: AbortSignal.timeout(20000) });
@@ -82,7 +92,7 @@ export class JevClient {
                     if (retry && wait > 30000) { retry = false; throw new AppError('jev_rate_limit_deferred', 503); }
                     throw new AppError(response.status === 401 || response.status === 403 ? 'jev_authentication_failed' : `jev_http_${response.status}`, 503);
                 }
-                result = parseJev(data, o.model);
+                result = parse(data);
                 completion = { outcome: 'success', inputTokens: tokens, error: null, completedAt: new Date().toISOString() };
             } catch (e) {
                 failure = response ? e : new AppError('jev_network_error', 503);

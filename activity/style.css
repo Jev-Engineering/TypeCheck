@@ -330,3 +330,9 @@ input::file-selector-button{background:var(--inverse);border:1px solid var(--lin
   .image-preview{height:220px}
 }
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+
+.content-policy { border-left: 3px solid var(--accent, #cbff72); padding: 1rem; }
+.content-policy textarea { width: 100%; min-width: 0; resize: vertical; }
+.content-sample { width: 100%; max-height: 320px; object-fit: contain; background: #171b1c; border-radius: 8px; }
+.content-result { padding: 1rem; border: 1px solid #56605b; border-radius: 8px; overflow-wrap: anywhere; }
+@media (max-width: 600px) { .content-policy { padding: .65rem; } .content-result { padding: .65rem; } }

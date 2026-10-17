@@ -7,6 +7,7 @@ COPY server ./server
 COPY shared ./shared
 COPY activity ./activity
 COPY tests ./tests
+COPY data/scams ./data/scams
 COPY scripts/bundle-sdk.mjs ./scripts/bundle-sdk.mjs
 # GoDaddy installs production dependencies before building, so build tools are
 # declared there. Strip them explicitly from the separate Docker runtime tree.
@@ -25,6 +26,7 @@ COPY --from=build /app/package.json ./package.json
 COPY activity/index.html activity/style.css ./activity/
 COPY activity/fonts ./activity/fonts
 COPY db ./db
+COPY data/scams ./data/scams
 RUN mkdir -p /data/objects && chown -R node:node /data
 USER node
 EXPOSE 3000
