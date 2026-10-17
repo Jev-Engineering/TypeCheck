@@ -51,6 +51,22 @@ export function createReleaseSource(spec, api) {
     return { branch: spec.branch, oid };
 }
 
+// GoDaddy currently returns null gitHash for completed GitHub imports (verified via
+// its REST API). Bind the acknowledged import to the exact unique branch instead.
+// A populated hash is additional evidence and must never contradict that branch.
+export function verifyProviderSource(result, app, expected) {
+    assert.equal(result.status, 'COMPLETED', 'provider operation incomplete');
+    assert.equal(result[expected.kind === 'import' ? 'importId' : 'deploymentId'], expected.id, 'provider operation identity changed');
+    if (expected.kind === 'import') assert.equal(result.importType, 'GITHUB', 'expected GitHub import');
+    assert.equal(app.source, 'GITHUB', 'repository connection changed');
+    assert.equal(app.sourceDetails?.repositoryFullName, expected.repository, 'source repository changed');
+    assert.equal(app.sourceDetails?.branch, expected.branch, 'source branch changed');
+    assert.equal(expected.head, expected.oid, 'release branch changed');
+    if (result.gitHash !== null && result.gitHash !== undefined)
+        assert.equal(result.gitHash, expected.oid, 'provider source hash mismatch');
+    return { providerHash: result.gitHash ?? null, provenance: result.gitHash ? 'provider_hash_and_signed_branch' : 'signed_branch_and_provider_source' };
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
     const [commit, run, migration = 'no-migrate'] = process.argv.slice(2);
     assert.ok(['migrate', 'no-migrate'].includes(migration));
