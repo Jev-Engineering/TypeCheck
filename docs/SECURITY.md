@@ -1,5 +1,7 @@
 # Security design and deployment review
 
+TypeCheck management is available automatically to the guild owner and members with live Discord Administrator or Manage Server permission. `manageGuild` is derived only from Discord role permission bits, never an OAuth payload or client setting. Losing that permission removes management access on the next authority check. This does not grant Discord Administrator, alter Discord roles, change moderation-target protections, or bypass policy review/enforcement gates. See [roles and capabilities](PERMISSIONS.md).
+
 ## Cost analytics privacy and integrity
 
 Analytics reads and paginated CSV require live `dashboard.view`; rate mutations require an administrator, allowed Origin, optimistic revision and transactional audit record. Composite guild keys and bounded indexed SQL ranges isolate attempt data. CSV uses the existing formula-injection protection. The attempt ledger stores no API keys, request/response bodies, image bytes, signed URLs, user IDs or message IDs; correlations are random UUIDs. Pricing notes are operator metadata and must not contain secrets.
@@ -76,7 +78,7 @@ Submitted text is transmitted transiently for configured opt-in rules or authori
 
 ## Browser agent onboarding
 
-Tools register only for authenticated Discord administrators. AbortSignal cleanup covers logout, navigation, expiry, session/guild changes and observed permission failures; polling checks authority every 30 seconds. Every invocation and server request recheck live authority. Browser feature absence/denial uses manual setup. All returned names, policy criteria and samples are untrusted data, never instructions. Tools expose no credentials, image storage paths or stored message content. Tests use existing transient-input/privacy/budget services.
+Tools register only for authenticated Discord server managers. AbortSignal cleanup covers logout, navigation, expiry, session/guild changes and observed permission failures; polling checks authority every 30 seconds. Every invocation and server request recheck live authority. Browser feature absence/denial uses manual setup. All returned names, policy criteria and samples are untrusted data, never instructions. Tools expose no credentials, image storage paths or stored message content. Tests use existing transient-input/privacy/budget services.
 
 Standalone OAuth uses an independent registered redirect, identify-only scope and one-use state bound to a random browser verifier, selected guild and public origin. Cookies are HttpOnly/SameSite=Lax, Secure in production and scoped to browser auth. A short-lived bootstrap supplies the bearer token to memory only, never URLs/local storage. Do not log callback authorization codes/query strings at upstream proxies. Activity renewal is not standalone login evidence.
 
@@ -84,7 +86,7 @@ Plan digest canonicalization handles SQL JSON order. Actor/guild/session binding
 
 ## Untrusted moderation packs
 
-Treat uploaded manifests, prompt text, provenance and verification declarations as untrusted data. The JSON container has no archive extraction, network asset fetching or executable payload. Strict existing domain parsers, portable identifiers, dependency/type checks, bounded JSON/assets/decoding, checksum checks and unsupported-version rejection run before writes. Live administrator authority is required; mapping checks member/bot channel access and notification send permission. Administrator-only capabilities cannot be delegated by a pack.
+Treat uploaded manifests, prompt text, provenance and verification declarations as untrusted data. The JSON container has no archive extraction, network asset fetching or executable payload. Strict existing domain parsers, portable identifiers, dependency/type checks, bounded JSON/assets/decoding, checksum checks and unsupported-version rejection run before writes. Live server-management authority is required; mapping checks member/bot channel access and notification send permission. Server-manager-only capabilities cannot be delegated by a pack.
 
 Preview MACs bind actor/guild/full input/decisions/snapshot and expire after ten minutes. Concurrent policy edits, expiry and vault-key rotation require a new preview. Both SQL backends atomically commit configuration and receipts. File failures roll back policy; safe content-addressed orphan recovery retains young objects for 24 hours to avoid deleting concurrent uploads. Imported approvals confer no authority: imported rules are disabled/unapproved, and applied global policy has enforcement/high-impact off. Existing execution and acceptance gates remain intact.
 

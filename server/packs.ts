@@ -1,3 +1,4 @@
+import { canManageServer } from '../shared/domain.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { assert, baseRecord, object, onlyKeys, text, parseRule, parseSettings, CAPABILITIES, ADMIN_ONLY, DEFAULT_SETTINGS, type RecordBase, type ReferenceImage, type Rule, type Group, type RoleGrant, type Settings } from '../shared/domain.js';
 import { parseContent, CONTENT_VERSION } from '../shared/content.js';
@@ -280,7 +281,7 @@ export async function validatePack(input: unknown): Promise<{
 function mac(services: Services, value: unknown) { return services.vault.packPreviewMac(canonical(value)); }
 export class Packs {
     constructor(readonly services: Services) { }
-    async authority(guild: string, actor: string) { const a = await this.services.authority(guild, actor); assert(a.owner || a.administrator, 'administrator_required', 403); }
+    async authority(guild: string, actor: string) { const a = await this.services.authority(guild, actor); assert(canManageServer(a), 'server_management_required', 403); }
     async history(guild: string, actor: string) {
         await this.authority(guild, actor);
         return this.services.store.withGuild(guild, async (tx) => {

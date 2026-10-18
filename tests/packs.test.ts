@@ -149,7 +149,7 @@ test('preview binds guild, actor, full input, choices and concurrent edits', asy
     const s = await f.store.getSettings(G);
     await f.store.putSettings(G, { ...s.value, processBots: true }, s.revision);
     await assert.rejects(packs.apply(G, ADMIN, p, {}, preview.token), /preview_stale/);
-    await assert.rejects(packs.preview(G, MOD, p), /administrator_required/);
+    await assert.rejects(packs.preview(G, MOD, p), /server_management_required/);
     await assert.rejects(packs.preview(G2, ADMIN, p), /not_a_guild_member/);
 });
 test('mapping rechecks destination membership and channel permission at apply', async (t) => {

@@ -1,3 +1,4 @@
+import { canManageServer } from '../shared/domain.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { assert, baseRecord, effectiveThreshold, type Rule, type ReferenceImage, type Evaluation, type ModerationEvent, type ImageMessage } from '../shared/domain.js';
 import type { HistoricalScan, ScanChannel } from '../shared/historical.js';
@@ -19,7 +20,7 @@ export class Historical {
     private async change(scan: HistoricalScan, update: (s: HistoricalScan) => void) {
         return this.services.store.durable.change('scan:'+scan.id,{...this.row(scan),data:null},row=>{ assert(row.data,'scan_expired',404); const s=row.data as HistoricalScan; update(s); row.due=['running','throttled'].includes(s.status)?s.nextAttempt:NEVER; return structuredClone(s); });
     }
-    async admin(guild: string, actor: string) { const a=await this.services.authority(guild,actor); assert(a.owner||a.administrator,'administrator_required',403); }
+    async admin(guild: string, actor: string) { const a=await this.services.authority(guild,actor); assert(canManageServer(a),'server_management_required',403); }
     async policy(guild: string) {
         const settings=await this.services.store.getSettings(guild), rules=await this.services.store.all<Rule>('rules',guild), images=await this.services.store.all<ReferenceImage>('images',guild);
         const credential=await this.services.credential(guild);
@@ -193,7 +194,7 @@ export class Historical {
                     s.status='throttled';s.nextAttempt=wait.until;return;
                 }
                 if(code.includes('budget')||code==='daily_jev_call_budget_exhausted') {s.status='budget_paused';s.nextAttempt=NEVER;return;}
-                if(code==='jev_authentication_failed'||code==='jev_credential_missing'||code==='worker_stopped'||code==='scan_policy_changed'||code==='administrator_required'||code==='not_a_guild_member') {s.status='paused';s.nextAttempt=NEVER;return;}
+                if(code==='jev_authentication_failed'||code==='jev_credential_missing'||code==='worker_stopped'||code==='scan_policy_changed'||code==='server_management_required'||code==='not_a_guild_member') {s.status='paused';s.nextAttempt=NEVER;return;}
                 if(/network|jev_http_5|attachment_download_failed|internal_error/.test(code)&&++s.retries<3) {s.status='throttled';s.nextAttempt=Date.now()+1000*2**s.retries+Math.floor(Math.random()*500);return;}
                 s.counters.failed++;if(s.failures.length<100)s.failures.push({reason:code,channel:channel.id,...(s.pending?{message:s.pending.message}:{})});
                 if(/permission|discord_http_403/.test(code)||!s.pending) {s.channels[index]!.status='failed';s.channels[index]!.reason=code;s.pending=null;s.channelIndex++;}

@@ -17,7 +17,7 @@ export async function apiResponse<T = any>(response: Response): Promise<T> {
 }
 export function connectionError(stage: string, error: unknown): Error {
     if (error instanceof HttpError && error.status === 403 && error.message === 'no_delegated_access')
-        return new Error('You need permission to use TypeCheck in this server. Ask a server owner or administrator to open TypeCheck → Permissions and grant access to your Discord role, then click Connect in Discord. Server owners and administrators have access automatically.');
+        return new Error('You need permission to use TypeCheck in this server. Ask a server owner or member with Manage Server to open TypeCheck → Permissions and grant access to your Discord role, then click Connect in Discord. Server owners and members with Administrator or Manage Server have access automatically.');
     const detail = error instanceof HttpError ? ` (HTTP ${error.status}: ${error.message}${error.reference ? `; reference ${error.reference}` : ''})` :
         error && typeof error === 'object' && 'code' in error && typeof error.code === 'number' ? ` (Discord code ${error.code})` : '';
     if (error instanceof HttpError && error.status >= 500)

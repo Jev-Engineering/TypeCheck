@@ -1,3 +1,4 @@
+import { canManageServer } from '../shared/domain.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { assert, baseRecord, ids, object, onlyKeys, parseRule, parseSettings, snowflake, text, uuid, type Audit, type Rule, type Group, type ReferenceImage, type Settings } from '../shared/domain.js';
 import { TEXT_STARTERS } from '../shared/text-starters.js';
@@ -13,7 +14,7 @@ export function canonical(value: any): string {
     return JSON.stringify(value === undefined ? null : Array.isArray(value) ? value.map(v => JSON.parse(canonical(v))) : value && typeof value === 'object' ? Object.fromEntries(Object.keys(value).sort().filter(k => value[k] !== undefined).map(k => [k, JSON.parse(canonical(value[k]))])) : value);
 }
 const hash = (value: unknown) => createHash('sha256').update(canonical(value)).digest('hex');
-const isAdmin = async (s: Services, guild: string, actor: string) => { const a = await s.authority(guild, actor); assert(a.owner || a.administrator, 'administrator_required', 403); return a; };
+const requireManager = async (s: Services, guild: string, actor: string) => { const a = await s.authority(guild, actor); assert(canManageServer(a), 'server_management_required', 403); return a; };
 export function selection(value: unknown): SetupSelection {
     const v = object(value); onlyKeys(v, ['presets', 'channels', 'excludedChannels', 'exemptRoles', 'logChannel', 'customizations']);
     assert(Array.isArray(v.presets) && v.presets.length > 0 && v.presets.length <= 4, 'invalid_presets');
@@ -44,20 +45,20 @@ async function snapshot(tx: Store, guild: string) {
 export class Onboarding {
     constructor(readonly services: Services) {}
     async context(guild: string, actor: string) {
-        const authority = await isAdmin(this.services, guild, actor);
+        const authority = await requireManager(this.services, guild, actor);
         const credential = await this.services.credentialStatus(guild);
         const s = await this.services.store.getSettings(guild);
-        return { guildId: guild, userId: actor, administrator: authority.administrator, owner: authority.owner, botOnline: this.services.discord.online, credential: { configured: credential.configured, status: credential.status }, enforcement: s.value.enforcement, blockers: [!this.services.discord.online && 'bot_offline', !credential.configured && 'credential_missing_use_settings', !s.value.channels.length && 'no_monitored_channels', !s.value.logChannel && 'no_log_destination'].filter(Boolean), remaining: ['Check bot channel permissions in Discord', 'Configure and test disabled rules', 'Calibrate and approve separately', 'Deployment acceptance remains separate'], notice: ONBOARDING_NOTICE };
+        return { guildId: guild, userId: actor, administrator: authority.administrator, owner: authority.owner, manageGuild: authority.manageGuild === true, botOnline: this.services.discord.online, credential: { configured: credential.configured, status: credential.status }, enforcement: s.value.enforcement, blockers: [!this.services.discord.online && 'bot_offline', !credential.configured && 'credential_missing_use_settings', !s.value.channels.length && 'no_monitored_channels', !s.value.logChannel && 'no_log_destination'].filter(Boolean), remaining: ['Check bot channel permissions in Discord', 'Configure and test disabled rules', 'Calibrate and approve separately', 'Deployment acceptance remains separate'], notice: ONBOARDING_NOTICE };
     }
     async inventory(guild: string, actor: string, offset = 0) {
-        await isAdmin(this.services, guild, actor);
+        await requireManager(this.services, guild, actor);
         assert(Number.isSafeInteger(offset) && offset >= 0 && offset <= 10000, 'invalid_offset');
         const meta = await this.services.discord.metadata(guild), s = await snapshot(this.services.store, guild);
         const page = <T>(items: T[]) => ({ items: items.slice(offset, offset + 50), nextOffset: items.length > offset + 50 ? offset + 50 : null, total: items.length });
         return { untrustedData: true, name: meta.name, channels: page(meta.channels.map(({id,name,type}) => ({id,name,type}))), roles: page(meta.roles.map(({id,name}) => ({id,name}))), settings: s.settings, rules: page(s.rules), groups: page(s.groups), referenceCount: s.images.length };
     }
     async plan(guild: string, actor: string, binding: string, raw: unknown) {
-        await isAdmin(this.services, guild, actor);
+        await requireManager(this.services, guild, actor);
         const chosen = selection(raw), meta = await this.services.discord.metadata(guild);
         const validChannels = new Set(meta.channels.filter(c => c.type === 0 || c.type === 5).map(c => c.id));
         assert([...chosen.channels, ...chosen.excludedChannels, ...(chosen.logChannel ? [chosen.logChannel] : [])].every(c => validChannels.has(c)), 'channel_not_available');
@@ -80,7 +81,7 @@ export class Onboarding {
                 }
                 const {name, ...definition} = custom;
                 const component=scamReferenceComponent();
-                const input = parseRule(starter ? { name: name ?? starter.name, type:'text', text: {...starter.definition, ...definition}, referenceId: null, groupId:null, mode:'exact', threshold:.9, action:'review', timeoutSeconds:600, deleteMessage:false, priority:0, enabled:false, automatic:false, secondVerification:true, reason:'Administrator-reviewed onboarding policy' } : {...component.value, name:component.name,groupId});
+                const input = parseRule(starter ? { name: name ?? starter.name, type:'text', text: {...starter.definition, ...definition}, referenceId: null, groupId:null, mode:'exact', threshold:.9, action:'review', timeoutSeconds:600, deleteMessage:false, priority:0, enabled:false, automatic:false, secondVerification:true, reason:'Server-manager-reviewed onboarding policy' } : {...component.value, name:component.name,groupId});
                 additions.push({ ...baseRecord(guild, randomUUID()), ...input, approval: null, ...(!starter ? {packOrigin:{pack:'combined-scam-setup',component:component.id,digest:packHash(component),baseline:packHash({...input,approval:null})}} : {}) });
             }
             assert(s.rules.length + additions.length <= 250, 'rule_limit');
@@ -95,7 +96,7 @@ export class Onboarding {
     }
     private view(r: Audit) { const { binding, revision, ...plan } = r.detail.plan as any; return { ...plan, digest: r.detail.digest, status: r.detail.status, receipt: r.detail.receipt ?? null }; }
     async transition(guild: string, actor: string, binding: string, raw: unknown, action: 'inspect' | 'accept' | 'apply') {
-        await isAdmin(this.services, guild, actor);
+        await requireManager(this.services, guild, actor);
         const b = object(raw); onlyKeys(b, ['planId', 'digest']); assert(uuid(b.planId) && typeof b.digest === 'string' && /^[a-f0-9]{64}$/.test(b.digest), 'invalid_plan');
         const meta = action === 'apply' ? await this.services.discord.metadata(guild) : null;
         return this.services.store.withGuild(guild, async tx => {

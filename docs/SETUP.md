@@ -22,6 +22,8 @@ The server serves `/terms` and `/privacy` from `activity/legal/`. Set the Develo
 
 ### Homepage installation link
 
+The member who installs the app can immediately connect using their existing **Manage Server** permission; Discord owners and Administrators also have automatic management access. No extra TypeCheck role or role-creation permission is required. Other members still need a role grant under Permissions. Management authority is rechecked from Discord on every request.
+
 The public homepage offers **Add to your server**, opening Discord's server installation flow in a new tab. It uses the configured application ID, `integration_type=0`, scopes `bot applications.commands`, and permission value `68608` (View Channels, Send Messages, Read Message History). It does not request Administrator or sanction permissions. The link is hidden in the offline preview and embedded Activity; the existing Activity connection flow remains available.
 
 Before public installation, enable **Public Bot** in the Developer Portal's Bot tab and keep **Requires OAuth2 Code Grant** disabled for this install flow. Under Installation, enable Guild Install and configure the Discord Provided Link with the same scopes and baseline permissions. Public Bot cannot be changed through the documented Edit Current Application bot API. The homepage supplies explicit scopes and permissions, so it does not depend on default install parameters.
