@@ -2,7 +2,7 @@ import { Throttle, Deferred, retryAt, scopeHash } from './throttle.js';
 import { AppError, assert, snowflake, type Action, type ImageMessage, type MemberInfo, type Settings } from '../shared/domain.js';
 import { readBounded } from './images.js';
 const API = 'https://discord.com/api/v10';
-const P = { ADMIN: 8n, VIEW: 1024n, SEND: 2048n, MANAGE_MESSAGES: 8192n, KICK: 2n, BAN: 4n, MODERATE: 1n << 40n };
+const P = { ADMIN: 8n, MANAGE_GUILD: 32n, VIEW: 1024n, SEND: 2048n, MANAGE_MESSAGES: 8192n, KICK: 2n, BAN: 4n, MODERATE: 1n << 40n };
 export interface DiscordRole {
     id: string;
     name: string;
@@ -21,6 +21,7 @@ export interface DiscordMember {
         bot?: boolean;
     };
     roles: string[];
+    communication_disabled_until?: string | null;
 }
 export interface DiscordChannel {
     id: string;
@@ -186,7 +187,10 @@ export class DiscordRest implements DiscordAdapter {
         const g: DiscordGuild = await this.request(`/guilds/${guild}`);
         const m: DiscordMember = await this.request(`/guilds/${guild}/members/${user}`);
         assert(g.id === guild && m.user?.id === user, 'discord_membership_mismatch', 403);
-        return { userId: user, guildId: guild, owner: g.owner_id === user, administrator: (guildPermissions(g, m) & P.ADMIN) !== 0n, roles: m.roles };
+        const permissions = guildPermissions(g, m);
+        const administrator = (permissions & P.ADMIN) !== 0n;
+        const timeoutEnded = !m.communication_disabled_until || Date.parse(m.communication_disabled_until) <= Date.now();
+        return { userId: user, guildId: guild, owner: g.owner_id === user, administrator, manageGuild: (permissions & P.MANAGE_GUILD) !== 0n && (administrator || timeoutEnded), roles: m.roles };
     }
     async metadata(guild: string) { const g: DiscordGuild = await this.request(`/guilds/${guild}`); const channels: DiscordChannel[] = await this.request(`/guilds/${guild}/channels`); return { name: g.name, roles: g.roles, channels }; }
     async assertCanReadMessage(guild: string, user: string, channelId: string) {

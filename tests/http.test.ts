@@ -520,3 +520,53 @@ test('authorized same-guild text test links refetch only that message and reject
 test('text test validation rejects unsupported sources and empty text yields explicit abstention', async (t) => { const f = await setup(t); const r = rule(f.ref, { type: 'text', referenceId: null, text: TEXT_STARTERS[0]!.definition }); await enable(f, r); const session = (await f.login()).data.sessionToken; const route = `/api/g/${G}/rules/${r.id}/test`; for (const body of [{ text: 'x', base64: PNG.toString('base64') }, { text: 3 }, { text: 'sample', context: 'Untrusted extra policy-relevant context' }, { base64: PNG.toString('base64') }])
     assert.equal((await f.request(route, 'POST', body, session)).status, 400); const out = await f.request(route, 'POST', { text: '' }, session); assert.equal(out.status, 200); assert.equal(out.data.status, 'insufficient_evidence'); assert.equal(f.control.calls, 0); assert.equal(f.discord.performed.length, 0); });
 test('text starters require admin installation and marker cannot be reset through settings', async (t) => { const f = await setup(t); const session = (await f.login()).data.sessionToken; const out = await f.request(`/api/g/${G}/text-starters/install`, 'POST', {}, session); assert.equal(out.status, 200); assert.equal(out.data.installed, 10); assert.equal((await f.request(`/api/g/${G}/text-starters/install`, 'POST', {}, session)).data.installed, 0); const settings = await f.store.getSettings(G); assert.equal((await f.request(`/api/g/${G}/settings`, 'PUT', { revision: settings.revision, value: { ...settings.value, textStartersInstalled: false } }, session)).status, 400); await f.grant(['rules.view', 'rules.create', 'rules.edit', 'actions.change']); const mod = (await f.login('moderator-code')).data.sessionToken; assert.equal((await f.request(`/api/g/${G}/text-starters`, 'GET', undefined, mod)).status, 200); assert.equal((await f.request(`/api/g/${G}/text-starters/install`, 'POST', {}, mod)).status, 403); });
+
+test('Manage Server connects without a role grant and reaches setup, with live revocation and guild isolation', async t => {
+    const f = await setup(t);
+    f.discord.members.get(MOD)!.manageGuild = true;
+    const login = await f.login('moderator-code');
+    assert.equal(login.status, 200);
+    assert.equal(login.data.authority.administrator, false);
+    assert.equal(login.data.authority.manageGuild, true);
+    assert.ok(login.data.authority.capabilities.includes('permissions.manage'));
+    const token = login.data.sessionToken;
+    for (const route of ['me', 'credentials', 'onboarding/context', 'packs/starters', 'scans'])
+        assert.equal((await f.request(`/api/g/${G}/${route}`, 'GET', undefined, token)).status, 200, route);
+    assert.equal((await f.store.all('grants', G)).length, 0);
+    assert.equal((await f.request(`/api/g/${G2}/onboarding/context`, 'GET', undefined, token)).status, 403);
+    const settings = await f.store.getSettings(G);
+    assert.equal((await f.request(`/api/g/${G}/settings`, 'PUT', {value: {dailyCallLimit: settings.value.dailyCallLimit + 1}, revision: settings.revision}, token)).status, 200);
+    f.discord.members.get(MOD)!.manageGuild = false;
+    for (const route of ['credentials', 'onboarding/context', 'packs/starters', 'scans'])
+        assert.equal((await f.request(`/api/g/${G}/${route}`, 'GET', undefined, token)).status, 403, route);
+    assert.equal((await f.login('moderator-code')).status, 403);
+    await f.grant(['dashboard.view']);
+    assert.equal((await f.login('moderator-code')).status, 200);
+    assert.equal((await f.request(`/api/g/${G}/credentials`, 'GET', undefined, token)).status, 403);
+    assert.equal(f.discord.performed.length, 0);
+});
+
+test('standalone browser setup accepts Manage Server without Discord Administrator or a stored grant', async t => {
+    const f = await setup(t), address = f.server.address() as {port: number}, base = `http://127.0.0.1:${address.port}`;
+    f.discord.members.get(MOD)!.manageGuild = true;
+    const start = await f.request('/api/auth/browser/start', 'POST', {guildId: G});
+    const state = new URL(start.data.authorizeUrl).searchParams.get('state');
+    const cookie = start.headers.get('set-cookie')!.split(';')[0]!;
+    const callback = await fetch(base + `/api/auth/browser/callback?code=moderator-code&state=${state}`, {headers: {Cookie: cookie}, redirect: 'manual'});
+    assert.equal(callback.status, 303);
+    const bootstrap = await fetch(base + '/api/auth/browser/session', {method: 'POST', headers: {Origin: ORIGIN, Cookie: callback.headers.get('set-cookie')!.split(';')[0]!}});
+    assert.equal(bootstrap.status, 200);
+    const data = await bootstrap.json() as any;
+    assert.equal(data.authority.manageGuild, true);
+    assert.equal(data.authority.administrator, false);
+    assert.equal((await f.store.all('grants', G)).length, 0);
+});
+
+
+test('client-provided Manage Server claims cannot elevate an ungranted member', async t => {
+    const f = await setup(t);
+    const start = await f.request('/api/auth/start', 'POST', {});
+    const forged = await f.request('/api/auth/exchange', 'POST', {code: 'moderator-code', nonce: start.data.nonce, guildId: G, manageGuild: true});
+    assert.equal(forged.status, 400);
+    assert.equal((await f.login('moderator-code')).status, 403);
+});

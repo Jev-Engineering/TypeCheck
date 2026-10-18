@@ -37,7 +37,7 @@ test('pre-installation scan has finite cutoff, explicit thread gaps, review-only
     const overlap=await f.history.start(G,ADMIN,input);await drain(f);
     assert.equal((await f.history.get(G,overlap.id)).counters.reused,1);assert.equal((await f.store.all('evaluations',G)).length,1);
     await assert.rejects(f.history.get(G2,scan.id),/scan_not_found/);
-    await assert.rejects(f.history.start(G,MOD,input),/administrator_required/);
+    await assert.rejects(f.history.start(G,MOD,input),/server_management_required/);
 });
 test('pause/resume and cancellation preserve pending cursor across new worker instances',async t=>{
     const f=await setup(t),m=message();f.discord.messages.set(m.messageId,m);

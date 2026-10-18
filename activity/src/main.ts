@@ -1,3 +1,4 @@
+import { canManageServer } from '../../shared/domain.js';
 import { setupPanel } from './onboarding.js';
 import type { Pack, PackPreview, ImportOptions, PackKind } from '../../shared/packs.js';
 async function editDefinition(d: any) {
@@ -186,7 +187,7 @@ function initializeAgentSetup() {
 }
 window.addEventListener('pagehide',clearAgentSetup);
 const can = (cap: Capability) => authority?.capabilities.includes(cap) ?? false;
-const admin = () => !!(authority?.owner || authority?.administrator);
+const admin = () => canManageServer(authority);
 const pretty = (s: string) => s === 'severe_threshold_must_not_be_lower' ? 'Action floors must satisfy timeout <= kick <= ban.' : s === 'match_threshold_must_be_a_finite_number_from_0.5_to_1.0' ? 'Match threshold must be a finite number from 0.5 to 1.0 (inclusive).' : s.replaceAll('_', ' ');
 function h<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Record<string, unknown> = {}, ...children: Child[]): HTMLElementTagNameMap[K] {
     const el = document.createElement(tag);
@@ -358,7 +359,7 @@ async function overview(parent: HTMLElement) {
     const counts = data.counts;
     parent.append(h('div', { class: 'stats' }, ...[[counts.images, 'Active reference images'], [counts.rules, 'Active rules'], [counts.evaluations, 'Retained evaluations'], [counts.successful, 'Events with successful actions']].map(([n, label]) => h('section', { class: 'stat' }, h('strong', {}, n), h('span', {}, label)))));
     const setup = h('div', { class: 'checklist' }, ...[[data.credential.configured, 'Configure a Jev key'], [counts.images > 0, 'Upload reference images'], [counts.rules > 0, 'Create and test a rule'], [settings!.value.channels.length > 0, 'Choose monitored channels'], [settings!.value.enforcement, 'Enable enforcement after approval']].map(([done, label]) => h('div', { class: 'checklist-row' }, badge(done ? 'DONE' : 'NEXT', done ? 'green' : 'neutral'), h('span', {}, label))));
-    parent.append(h('div', { class: 'columns' }, panel('Setup checklist', 'New servers begin with no channels selected and enforcement off.', setup), panel('Usage & safeguards', 'A probability threshold is not an accuracy guarantee.', h('div', { class: 'usage' }, h('strong', {}, `${data.usage.calls} / ${settings!.value.dailyCallLimit}`), h('span', {}, 'Quota reservations today (UTC)'), h('progress', { value: data.usage.calls, max: settings!.value.dailyCallLimit }), h('p', {}, `${Number(data.usage.inputTokens).toLocaleString()} reported input tokens`)), h('p', { class: 'muted' }, 'Kick and ban require representative labeled examples, administrator approval, and a second Jev check.'))));
+    parent.append(h('div', { class: 'columns' }, panel('Setup checklist', 'New servers begin with no channels selected and enforcement off.', setup), panel('Usage & safeguards', 'A probability threshold is not an accuracy guarantee.', h('div', { class: 'usage' }, h('strong', {}, `${data.usage.calls} / ${settings!.value.dailyCallLimit}`), h('span', {}, 'Quota reservations today (UTC)'), h('progress', { value: data.usage.calls, max: settings!.value.dailyCallLimit }), h('p', {}, `${Number(data.usage.inputTokens).toLocaleString()} reported input tokens`)), h('p', { class: 'muted' }, 'Kick and ban require representative labeled examples, server-manager approval, and a second Jev check.'))));
     parent.append(panel('Recent moderation events', 'Outcomes are recorded separately from intended actions.', data.recent.length ? eventTable(data.recent) : empty('No moderation events', 'Create and test a text or image rule to begin. Native text rules are opt-in.')));
 }
 function eventTable(items: ModerationEvent[]) { return table(['Time', 'User / message', 'Intended', 'Actual result'], items.map(e => [date(e.createdAt), h('div', {}, h('code', {}, e.userId), h('small', {}, e.messageId)), badge(e.intended), h('span', { class: e.actual.includes('success') ? 'success-text' : 'muted' }, pretty(e.actual))])); }
@@ -526,7 +527,7 @@ async function editRule(old?: Rule, initialContent?: import('../../shared/conten
     action.onchange = update;
     update();
     let d: HTMLDialogElement;
-    d = modal(old ? 'Edit rule' : 'Create rule', 'Saving any rule edit clears its prior approval. An any-image rule requires no positive Jev match.', h('div', { class: 'form-stack' }, field('Rule name', name), h('div', { class: 'form-row' }, field('When', type), field('Matching mode', mode)), refField, groupField, contentFields, h('div', { class: 'form-row' }, field('Action', action), field('Threshold preset', matchPreset), field('Match score threshold', threshold), field('Priority', priority)), thresholdHelp, h('p', { class: 'muted' }, 'Standard and Strict are practical starting points that depend on the domain, model and images. Strict is a stricter threshold, not an accuracy guarantee. Action floors are configurable by administrators in Settings.'), presets, timeoutField, field('Moderation reason', reason), enabled.node, automatic.node, deletion.node, verification.node), [button('Save rule', async () => {
+    d = modal(old ? 'Edit rule' : 'Create rule', 'Saving any rule edit clears its prior approval. An any-image rule requires no positive Jev match.', h('div', { class: 'form-stack' }, field('Rule name', name), h('div', { class: 'form-row' }, field('When', type), field('Matching mode', mode)), refField, groupField, contentFields, h('div', { class: 'form-row' }, field('Action', action), field('Threshold preset', matchPreset), field('Match score threshold', threshold), field('Priority', priority)), thresholdHelp, h('p', { class: 'muted' }, 'Standard and Strict are practical starting points that depend on the domain, model and images. Strict is a stricter threshold, not an accuracy guarantee. Action floors are configurable by server managers in Settings.'), presets, timeoutField, field('Moderation reason', reason), enabled.node, automatic.node, deletion.node, verification.node), [button('Save rule', async () => {
             const rule = { ...(type.value === 'content' ? { content: parseContent({ ...definition, version: CONTENT_VERSION, question: question.value, positive: positive.value, negative: negative.value, exceptions: exceptions.value, contextRequirements: contextRequirements.value, contextSource: contextSource.value, requirePromotion: promotion.box.checked, requireReadableText: readable.box.checked, supporting: support.value.trim() ? support.value.split('\n').map(line => { const split = line.indexOf('|'); return { id: line.slice(0, split).trim(), question: line.slice(split + 1).trim() }; }) : [] }) } : {}), name: name.value, type: type.value, referenceId: type.value === 'individual' ? ref.value : null, groupId: type.value === 'group' ? group.value : null, mode: mode.value, threshold: Number(threshold.value), action: action.value, timeoutSeconds: Number(timeout.value), deleteMessage: deletion.box.checked, priority: Number(priority.value), enabled: enabled.box.checked, automatic: automatic.box.checked, secondVerification: verification.box.checked, reason: reason.value };
             await api(old ? `rules/${old.id}` : 'rules', old ? 'PUT' : 'POST', { rule: parseRule(rule), ...(old ? { revision: old.revision } : {}) });
             d.close();
@@ -616,7 +617,7 @@ async function permissions(parent: HTMLElement) {
         const grant = grants.find(g => g.roleId === role.value);
         for (const cap of CAPABILITIES) {
             const reserved = ADMIN_ONLY.includes(cap);
-            const item = check(pretty(cap), reserved ? false : grant?.capabilities.includes(cap) ?? false, reserved ? 'Administrator only' : undefined);
+            const item = check(pretty(cap), reserved ? false : grant?.capabilities.includes(cap) ?? false, reserved ? 'Server managers only' : undefined);
             item.box.disabled = reserved || !admin() && (!can(cap) || cap === 'moderators.delegate');
             toggles.set(cap, item.box);
             matrix.append(item.node);
@@ -624,11 +625,11 @@ async function permissions(parent: HTMLElement) {
     };
     role.onchange = update;
     update();
-    parent.append(h('div', { class: 'notice' }, 'The server owner and Discord Administrators always have full access. Everyone else needs an explicit role grant. Backend requests recheck current roles; hiding a control is not an authorization boundary.'));
+    parent.append(h('div', { class: 'notice' }, 'The server owner and members with Administrator or Manage Server have full TypeCheck access automatically. Everyone else needs a TypeCheck role grant. Backend requests recheck current roles; hiding a control is not an authorization boundary.'));
     parent.append(panel('Delegated capabilities', 'Grant only the capabilities needed for the role. Image changes invalidate dependent approvals.', field('Discord role', role), matrix, h('div', { class: 'actions' }, button('Save role permissions', async () => { if (role.value === guild && !await confirmAction('Grant access to @everyone?', 'These capabilities will be available to every member of this Discord server.'))
         return; const old = grants.find(g => g.roleId === role.value); await api(`grants/${role.value}`, 'PUT', { revision: old?.revision ?? 0, capabilities: [...toggles].filter(([, v]) => v.checked).map(([c]) => c) }); await render(); message('Role permissions saved.'); }), button('Revoke this role’s grant', async () => { const old = grants.find(g => g.roleId === role.value); if (!old)
         throw new Error('This role has no grant'); await api(`grants/${role.value}`, 'DELETE', { revision: old.revision }); await render(); }, 'danger'))));
-    parent.append(panel('Your effective permissions', `User ${authority!.userId} · ${admin() ? 'Discord administrator' : 'Delegated role access'}`, h('div', { class: 'cap-list' }, ...authority!.capabilities.map(c => badge(pretty(c))))));
+    parent.append(panel('Your effective permissions', `User ${authority!.userId} · ${admin() ? 'Server management access' : 'Delegated role access'}`, h('div', { class: 'cap-list' }, ...authority!.capabilities.map(c => badge(pretty(c))))));
 }
 function checklist(title: string, entries: {
     id: string;
@@ -703,7 +704,7 @@ async function start(autoConnect = true) {
         app.replaceChildren();
         const server=input(new URLSearchParams(location.search).get('guild') ?? '');
         const login=async()=>{const b=await api('/api/auth/browser/start','POST',{guildId:server.value.trim()},true);location.assign(b.authorizeUrl);};
-        app.append(h('main',{class:'login'},h('h1',{},'Browser-assisted setup'),h('p',{},'Sign in with Discord for this guild. Administrator authority is checked live. WebMCP support is experimental; the same manual planner works without it.'),field('Discord server ID',server),button('Sign in with Discord',login),h('a',{href:'/'},'Activity and installation help')));
+        app.append(h('main',{class:'login'},h('h1',{},'Browser-assisted setup'),h('p',{},'Sign in with Discord for this guild. Your Manage Server or Administrator permission is checked live. WebMCP support is experimental; the same manual planner works without it.'),field('Discord server ID',server),button('Sign in with Discord',login),h('a',{href:'/'},'Activity and installation help')));
         try {
             const auth=await api('/api/auth/browser/session','POST',{},true);
             guild=auth.guildId;session=auth.sessionToken;authority=auth.authority;
@@ -723,8 +724,8 @@ async function start(autoConnect = true) {
         h('div', { class: 'actions login-actions' },
             showInstall ? h('a', { class: 'button primary', href: installUrl.href, target: '_blank', rel: 'noopener noreferrer', 'aria-describedby': 'install-help' }, 'Add to your server') : null,
             button(preview ? 'Open read-only preview' : 'Connect in Discord', () => connect(config.clientId), showInstall ? 'quiet' : 'primary')),
-        showInstall ? h('p', { class: 'install-help', id: 'install-help' }, 'Opens Discord in a new tab. You need Manage Server permission to install. Then open the TypeCheck Activity in your server; an administrator can choose channels, add a Jev API key, and configure rules. Automatic moderation stays off until approved and enabled.') : null,
-        status, h('p', { class: 'muted' }, 'Launch from a server Activity. Administrators have access automatically; moderators require an explicit role grant.'),
+        showInstall ? h('p', { class: 'install-help', id: 'install-help' }, 'Opens Discord in a new tab. You need Manage Server permission to install. Then open the TypeCheck Activity in your server; you can connect immediately using the same Manage Server permission to choose channels, add a Jev API key, and configure rules. No separate TypeCheck role is needed. Automatic moderation stays off until approved and enabled.') : null,
+        status, h('p', { class: 'muted' }, 'Launch from a server Activity. Server owners and members with Administrator or Manage Server have access automatically. Other members need a TypeCheck role grant.'),
         showInstall ? h('a', { class:'button quiet', href:'/setup' }, 'Browser-assisted setup') : null,
         showInstall ? h('p', { class: 'legal-links' }, h('a', { href: '/terms' }, 'Terms of Service'), h('a', { href: '/privacy' }, 'Privacy Policy')) : null));
     if (autoConnect && new URLSearchParams(location.search).has('frame_id'))
@@ -770,7 +771,7 @@ async function costsPage(parent: HTMLElement) {
     await load();
     if(admin()) {
         const rates=await api<Rate[]>('analytics/pricing'),model=input(settings?.value.model??DEFAULT_SETTINGS.model),currency=input(''),price=input(''),effective=input(new Date().toISOString()),note=input('');
-        const editor=panel('Administrator pricing','Operator-entered estimates only. Changing this configuration does not change the provider’s price or historical attempt snapshots.',
+        const editor=panel('Server pricing','Operator-entered estimates only. Changing this configuration does not change the provider’s price or historical attempt snapshots.',
             rates.length?table(['Model','Revision','Currency','Input price per million','Effective (UTC)','Source / note'],rates.map(r=>[r.model,r.revision,r.currency,r.perMillion,r.effectiveAt,r.note])):h('p',{},'Rate not configured. No default prices are assumed.'),
             field('Model',model),field('Currency (three uppercase letters)',currency),field('Price per million input tokens (up to 6 decimals)',price),field('Effective UTC timestamp',effective),field('Rate source / note (optional)',note),
             button('Save estimated rate',async()=>{await api('analytics/pricing','PUT',{model:model.value,revision:rates.find(r=>r.model===model.value)?.revision??0,currency:currency.value,perMillion:price.value,effectiveAt:effective.value,note:note.value});await render();message('Pricing revision saved. Historical snapshots are unchanged.');}));
@@ -782,7 +783,7 @@ async function base64Preview(file: File): Promise<string> { return `data:${file.
 
 
 async function historicalPage(parent: HTMLElement) {
-    if(!admin()) throw new Error('administrator_required');
+    if(!admin()) throw new Error('server_management_required');
     const scans=await api<HistoricalScan[]>('scans');
     const scope=select([['all','All eligible channels'],['selected','Selected channels']],'all');
     const selected=h('select',{multiple:true,size:8}), exclusions=h('select',{multiple:true,size:8});

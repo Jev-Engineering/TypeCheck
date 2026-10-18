@@ -1,5 +1,7 @@
 # Reusable moderation packs
 
+Pack administration is available to the server owner and members with live Discord Administrator or Manage Server permission. Delegated roles do not receive pack-administration access. See [permissions](PERMISSIONS.md).
+
 Administrators open **Moderation packs** in the Activity. Select a starter or upload a `.typecheck.json` file, validate it, inspect the preview, resolve conflicts and any destination mappings, preview again, then apply. Importing a selection preserves unrelated records. Nothing is deployed by importing or publishing a pack.
 
 ## Export and complete configuration
@@ -20,7 +22,7 @@ Previously imported and subsequently deleted components remain deleted. Dependen
 
 Saved standalone definitions can be edited or used to create an image-content rule. Rules contain independent definition snapshots: editing the saved definition does not silently change a rule. Export the changed rule to distribute that change.
 
-Policy settings and delegated grants are included with exports but applied only when explicitly selected. Map every channel/role placeholder to a current destination object. Channel access is checked for both administrator and bot. Existing grants with different capabilities block policy application and must be reconciled through Permissions first; imports never silently replace delegated permissions. Grants cannot assign administrator-only capabilities. Role/channel names are not trusted as identity. Intended actions, thresholds and source settings remain visible in preview; imported rules always have `enabled=false`, `automatic=false`, `approval=null`. Applied global policy always has enforcement and high-impact sanctions off. Existing untouched rules keep their state; selected-component import does not pause unrelated moderation.
+Policy settings and delegated grants are included with exports but applied only when explicitly selected. Map every channel/role placeholder to a current destination object. Channel access is checked for both the requesting manager and bot. Existing grants with different capabilities block policy application and must be reconciled through Permissions first; imports never silently replace delegated permissions. Grants cannot assign server-manager-only capabilities. Role/channel names are not trusted as identity. Intended actions, thresholds and source settings remain visible in preview; imported rules always have `enabled=false`, `automatic=false`, `approval=null`. Applied global policy always has enforcement and high-impact sanctions off. Existing untouched rules keep their state; selected-component import does not pause unrelated moderation.
 
 After import, configure channels and credentials, review definitions/actions, run representative positive and negative tests, obtain current destination rule approval, then separately enable rules/automatic enforcement through the normal gates. Severe sanctions still require second verification, Discord permissions/hierarchy and deployment acceptance.
 

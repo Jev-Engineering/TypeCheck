@@ -1,8 +1,10 @@
 # Management API
 
+A server manager is the guild owner or a member with live Discord Administrator or Manage Server permission. Management routes use this authority in both the Activity and standalone dashboard. `Authority.manageGuild` is server-derived; `Authority.administrator` still means Discord Administrator. Client claims cannot grant either permission.
+
 ## Cost analytics
 
-All paths below are under `/api/g/{guildId}` and require live `dashboard.view` authority, except pricing PUT which requires owner/administrator authority. Cross-guild sessions are rejected. Pricing writes require exact Origin validation and create `pricing.updated` audit records in the same transaction.
+All paths below are under `/api/g/{guildId}` and require live `dashboard.view` authority, except pricing PUT which requires server-manager authority. Cross-guild sessions are rejected. Pricing writes require exact Origin validation and create `pricing.updated` audit records in the same transaction.
 
 | Method/path | Result |
 |---|---|
@@ -43,7 +45,7 @@ Successful exchange returns app session token, short-lived Discord access token 
 | /me | GET | Current effective authority |
 | /meta | GET | Guild roles/channel metadata for authorized UI |
 | /dashboard | GET | dashboard.view |
-| /settings | GET, PUT | Read permitted dashboard/channel access; write administrator |
+| /settings | GET, PUT | Read permitted dashboard/channel access; write server manager |
 | /channels | PUT | channels.configure; narrow monitored/excluded lists |
 | /pause | POST | enforcement.pause |
 | /credentials | GET, PUT, DELETE | Administrator; GET is status only |
@@ -142,13 +144,13 @@ nextAttempt; restarting does not reset a persistent cooldown.
 
 ## Native text moderation (October 17, 2026)
 
-`GET /api/g/:guild/text-starters` requires rules.view. `POST .../text-starters/install` with `{}` requires administrator and installs disabled rules transactionally once. Text RuleInput uses type:text, mode:exact, null referenceId/groupId and a text definition (version:message-text-v1, preset, presetVersion:1, question, positive, negative, exceptions, contextRequirements, requirePromotion, configured). Creation/editing requires administrator; new/conversion rules force automatic:false. Maximum eight enabled text rules. settings.textModerationEnabled defaults false; textStartersInstalled is read-only. `POST .../rules/:id/test` accepts exactly one of text:string or messageUrl:string, plus optional expected:boolean (omitted means unlabeled/ambiguous). Links must be same-guild and currently readable. Returns status, probability, thresholds, verification, expected label, matches with digest evidence, inputTokens, policyOutcome and executed:false. No moderation occurs. Usage labels analysisKind:text. See [bounds and evidence](TEXT_MODERATION.md).
+`GET /api/g/:guild/text-starters` requires rules.view. `POST .../text-starters/install` with `{}` requires a server manager and installs disabled rules transactionally once. Text RuleInput uses type:text, mode:exact, null referenceId/groupId and a text definition (version:message-text-v1, preset, presetVersion:1, question, positive, negative, exceptions, contextRequirements, requirePromotion, configured). Creation/editing requires a server manager; new/conversion rules force automatic:false. Maximum eight enabled text rules. settings.textModerationEnabled defaults false; textStartersInstalled is read-only. `POST .../rules/:id/test` accepts exactly one of text:string or messageUrl:string, plus optional expected:boolean (omitted means unlabeled/ambiguous). Links must be same-guild and currently readable. Returns status, probability, thresholds, verification, expected label, matches with digest evidence, inputTokens, policyOutcome and executed:false. No moderation occurs. Usage labels analysisKind:text. See [bounds and evidence](TEXT_MODERATION.md).
 
 ## Browser onboarding API
 
-`POST /api/auth/browser/start {guildId}` requires the public Origin, binds state to browser/guild/origin for five minutes and returns a Discord authorize URL. `GET /api/auth/browser/callback?code=...&state=...` consumes state, exchanges the code with the exact registered redirect, checks live administrator authority and redirects to `/setup` using a 60-second HttpOnly bootstrap cookie. `POST /api/auth/browser/session` requires the public Origin, rechecks authority and returns a 15-minute in-memory management session while clearing the cookie. No OAuth tokens are returned. Existing logout revokes the session; Activity SDK auth remains separate.
+`POST /api/auth/browser/start {guildId}` requires the public Origin, binds state to browser/guild/origin for five minutes and returns a Discord authorize URL. `GET /api/auth/browser/callback?code=...&state=...` consumes state, exchanges the code with the exact registered redirect, checks live server-manager authority and redirects to `/setup` using a 60-second HttpOnly bootstrap cookie. `POST /api/auth/browser/session` requires the public Origin, rechecks authority and returns a 15-minute in-memory management session while clearing the cookie. No OAuth tokens are returned. Existing logout revokes the session; Activity SDK auth remains separate.
 
-All routes below are under `/api/g/:guild/onboarding/` and require a guild-bound session plus live administrator authority:
+All routes below are under `/api/g/:guild/onboarding/` and require a guild-bound session plus live server-manager authority:
 
 | Method/suffix | Input/result |
 |---|---|
@@ -164,9 +166,9 @@ Customizations are keyed by selected text component ID; only `name`, `question`,
 
 Browser tools: `typecheck_context`, `typecheck_inventory`, `typecheck_starters`, `typecheck_plan`, `typecheck_inspect_plan`, `typecheck_apply_plan`, `typecheck_test_rule`, `typecheck_pause`. Test reuses `POST rules/:id/test`, accepts one supplied text/image sample and optional expected boolean, requires `providerUseAccepted: true`, and executes no sanctions. Context-dependent image tests use the manual UI. No accept/credential/approval/grant/activation/generic HTTP or command tool. See [schemas](../activity/src/onboarding.ts) and [onboarding](AGENT_ONBOARDING.md).
 
-## Moderation packs (administrator only)
+## Moderation packs (server managers only)
 
-All routes below use the existing authenticated `/api/g/:guildId/` boundary, live owner/administrator authority and origin checks. Members with delegated capabilities alone cannot import/export packs.
+All routes below use the existing authenticated `/api/g/:guildId/` boundary, live server-manager authority and origin checks. Members with delegated capabilities alone cannot import/export packs.
 
 | Method and route | Request / response |
 |---|---|

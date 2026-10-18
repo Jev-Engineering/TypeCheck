@@ -31,6 +31,8 @@ Node.js 22 and strict TypeScript; native HTTP, WebSocket, and browser DOM APIs; 
 
 ## Install and run
 
+Server owners and members with Discord **Administrator or Manage Server** can connect and complete TypeCheck setup immediately after installation. No separate TypeCheck role grant is needed. Other members need explicit delegated access. These permissions are checked live; losing Manage Server removes automatic management access. [Permissions](docs/PERMISSIONS.md).
+
 Requirements: Node.js 22.13 or later, npm, a PostgreSQL 16 or MySQL 8.0.16+ database, a Discord application/bot, a TypeSafe account, and an HTTPS origin reachable by Discord's Activity proxy. Do not request the bot's Administrator permission.
 
 ```bash

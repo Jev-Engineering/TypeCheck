@@ -37,8 +37,8 @@ test('actor, guild, session and exact digest binding reject substitution',async 
 test('live authority is checked again before acceptance, apply and inventory',async t=>{
     const f=await fixture(t),s=new Onboarding(f.services),p=await s.plan(G,ADMIN,binding,chosen());
     await s.transition(G,ADMIN,binding,ref(p),'accept');f.discord.members.get(ADMIN)!.administrator=false;f.discord.members.get(ADMIN)!.owner=false;
-    await assert.rejects(s.transition(G,ADMIN,binding,ref(p),'apply'),/administrator_required/);
-    await assert.rejects(s.inventory(G,ADMIN),/administrator_required/);assert.equal((await f.store.all('rules',G)).length,0);
+    await assert.rejects(s.transition(G,ADMIN,binding,ref(p),'apply'),/server_management_required/);
+    await assert.rejects(s.inventory(G,ADMIN),/server_management_required/);assert.equal((await f.store.all('rules',G)).length,0);
 });
 test('stale settings, policy revision, and expired plans cannot be accepted/applied',async t=>{
     const f=await fixture(t),s=new Onboarding(f.services),p=await s.plan(G,ADMIN,binding,chosen());
@@ -151,7 +151,7 @@ test('browser registry uses current document API shape, exact semantic tools and
 test('browser callbacks recheck authority and reject ambiguous provider test inputs',async()=>{
     const controller=new AbortController(),tools:BrowserTool[]=[];
     await registerTools({registerTool:async t=>{tools.push(t);}},async()=>({administrator:false,owner:false}),()=>{},controller.signal);
-    await assert.rejects(tools[0]!.execute({}),/administrator_required/);
+    await assert.rejects(tools[0]!.execute({}),/server_management_required/);
     const test=toolDefinitions(async()=>({}),()=>{}).find(t=>t.name==='typecheck_test_rule')!;
     await assert.rejects(test.execute({ruleId:randomUUID(),text:'x',base64:'x',providerUseAccepted:true}),/invalid_test_input/);
     await assert.rejects(test.execute({ruleId:randomUUID(),text:'x',providerUseAccepted:false}),/invalid_test_input/);

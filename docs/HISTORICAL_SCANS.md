@@ -1,5 +1,7 @@
 # Historical image scans
 
+Historical scan administration is available to the server owner and members with live Discord Administrator or Manage Server permission. Authority is rechecked for scan operations and execution; revocation pauses further work. See [permissions](PERMISSIONS.md).
+
 Administrators can open **Historical scans** in the Activity, choose all eligible
 channels or a selection, exclude channels, enter an optional date range, and set
 message, image and provider-attempt budgets. Preview displays the scope and

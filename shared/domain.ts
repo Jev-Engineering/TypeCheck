@@ -204,6 +204,7 @@ export interface MemberInfo {
     guildId: string;
     owner: boolean;
     administrator: boolean;
+    manageGuild?: boolean;
     roles: string[];
 }
 export interface Authority extends MemberInfo {
@@ -325,8 +326,11 @@ export function parseRule(value: unknown, defaultThreshold: number = DEFAULT_RUL
     assert(!(['none', 'review'].includes(r.action) && r.deleteMessage), 'nonpunitive_rule_cannot_delete');
     return r;
 }
+export function canManageServer(member: Pick<MemberInfo, 'owner' | 'administrator' | 'manageGuild'> | null | undefined): boolean {
+    return !!member && (member.owner === true || member.administrator === true || member.manageGuild === true);
+}
 export function effectiveAuthority(member: MemberInfo, grants: RoleGrant[]): Authority {
-    const admin = member.owner || member.administrator;
+    const admin = canManageServer(member);
     const roles = new Set([...member.roles, member.guildId]);
     return { ...member, capabilities: admin ? [...CAPABILITIES] : [...new Set(grants.filter(g => g.guildId === member.guildId && roles.has(g.roleId)).flatMap(g => g.capabilities).filter(c => !ADMIN_ONLY.includes(c)))] };
 }

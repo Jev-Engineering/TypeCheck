@@ -1,3 +1,4 @@
+import { canManageServer } from '../shared/domain.js';
 import { Onboarding } from './onboarding.js';
 import { ONBOARDING_PRESETS, ONBOARDING_NOTICE } from '../shared/onboarding.js';
 import { Packs, exportPack } from './packs.js';
@@ -31,7 +32,7 @@ interface Reply {
 }
 const MAX_BODY = 12 * 1024 * 1024;
 const evolved = <T extends RecordBase>(old: T, changes: Partial<T>): T => ({ ...old, ...changes, revision: old.revision + 1, updatedAt: new Date().toISOString() });
-function requireAdmin(a: Authority) { assert(a.owner || a.administrator, 'administrator_required', 403); }
+function requireManager(a: Authority) { assert(canManageServer(a), 'server_management_required', 403); }
 function nullableUUID(v: unknown): string | null { assert(v === null || uuid(v), 'invalid_uuid'); return v; }
 function decodeImage(v: unknown): Buffer { assert(typeof v === 'string' && v.length <= 11184812 && /^[A-Za-z0-9+/]+={0,2}$/.test(v) && v.length % 4 === 0, 'invalid_image_base64'); return Buffer.from(v, 'base64'); }
 async function jsonBody(req: IncomingMessage, max = MAX_BODY): Promise<Record<string, unknown>> {
@@ -134,7 +135,7 @@ export function createHttp(services: Services, config: Config, root = process.cw
             const [guild, state, verifier] = cookie('tc_oauth').split('.');
             assert(snowflake(guild) && state && verifier && url.searchParams.get('state') === state && await store.consumeNonce(digest(state), `${config.publicOrigin}:${guild}:${digest(verifier)}`), 'invalid_or_expired_state', 401);
             const auth = await discord.exchange(text(url.searchParams.get('code'), 2048), config.publicOrigin + '/api/auth/browser/callback');
-            const a = await services.authority(guild, auth.userId); requireAdmin(a);
+            const a = await services.authority(guild, auth.userId); requireManager(a);
             await seedStarterReferences(services, guild, root);
             const sessionToken = token();
             await store.createSession(digest(sessionToken), {userId:auth.userId, guildId:guild, expiresAt:Date.now()+15*60000});
@@ -145,7 +146,7 @@ export function createHttp(services: Services, config: Config, root = process.cw
             assert(origin === config.publicOrigin, 'browser_origin_required', 403);
             const rawToken = cookie('tc_boot'), session = rawToken ? await store.session(digest(rawToken)) : null;
             assert(session, 'browser_login_required', 401);
-            const a = await services.authority(session.guildId, session.userId); requireAdmin(a);
+            const a = await services.authority(session.guildId, session.userId); requireManager(a);
             return {body:{sessionToken:rawToken, guildId:session.guildId, authority:a, expiresIn:900}, headers:{'Set-Cookie':`tc_boot=${cookieFlags}; Max-Age=0`}};
         }
         const raw = req.headers.authorization;
@@ -165,7 +166,7 @@ export function createHttp(services: Services, config: Config, root = process.cw
         const a = await services.authority(guild, session.userId);
         const route = p.slice(3).join('/');
         if (route.startsWith('onboarding/')) {
-            requireAdmin(a);
+            requireManager(a);
             if (route === 'onboarding/context' && method === 'GET') return {body:await onboarding.context(guild, a.userId)};
             if (route === 'onboarding/inventory' && method === 'GET') return {body:await onboarding.inventory(guild, a.userId, Number(url.searchParams.get('offset') ?? 0))};
             if (route === 'onboarding/starters' && method === 'GET') return {body:{presets:ONBOARDING_PRESETS, textStarters:TEXT_STARTERS, notice:ONBOARDING_NOTICE}};
@@ -173,7 +174,7 @@ export function createHttp(services: Services, config: Config, root = process.cw
             if (['onboarding/plan', 'onboarding/accept', 'onboarding/apply'].includes(route) && method === 'POST') return {body:await onboarding.transition(guild, a.userId, hash, await jsonBody(req), route === 'onboarding/plan' ? 'inspect' : route === 'onboarding/accept' ? 'accept' : 'apply')};
         }
         if (p[3] === 'packs') {
-            requireAdmin(a);
+            requireManager(a);
             if (route === 'packs/history' && method === 'GET') return {body:await new Packs(services).history(guild,a.userId)};
             if (route === 'packs/starters' && method === 'GET') return {body:STARTER_PACKS};
             if (p[4] === 'starter' && method === 'GET') return {body:await starterPack(root,p[5]!)};
@@ -202,7 +203,7 @@ export function createHttp(services: Services, config: Config, root = process.cw
             requireCapability(a, 'dashboard.view'); return { body: await store.analytics.rates(guild) };
         }
         if (route === 'analytics/pricing' && method === 'PUT') {
-            requireAdmin(a); const rate = parseRate(await jsonBody(req));
+            requireManager(a); const rate = parseRate(await jsonBody(req));
             await store.withGuild(guild, async tx => {
                 await tx.analytics.putRate(guild, rate);
                 await services.audit(guild, a.userId, 'pricing.updated', rate.model, { ...rate, revision: rate.revision + 1 }, tx);
@@ -233,7 +234,7 @@ export function createHttp(services: Services, config: Config, root = process.cw
             return { body: (await store.getSettings(guild)).value.thresholds };
         }
         if (p[3] === 'scans') {
-            requireAdmin(a);
+            requireManager(a);
             const history=new Historical(services);
             if(method==='GET') return {body:await history.list(guild)};
             const b=await jsonBody(req);
@@ -243,11 +244,11 @@ export function createHttp(services: Services, config: Config, root = process.cw
             throw new AppError('route_not_found',404);
         }
         if (route === 'settings' && method === 'GET') {
-            assert(a.capabilities.includes('dashboard.view') || a.capabilities.includes('channels.configure') || a.owner || a.administrator, 'forbidden', 403);
+            assert(a.capabilities.includes('dashboard.view') || a.capabilities.includes('channels.configure') || canManageServer(a), 'forbidden', 403);
             return { body: await store.getSettings(guild) };
         }
         if (route === 'settings' && method === 'PUT') {
-            requireAdmin(a);
+            requireManager(a);
             const b = await jsonBody(req);
             onlyKeys(b, ['value', 'revision', 'acknowledgement']);
             const revision = number(b.revision, 1, 1e9, true);
@@ -288,17 +289,17 @@ export function createHttp(services: Services, config: Config, root = process.cw
             return { body: { paused: true } };
         }
         if (route === 'credentials' && method === 'GET') {
-            requireAdmin(a);
+            requireManager(a);
             return { body: await services.credentialStatus(guild) };
         }
         if (route === 'credentials' && method === 'PUT') {
-            requireAdmin(a);
+            requireManager(a);
             const b = await jsonBody(req);
             onlyKeys(b, ['apiKey']);
             return { body: await services.setCredential(guild, a.userId, text(b.apiKey, 4096)) };
         }
         if (route === 'credentials' && method === 'DELETE') {
-            requireAdmin(a);
+            requireManager(a);
             const b = await jsonBody(req);
             onlyKeys(b, ['revision']);
             const revision = number(b.revision, 1, 1e9, true);
@@ -306,7 +307,7 @@ export function createHttp(services: Services, config: Config, root = process.cw
             return { body: { configured: false } };
         }
         if (route === 'credentials/test' && method === 'POST') {
-            requireAdmin(a);
+            requireManager(a);
             return { body: await services.testCredential(guild) };
         }
         if (route === 'groups' && method === 'GET') {
@@ -390,7 +391,7 @@ export function createHttp(services: Services, config: Config, root = process.cw
             return { body: { ok: true } };
         }
         if(route === 'text-starters' && method === 'GET') { requireCapability(a,'rules.view'); return {body:TEXT_STARTERS}; }
-        if(route === 'text-starters/install' && method === 'POST') { requireAdmin(a); onlyKeys(await jsonBody(req),[]); return {body:await installTextStarters(services,guild,a.userId)}; }
+        if(route === 'text-starters/install' && method === 'POST') { requireManager(a); onlyKeys(await jsonBody(req),[]); return {body:await installTextStarters(services,guild,a.userId)}; }
         if (route === 'content-presets' && method === 'GET') { requireCapability(a, 'rules.view'); return { body: CONTENT_PRESETS }; }
         if (route === 'rules' && method === 'GET') {
             requireCapability(a, 'rules.view');
@@ -408,7 +409,7 @@ export function createHttp(services: Services, config: Config, root = process.cw
                 assert(creating || old, 'rule_not_found', 404);
                 const next = parseRule(b.rule, old?.threshold);
                 if (['content','text'].includes(next.type) && (creating || old?.type !== next.type)) next.automatic = false;
-                if(next.type === 'text') { requireAdmin(a); if(next.enabled) assert((await tx.all<Rule>('rules',guild)).filter(r=>r.id!==id&&r.type==='text'&&r.enabled).length<TEXT_LIMITS.rules,'text_active_rule_limit'); }
+                if(next.type === 'text') { requireManager(a); if(next.enabled) assert((await tx.all<Rule>('rules',guild)).filter(r=>r.id!==id&&r.type==='text'&&r.enabled).length<TEXT_LIMITS.rules,'text_active_rule_limit'); }
                 if (old)
                     assert(old.revision === number(b.revision, 1, 1e9, true), 'revision_conflict', 409);
                 if (creating)
@@ -492,18 +493,18 @@ export function createHttp(services: Services, config: Config, root = process.cw
                 return { body: (await store.all<Calibration>('calibrations', guild)).filter(t => t.ruleId === id) };
             }
             if (p[5] === 'approve' && method === 'POST') {
-                requireAdmin(a);
+                requireManager(a);
                 const b = await jsonBody(req);
                 onlyKeys(b, ['note']);
                 return { body: await services.approveRule(guild, a.userId, id, text(b.note, 1000)) };
             }
         }
         if (route === 'grants' && method === 'GET') {
-            assert(a.owner || a.administrator || a.capabilities.includes('moderators.delegate'), 'forbidden', 403);
+            assert(canManageServer(a) || a.capabilities.includes('moderators.delegate'), 'forbidden', 403);
             return { body: await store.all<RoleGrant>('grants', guild) };
         }
         if (p[3] === 'grants' && snowflake(p[4]) && p.length === 5 && (method === 'PUT' || method === 'DELETE')) {
-            const admin = a.owner || a.administrator;
+            const admin = canManageServer(a);
             if (!admin)
                 requireCapability(a, 'moderators.delegate');
             const roleId = p[4];

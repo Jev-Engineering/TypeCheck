@@ -4,7 +4,7 @@ import { activityAuth, apiResponse, connectionError, HttpError } from '../activi
 
 test('missing TypeCheck role grant explains access requirements instead of retrying Discord authorization', () => {
     const error = connectionError('Authorization code exchange', new HttpError('no_delegated_access', 403));
-    assert.match(error.message, /Server owners and administrators/);
+    assert.match(error.message, /Server owners and members with Administrator or Manage Server/);
     assert.match(error.message, /TypeCheck → Permissions and grant access to your Discord role/);
     assert.doesNotMatch(error.message, /close and reopen|Discord continues rejecting/);
     assert.match(connectionError('Authorization code exchange', new HttpError('discord_http_403', 403)).message, /HTTP 403: discord_http_403/);
