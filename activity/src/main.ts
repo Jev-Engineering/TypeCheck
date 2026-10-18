@@ -122,7 +122,7 @@ async function packsPage(parent: HTMLElement) {
 import { TEXT_STARTERS } from '../../shared/text-starters.js';
 import { TEXT_LIMITS, parseText } from '../../shared/text.js';
 import type { HistoricalScan } from '../../shared/historical.js';
-import { activityAuth, HttpError, serializeConnection } from './connection.js';
+import { activityAuth, apiResponse, HttpError, serializeConnection } from './connection.js';
 import { timeoutPreset } from '../../shared/domain.js';
 import { CONTENT_PRESETS, CONTENT_VERSION, parseContent } from '../../shared/content.js';
 import { money, type AnalyticsReport, type Bucket, type Attempt, type Rate } from '../../shared/analytics.js';
@@ -187,7 +187,7 @@ function initializeAgentSetup() {
 window.addEventListener('pagehide',clearAgentSetup);
 const can = (cap: Capability) => authority?.capabilities.includes(cap) ?? false;
 const admin = () => !!(authority?.owner || authority?.administrator);
-const pretty = (s: string) => s === 'severe_threshold_must_not_be_lower' ? 'Action floors must satisfy timeout <= kick <= ban.' : s === 'match_threshold_must_be_a_finite_number_from_0.5_to_1.0' ? 'Match threshold must be a finite number from 0.5 to 1.0 (inclusive).' : s.replaceAll('_', ' ').replaceAll('.', ' / ');
+const pretty = (s: string) => s === 'severe_threshold_must_not_be_lower' ? 'Action floors must satisfy timeout <= kick <= ban.' : s === 'match_threshold_must_be_a_finite_number_from_0.5_to_1.0' ? 'Match threshold must be a finite number from 0.5 to 1.0 (inclusive).' : s.replaceAll('_', ' ');
 function h<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Record<string, unknown> = {}, ...children: Child[]): HTMLElementTagNameMap[K] {
     const el = document.createElement(tag);
     for (const [key, value] of Object.entries(attrs)) {
@@ -244,13 +244,9 @@ function table(headers: string[], rows: Child[][]) { return h('div', { class: 't
 function empty(title: string, detail: string) { return h('div', { class: 'empty' }, h('h3', {}, title), h('p', {}, detail)); }
 async function api<T = any>(path: string, method = 'GET', body?: unknown, global = false): Promise<T> {
     const response = await fetch(global ? path : `/api/g/${guild}/${path}`, { method, headers: { ...(session ? { Authorization: `Bearer ${session}` } : {}), ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
-    const data = await response.json();
-    if (!response.ok) {
-        if ([401,403].includes(response.status)) clearAgentSetup();
-        if (response.status === 401) session = '';
-        throw new HttpError(data.error ?? 'Request failed', response.status);
-    }
-    return data as T;
+    if (!response.ok && [401,403].includes(response.status)) clearAgentSetup();
+    if (response.status === 401) session = '';
+    return apiResponse<T>(response);
 }
 async function blobRequest(path: string) { const r = await fetch(`/api/g/${guild}/${path}`, { headers: { Authorization: `Bearer ${session}` } }); if (!r.ok)
     throw new Error('Cannot retrieve file'); return r.blob(); }
