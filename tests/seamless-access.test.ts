@@ -23,9 +23,10 @@ test('Manage Server grants application management without claiming Discord Admin
 
 test('Discord authority derives Manage Server from live permission bits rather than role names', async () => {
     let permissions = '32';
+    let timeout: string | null = null;
     const rest = new DiscordRest('test-bot', G, 'test-secret', (async (url: string | URL | Request) => {
         return String(url).endsWith('/members/' + MOD)
-            ? Response.json({ user: { id: MOD }, roles: [ROLE] })
+            ? Response.json({ user: { id: MOD }, roles: [ROLE], communication_disabled_until: timeout })
             : Response.json({ id: G, owner_id: '100000000000099999', roles: [
                 { id: G, name: '@everyone', permissions: '0', position: 0 },
                 { id: ROLE, name: 'Administrator', permissions, position: 1 }
@@ -34,6 +35,11 @@ test('Discord authority derives Manage Server from live permission bits rather t
     const manager = await rest.memberInfo(G, MOD);
     assert.equal(manager.manageGuild, true);
     assert.equal(manager.administrator, false);
+    timeout = new Date(Date.now() + 60000).toISOString();
+    assert.equal((await rest.memberInfo(G, MOD)).manageGuild, false);
+    timeout = new Date(Date.now() - 60000).toISOString();
+    assert.equal((await rest.memberInfo(G, MOD)).manageGuild, true);
+    timeout = null;
     for (permissions of ['0', '16', '8192']) {
         const member = await rest.memberInfo(G, MOD);
         assert.equal(member.manageGuild, false);

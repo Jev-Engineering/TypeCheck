@@ -21,6 +21,7 @@ export interface DiscordMember {
         bot?: boolean;
     };
     roles: string[];
+    communication_disabled_until?: string | null;
 }
 export interface DiscordChannel {
     id: string;
@@ -187,7 +188,9 @@ export class DiscordRest implements DiscordAdapter {
         const m: DiscordMember = await this.request(`/guilds/${guild}/members/${user}`);
         assert(g.id === guild && m.user?.id === user, 'discord_membership_mismatch', 403);
         const permissions = guildPermissions(g, m);
-        return { userId: user, guildId: guild, owner: g.owner_id === user, administrator: (permissions & P.ADMIN) !== 0n, manageGuild: (permissions & P.MANAGE_GUILD) !== 0n, roles: m.roles };
+        const administrator = (permissions & P.ADMIN) !== 0n;
+        const timeoutEnded = !m.communication_disabled_until || Date.parse(m.communication_disabled_until) <= Date.now();
+        return { userId: user, guildId: guild, owner: g.owner_id === user, administrator, manageGuild: (permissions & P.MANAGE_GUILD) !== 0n && (administrator || timeoutEnded), roles: m.roles };
     }
     async metadata(guild: string) { const g: DiscordGuild = await this.request(`/guilds/${guild}`); const channels: DiscordChannel[] = await this.request(`/guilds/${guild}/channels`); return { name: g.name, roles: g.roles, channels }; }
     async assertCanReadMessage(guild: string, user: string, channelId: string) {
