@@ -719,7 +719,7 @@ async function start(autoConnect = true) {
     const inDiscord = new URLSearchParams(location.search).has('frame_id');
     const showInstall = !preview && !inDiscord;
     const installUrl = new URL('https://discord.com/oauth2/authorize');
-    installUrl.search = new URLSearchParams({ client_id: config.clientId, scope: 'bot applications.commands', permissions: '68608', integration_type: '0' }).toString();
+    installUrl.search = new URLSearchParams({ client_id: config.clientId, scope: 'bot applications.commands', permissions: '1374389611526', integration_type: '0' }).toString();
     app.append(h('main', { class: 'login' }, h('div', { class: 'login-brand' }, h('span', { class: 'brand-mark' }, 'J'), h('p', { class: 'eyebrow' }, 'JEV / TYPECHECK')), badge(preview ? 'OFFLINE PREVIEW' : 'EXPERIMENTAL MODERATION', 'amber'), h('h1', {}, 'Text + image moderation.\nUnder your control.'), h('p', { class: 'login-copy' }, 'Manage text policies, reference images, permissions, and credentials inside Discord. The backend bot handles continuous monitoring.'),
         h('div', { class: 'actions login-actions' },
             showInstall ? h('a', { class: 'button primary', href: installUrl.href, target: '_blank', rel: 'noopener noreferrer', 'aria-describedby': 'install-help' }, 'Add to your server') : null,

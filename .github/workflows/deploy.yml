@@ -1,12 +1,16 @@
 name: Deploy production
-# Explicitly dispatch only after separate production authorization. Validate on main is still required. Pull request
+# Deploys a commit whose Validate run on a push to main succeeded, or an explicitly dispatched main commit. Pull request
 # runs, other branches and failed or cancelled runs never reach the deploy job.
-# Publication requires explicit workflow_dispatch. No pull request code is
+# workflow_run is used only to observe Validate's verdict for main. No pull request code is
 # checked out or executed here; the candidate is a main commit that already passed CI.
 # Database credentials exist only inside the GoDaddy runtime, so CI never touches the
 # database. A release admitted with an expand-only migration backs the database up to its
 # persistent volume and then migrates, once, at startup under the migration lock.
 on: # zizmor: ignore[dangerous-triggers]
+  workflow_run:
+    workflows: [Validate]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       commit:
@@ -28,7 +32,12 @@ concurrency:
   cancel-in-progress: false
 jobs:
   deploy:
-    if: github.event_name == 'workflow_dispatch'
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-24.04
     # Worst case: ship <=20, verify <=19 (incl. PREVIEW restart retries), rollback ship+verify <=39 minutes.
     timeout-minutes: 80

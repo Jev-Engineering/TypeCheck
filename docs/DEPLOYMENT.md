@@ -2,7 +2,7 @@
 
 Production runs on GoDaddy Node.js Hosting. A release reaches it only through `.github/workflows/deploy.yml`:
 
-PR → `Validate` and review → merge to `main` → `Validate` succeeds on the push to `main` → separate explicit production authorization and workflow dispatch → `Deploy production` deploys that exact commit → post-deployment verification.
+PR → `Validate` and review → merge to `main` → `Validate` succeeds on the push to `main` → `Deploy production` (started automatically by that successful run, or by manual dispatch) deploys that exact commit → post-deployment verification.
 
 ## Architecture (release source updated 2026-10-17)
 
@@ -19,7 +19,7 @@ PR → `Validate` and review → merge to `main` → `Validate` succeeds on the 
 
 ### Why deployment cannot bypass CI
 
-- Production publication runs only by explicit authorized `workflow_dispatch`. Merging a PR or completing CI no longer automatically deploys production. Successful Validate on the exact main commit remains mandatory.
+- Production publication runs automatically when `Validate` succeeds on a push to `main`: merging a PR deploys it once CI passes. Pull request runs, other branches and failed or cancelled runs never deploy. Manual `workflow_dispatch` remains available for redeploys and rollbacks.
 - Manual dispatch must name a full SHA that is on `main` and has a successful `Validate` push run. The workflow checks both.
 - Nothing else can deploy. GoDaddy has no push webhook, and the GoDaddy PAT exists only in the `production` environment, which is restricted to `main`.
 - Review remains a process requirement: the repository is public, but main currently has no branch protection or ruleset. Direct pushes still require successful main CI before this deployment workflow runs. The deployment job has `contents: write` only to create release artifact branches; its code never writes main. It uses the short-lived workflow token, not a new credential.
