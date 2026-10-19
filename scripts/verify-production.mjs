@@ -33,6 +33,16 @@ async function waitForRelease() {
     throw new Error(`release not serving before timeout: ${last}`);
 }
 
+// A newly elected leader reports 503 until its Gateway connects; poll briefly instead of failing on the first read.
+async function waitForReady() {
+    const until = Math.min(deadline, Date.now() + 90000);
+    for (;;) {
+        const ready = await get(`${origin}/api/ready`);
+        if ((ready.status === 200 && json(ready.body)?.status === 'ready') || Date.now() >= until) return ready;
+        await new Promise(r => setTimeout(r, 5000));
+    }
+}
+
 let health;
 try { health = await waitForRelease(); }
 catch (e) { check('release serving', false, e.message); }
@@ -42,7 +52,7 @@ if (health) try {
     check('controller state recognized', ['leader', 'standby'].includes(health.status), health.status);
     check('object storage persisted', !storage || health.storage === storage, `${health.storage} (expected ${storage ?? 'new marker'})`);
     check('object storage writable', !expected || /^[0-9a-f]{32}$/.test(health.storage ?? ''), health.storage);
-    const ready = await get(`${origin}/api/ready`), r = json(ready.body);
+    const ready = await waitForReady(), r = json(ready.body);
     check('readiness (database + controller)', ready.status === 200 && r?.status === 'ready', `${ready.status} ${ready.body.slice(0, 100)}`);
     if (health.status === 'leader') check('leader remains ready', r?.controller === 'leader', r?.controller);
     check('api responses not cached', /no-store/.test(ready.headers.get('cache-control') ?? '') && ready.headers.get('cf-cache-status') !== 'HIT', ready.headers.get('cache-control'));
