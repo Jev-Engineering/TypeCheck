@@ -16,6 +16,8 @@ export async function apiResponse<T = any>(response: Response): Promise<T> {
     return data as T;
 }
 export function connectionError(stage: string, error: unknown): Error {
+    if (error instanceof HttpError && error.status === 409 && error.message === 'bot_not_in_server')
+        return new Error('The TypeCheck bot is not in this server yet. A member with Manage Server needs to add it: open TypeCheck in a browser, click Add to your server, choose this server and authorize. Then click Connect in Discord.');
     if (error instanceof HttpError && error.status === 403 && error.message === 'no_delegated_access')
         return new Error('You need permission to use TypeCheck in this server. Ask a server owner or member with Manage Server to open TypeCheck → Permissions and grant access to your Discord role, then click Connect in Discord. Server owners and members with Administrator or Manage Server have access automatically.');
     const detail = error instanceof HttpError ? ` (HTTP ${error.status}: ${error.message}${error.reference ? `; reference ${error.reference}` : ''})` :

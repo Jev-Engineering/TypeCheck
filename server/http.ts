@@ -84,7 +84,8 @@ export function createHttp(services: Services, config: Config, root = process.cw
             if (v.at < now - 60000)
                 limits.delete(k); }
     // Operational log lines carry codes, timings and request IDs only: never tokens, bodies or member data.
-    const log = (event: Record<string, unknown>) => console.log(JSON.stringify(event));
+    // The plain-text prefix keeps every field: the hosting log processor collapses bare JSON to a few keys.
+    const log = (event: Record<string, unknown>) => console.log('TYPECHECK_EVENT_V1 ' + JSON.stringify(event));
     // Starter references are copied after the sign-in reply. The copy normalizes 33 images in one transaction,
     // which can outlast the hosting/Discord proxy timeout and turn a completed sign-in into a 502.
     const seeding = new Map<string, Promise<void>>();

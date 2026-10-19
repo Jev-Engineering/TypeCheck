@@ -93,3 +93,9 @@ test('renewal permission or network failures do not start another OAuth flow', a
     await assert.rejects(f.connect(), /Session renewal failed.*server could not be reached/);
     assert.equal(f.calls.filter(c => c.startsWith('authorize:')).length, 1);
 });
+test('a server without the bot explains how to add it instead of reporting a server error', () => {
+    const error = connectionError('Authorization code exchange', new HttpError('bot_not_in_server', 409));
+    assert.match(error.message, /bot is not in this server yet/);
+    assert.match(error.message, /Add to your server/);
+    assert.doesNotMatch(error.message, /HTTP 409/);
+});
