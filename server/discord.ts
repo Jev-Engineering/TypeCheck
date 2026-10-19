@@ -184,8 +184,10 @@ export class DiscordRest implements DiscordAdapter {
         return auth.user.id;
     }
     async memberInfo(guild: string, user: string): Promise<MemberInfo> {
-        const g: DiscordGuild = await this.request(`/guilds/${guild}`);
-        const m: DiscordMember = await this.request(`/guilds/${guild}/members/${user}`);
+        // Discord answers 404 Unknown Guild when the bot is not installed; an Activity can still be launched there.
+        const notFound = (code: string, status: number) => (e: unknown) => { throw e instanceof AppError && e.code === 'discord_http_404' ? new AppError(code, status) : e; };
+        const g: DiscordGuild = await this.request(`/guilds/${guild}`).catch(notFound('bot_not_in_server', 409));
+        const m: DiscordMember = await this.request(`/guilds/${guild}/members/${user}`).catch(notFound('not_a_guild_member', 403));
         assert(g.id === guild && m.user?.id === user, 'discord_membership_mismatch', 403);
         const permissions = guildPermissions(g, m);
         const administrator = (permissions & P.ADMIN) !== 0n;

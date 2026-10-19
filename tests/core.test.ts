@@ -98,3 +98,11 @@ test('message reader permission checks apply live channel overwrites and private
     deny = '0'; privateThread = true; await rest.assertCanReadMessage(G, MOD, CHANNEL);
     joined = false; await assert.rejects(rest.assertCanReadMessage(G, MOD, CHANNEL), /message_read_permission_required/);
 });
+test('Discord Unknown Guild means the bot is not installed, not an upstream failure', async () => {
+    const respond = (guild: number, member: number) => (async (url: string | URL) => String(url).includes('/members/')
+        ? Response.json(member === 404 ? { message: 'Unknown Member', code: 10007 } : { user: { id: MOD }, roles: [] }, { status: member })
+        : Response.json(guild === 404 ? { message: 'Unknown Guild', code: 10004 } : { id: G, owner_id: '1', roles: [] }, { status: guild })) as typeof fetch;
+    await assert.rejects(new DiscordRest('bot', 'id', 'secret', respond(404, 200)).memberInfo(G, MOD), (e: unknown) => e instanceof AppError && e.code === 'bot_not_in_server' && e.status === 409);
+    await assert.rejects(new DiscordRest('bot', 'id', 'secret', respond(200, 404)).memberInfo(G, MOD), (e: unknown) => e instanceof AppError && e.code === 'not_a_guild_member' && e.status === 403);
+    await assert.rejects(new DiscordRest('bot', 'id', 'secret', respond(500, 200)).memberInfo(G, MOD), (e: unknown) => e instanceof AppError && e.code === 'discord_http_500' && e.status === 502);
+});
