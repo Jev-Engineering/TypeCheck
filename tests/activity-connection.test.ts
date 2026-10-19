@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { activityAuth, apiResponse, connectionError, HttpError } from '../activity/src/connection.js';
+import { activityAuth, apiResponse, BotNotInServerError, connectionError, HttpError, installUrl } from '../activity/src/connection.js';
 
 test('missing TypeCheck role grant explains access requirements instead of retrying Discord authorization', () => {
     const error = connectionError('Authorization code exchange', new HttpError('no_delegated_access', 403));
@@ -96,6 +96,17 @@ test('renewal permission or network failures do not start another OAuth flow', a
 test('a server without the bot explains how to add it instead of reporting a server error', () => {
     const error = connectionError('Authorization code exchange', new HttpError('bot_not_in_server', 409));
     assert.match(error.message, /bot is not in this server yet/);
-    assert.match(error.message, /Add to your server/);
+    assert.ok(error instanceof BotNotInServerError);
+    assert.match(error.message, /only signs you in; it cannot add the bot/);
+    assert.match(error.message, /Add TypeCheck to this server/);
     assert.doesNotMatch(error.message, /HTTP 409/);
+});
+test('the install link requests moderation permissions and can preselect the launching server', () => {
+    const general = new URL(installUrl('111'));
+    assert.equal(general.searchParams.get('permissions'), '1374389611526');
+    assert.equal(general.searchParams.get('scope'), 'bot applications.commands');
+    assert.equal(general.searchParams.get('guild_id'), null);
+    const server = new URL(installUrl('111', '222'));
+    assert.equal(server.searchParams.get('guild_id'), '222');
+    assert.equal(server.searchParams.get('disable_guild_select'), 'true');
 });
