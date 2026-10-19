@@ -123,7 +123,7 @@ async function packsPage(parent: HTMLElement) {
 import { TEXT_STARTERS } from '../../shared/text-starters.js';
 import { TEXT_LIMITS, parseText } from '../../shared/text.js';
 import type { HistoricalScan } from '../../shared/historical.js';
-import { activityAuth, apiResponse, HttpError, serializeConnection } from './connection.js';
+import { activityAuth, apiResponse, BotNotInServerError, HttpError, installUrl, serializeConnection } from './connection.js';
 import { timeoutPreset } from '../../shared/domain.js';
 import { CONTENT_PRESETS, CONTENT_VERSION, parseContent } from '../../shared/content.js';
 import { money, type AnalyticsReport, type Bucket, type Attempt, type Rate } from '../../shared/analytics.js';
@@ -143,6 +143,9 @@ interface SDK {
         }>;
         authenticate(v: {
             access_token: string;
+        }): Promise<unknown>;
+        openExternalLink(v: {
+            url: string;
         }): Promise<unknown>;
     };
 }
@@ -216,6 +219,10 @@ function message(value: string, error = false) { if (status) {
 function fail(e: unknown) {
     const text = e instanceof Error ? pretty(e.message) : 'Request failed';
     message(text, true);
+    // An Activity can run in a server without the bot; offer Discord's install screen with this server preselected.
+    if (e instanceof BotNotInServerError && sdk && guild && status)
+        status.append(h('div', { class: 'actions' }, button('Add TypeCheck to this server', () => sdk!.commands.openExternalLink({ url: installUrl(connectionClientId, guild) }))),
+            h('small', {}, 'Requires the Manage Server permission in this server. Server owners and members with Administrator have it; otherwise ask one of them to add TypeCheck.'));
     const open = Array.from(document.querySelectorAll<HTMLDialogElement>('dialog[open]')).at(-1);
     if (open) {
         open.querySelector('.modal-error')?.remove();
@@ -718,11 +725,9 @@ async function start(autoConnect = true) {
     status.hidden = true;
     const inDiscord = new URLSearchParams(location.search).has('frame_id');
     const showInstall = !preview && !inDiscord;
-    const installUrl = new URL('https://discord.com/oauth2/authorize');
-    installUrl.search = new URLSearchParams({ client_id: config.clientId, scope: 'bot applications.commands', permissions: '1374389611526', integration_type: '0' }).toString();
     app.append(h('main', { class: 'login' }, h('div', { class: 'login-brand' }, h('span', { class: 'brand-mark' }, 'J'), h('p', { class: 'eyebrow' }, 'JEV / TYPECHECK')), badge(preview ? 'OFFLINE PREVIEW' : 'EXPERIMENTAL MODERATION', 'amber'), h('h1', {}, 'Text + image moderation.\nUnder your control.'), h('p', { class: 'login-copy' }, 'Manage text policies, reference images, permissions, and credentials inside Discord. The backend bot handles continuous monitoring.'),
         h('div', { class: 'actions login-actions' },
-            showInstall ? h('a', { class: 'button primary', href: installUrl.href, target: '_blank', rel: 'noopener noreferrer', 'aria-describedby': 'install-help' }, 'Add to your server') : null,
+            showInstall ? h('a', { class: 'button primary', href: installUrl(config.clientId), target: '_blank', rel: 'noopener noreferrer', 'aria-describedby': 'install-help' }, 'Add to your server') : null,
             button(preview ? 'Open read-only preview' : 'Connect in Discord', () => connect(config.clientId), showInstall ? 'quiet' : 'primary')),
         showInstall ? h('p', { class: 'install-help', id: 'install-help' }, 'Opens Discord in a new tab. You need Manage Server permission to install. Then open the TypeCheck Activity in your server; you can connect immediately using the same Manage Server permission to choose channels, add a Jev API key, and configure rules. No separate TypeCheck role is needed. Automatic moderation stays off until approved and enabled.') : null,
         status, h('p', { class: 'muted' }, 'Launch from a server Activity. Server owners and members with Administrator or Manage Server have access automatically. Other members need a TypeCheck role grant.'),

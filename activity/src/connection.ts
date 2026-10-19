@@ -15,9 +15,17 @@ export async function apiResponse<T = any>(response: Response): Promise<T> {
     }
     return data as T;
 }
+// Bot permissions requested at install: monitoring, warnings and the delete/timeout/kick/ban actions the bot checks for.
+export const INSTALL_PERMISSIONS = '1374389611526';
+export function installUrl(clientId: string, guildId?: string) {
+    const url = new URL('https://discord.com/oauth2/authorize');
+    url.search = new URLSearchParams({ client_id: clientId, scope: 'bot applications.commands', permissions: INSTALL_PERMISSIONS, integration_type: '0', ...(guildId ? { guild_id: guildId, disable_guild_select: 'true' } : {}) }).toString();
+    return url.href;
+}
+export class BotNotInServerError extends Error {}
 export function connectionError(stage: string, error: unknown): Error {
     if (error instanceof HttpError && error.status === 409 && error.message === 'bot_not_in_server')
-        return new Error('The TypeCheck bot is not in this server yet. A member with Manage Server needs to add it: open TypeCheck in a browser, click Add to your server, choose this server and authorize. Then click Connect in Discord.');
+        return new BotNotInServerError('The TypeCheck bot is not in this server yet. Connect in Discord only signs you in; it cannot add the bot. A member with Manage Server needs to click Add TypeCheck to this server, keep this server selected and authorize. Then click Connect in Discord.');
     if (error instanceof HttpError && error.status === 403 && error.message === 'no_delegated_access')
         return new Error('You need permission to use TypeCheck in this server. Ask a server owner or member with Manage Server to open TypeCheck → Permissions and grant access to your Discord role, then click Connect in Discord. Server owners and members with Administrator or Manage Server have access automatically.');
     const detail = error instanceof HttpError ? ` (HTTP ${error.status}: ${error.message}${error.reference ? `; reference ${error.reference}` : ''})` :
