@@ -98,10 +98,10 @@ test('historical API previews scope, starts, lists, pauses, resumes and cancels 
     assert.equal((await f.request(base,'POST',{...payload,enforcement:true},token)).status,400);
     const usage=await f.request('/api/g/'+G+'/analytics/summary?correlationId='+id,'GET',undefined,token);assert.equal(usage.status,200);
 });
-async function setup(t: TestContext, production = false, readiness?: () => Promise<boolean>, controllerState?: () => string, deployment?: Deployment) {
+async function setup(t: TestContext, production = false, readiness?: () => Promise<boolean>, controllerState?: () => string, deployment?: Deployment, root = process.cwd()) {
     const f = await fixture(t);
     const config = { port: 3000, production, publicOrigin: ORIGIN, clientId: G, clientSecret: 'fake-secret', botToken: 'fake-token', databaseUrl: 'not-used', masterKey: 'not-used', objectDir: 'not-used', model: 'jev-1.14.0', apiOnly: true };
-    const server = createHttp(f.services, config, process.cwd(), readiness, controllerState, deployment);
+    const server = createHttp(f.services, config, root, readiness, controllerState, deployment);
     await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
     const address = server.address() as {
         port: number;
@@ -129,6 +129,13 @@ test('HTTP unauthenticated guild request is denied', async (t) => { const f = aw
 test('HTTP rejects a mutation from an untrusted origin', async (t) => { const f = await setup(t); assert.equal((await f.request('/api/auth/start', 'POST', {}, undefined, 'https://evil.invalid')).status, 403); });
 test('HTTP mutation without Origin is denied', async (t) => { const f = await setup(t); assert.equal((await f.request('/api/auth/start', 'POST', {}, undefined, '')).status, 403); });
 test('HTTP accepts the exact Discord proxy origin', async (t) => { const f = await setup(t); assert.equal((await f.request('/api/auth/start', 'POST', {}, undefined, `https://${G}.discordsays.com`)).status, 200); });
+test('sign-in does not wait for or fail on first-time starter references', async (t) => {
+    const f = await setup(t, false, undefined, undefined, undefined, 'missing-starter-root');
+    await f.store.remove('images', G, f.ref.id, f.ref.revision);
+    const login = await f.login();
+    assert.equal(login.status, 200);
+    assert.ok(login.data.sessionToken);
+});
 test('OAuth nonce is one-use', async (t) => { const f = await setup(t); const n = await f.request('/api/auth/start', 'POST', {}); const payload = { code: 'admin-code', nonce: n.data.nonce, guildId: G }; assert.equal((await f.request('/api/auth/exchange', 'POST', payload)).status, 200); assert.equal((await f.request('/api/auth/exchange', 'POST', payload)).status, 401); });
 test('Discord administrator receives a usable management session', async (t) => { const f = await setup(t); const login = await f.login(); assert.equal(login.status, 200); assert.ok(login.data.authority.capabilities.includes('credentials.manage')); assert.equal((await f.request(`/api/g/${G}/me`, 'GET', undefined, login.data.sessionToken)).status, 200); });
 test('ungranted moderator cannot get a session', async (t) => { const f = await setup(t); assert.equal((await f.login('moderator-code')).status, 403); });
