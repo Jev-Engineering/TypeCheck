@@ -83,6 +83,19 @@ export function createHttp(services: Services, config: Config, root = process.cw
         for (const [k, v] of limits)
             if (v.at < now - 60000)
                 limits.delete(k); }
+    // Operational log lines carry codes, timings and request IDs only: never tokens, bodies or member data.
+    const log = (event: Record<string, unknown>) => console.log(JSON.stringify(event));
+    // Starter references are copied after the sign-in reply. The copy normalizes 33 images in one transaction,
+    // which can outlast the hosting/Discord proxy timeout and turn a completed sign-in into a 502.
+    const seeding = new Map<string, Promise<void>>();
+    const seedInBackground = (guild: string) => {
+        if (seeding.has(guild)) return;
+        const started = Date.now();
+        seeding.set(guild, seedStarterReferences(services, guild, root)
+            .then(() => log({ event: 'starter_references_seed', guild, outcome: 'done', ms: Date.now() - started }),
+                e => log({ event: 'starter_references_seed', guild, outcome: safeError(e), ms: Date.now() - started }))
+            .finally(() => seeding.delete(guild)));
+    };
     async function dispatch(req: IncomingMessage, url: URL, origin: string): Promise<Reply> {
         const method = req.method ?? 'GET';
         const p = url.pathname.split('/').filter(Boolean);
@@ -107,15 +120,23 @@ export function createHttp(services: Services, config: Config, root = process.cw
             onlyKeys(b, renewing ? ['accessToken', 'nonce', 'guildId'] : ['code', 'nonce', 'guildId']);
             assert(snowflake(b.guildId), 'invalid_guild');
             assert(typeof b.nonce === 'string' && await store.consumeNonce(digest(b.nonce), origin), 'invalid_or_expired_nonce', 401);
-            const auth = renewing ? { userId: await discord.oauthIdentity(text(b.accessToken, 2048)), accessToken: undefined } : await discord.exchange(text(b.code, 2048));
-            await store.getSettings(b.guildId);
-            const a = await services.authority(b.guildId, auth.userId);
-            assert(a.capabilities.length > 0, 'no_delegated_access', 403);
-            await seedStarterReferences(services, b.guildId, root);
-            const sessionToken = token();
-            await store.createSession(digest(sessionToken), { userId: auth.userId, guildId: b.guildId, expiresAt: Date.now() + 15 * 60000 });
-            await services.audit(b.guildId, auth.userId, 'session.created', 'session');
-            return { body: { sessionToken, accessToken: auth.accessToken, authority: a, expiresIn: 900 } };
+            const guildId = b.guildId as string;
+            const stages: Record<string, number> = {};
+            const stage = async <T>(name: string, run: () => Promise<T>) => { const s = Date.now(); try { return await run(); } finally { stages[name] = Date.now() - s; } };
+            try {
+                const auth = await stage('discord_oauth', async () => renewing ? { userId: await discord.oauthIdentity(text(b.accessToken, 2048)), accessToken: undefined } : await discord.exchange(text(b.code, 2048)));
+                await stage('settings', () => store.getSettings(guildId));
+                const a = await stage('authority', () => services.authority(guildId, auth.userId));
+                assert(a.capabilities.length > 0, 'no_delegated_access', 403);
+                seedInBackground(guildId);
+                const sessionToken = token();
+                await stage('session', async () => {
+                    await store.createSession(digest(sessionToken), { userId: auth.userId, guildId: guildId, expiresAt: Date.now() + 15 * 60000 });
+                    await services.audit(guildId, auth.userId, 'session.created', 'session');
+                });
+                return { body: { sessionToken, accessToken: auth.accessToken, authority: a, expiresIn: 900 } };
+            }
+            finally { log({ event: 'auth_stages', path: url.pathname, guild: guildId, stages }); }
         }
         // Independent browser OAuth: state is one-use, origin/guild/browser-bound; no Activity SDK.
         const cookie = (name: string) => (req.headers.cookie ?? '').split('; ').find(v => v.startsWith(name + '='))?.slice(name.length + 1) ?? '';
@@ -136,7 +157,7 @@ export function createHttp(services: Services, config: Config, root = process.cw
             assert(snowflake(guild) && state && verifier && url.searchParams.get('state') === state && await store.consumeNonce(digest(state), `${config.publicOrigin}:${guild}:${digest(verifier)}`), 'invalid_or_expired_state', 401);
             const auth = await discord.exchange(text(url.searchParams.get('code'), 2048), config.publicOrigin + '/api/auth/browser/callback');
             const a = await services.authority(guild, auth.userId); requireManager(a);
-            await seedStarterReferences(services, guild, root);
+            seedInBackground(guild);
             const sessionToken = token();
             await store.createSession(digest(sessionToken), {userId:auth.userId, guildId:guild, expiresAt:Date.now()+15*60000});
             await services.audit(guild, auth.userId, 'session.browser_created', 'session');
@@ -618,7 +639,12 @@ export function createHttp(services: Services, config: Config, root = process.cw
         return { bytes, type: file.endsWith('.html') ? 'text/html; charset=utf-8' : file.endsWith('.css') ? 'text/css; charset=utf-8' : file.endsWith('.txt') ? 'text/plain; charset=utf-8' : 'text/javascript; charset=utf-8' };
     }
     const server = createServer(async (req, res) => {
-        const requestId = randomUUID();
+        const requestId = randomUUID(), started = Date.now();
+        let path = '';
+        res.once('finish', () => {
+            if (path.startsWith('/api/auth/') || res.statusCode >= 500)
+                log({ event: 'http_request', method: req.method, path, status: res.statusCode, ms: Date.now() - started, requestId });
+        });
         res.setHeader('X-Request-Id', requestId);
         res.setHeader('Cache-Control', 'no-store');
         res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -628,6 +654,7 @@ export function createHttp(services: Services, config: Config, root = process.cw
             res.setHeader('Strict-Transport-Security', 'max-age=31536000');
         try {
             const url = new URL(req.url ?? '/', config.publicOrigin);
+            path = url.pathname;
             const origin = req.headers.origin ?? '';
             if (origin) {
                 assert(origins.has(origin), 'origin_denied', 403);
@@ -655,6 +682,7 @@ export function createHttp(services: Services, config: Config, root = process.cw
         catch (e) {
             if(e instanceof Deferred) res.setHeader('Retry-After',String(Math.max(1,Math.ceil((e.until-Date.now())/1000))));
             res.statusCode = e instanceof AppError ? e.status : 500;
+            if (res.statusCode >= 500) log({ event: 'http_error', code: safeError(e), path, requestId });
             res.setHeader('Content-Type', 'application/json; charset=utf-8');
             res.end(JSON.stringify({ error: safeError(e), requestId, ...(e instanceof Deferred?{nextAttempt:e.until}:{}) }));
         }
