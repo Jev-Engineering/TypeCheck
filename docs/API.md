@@ -155,7 +155,7 @@ All routes below are under `/api/g/:guild/onboarding/` and require a guild-bound
 | Method/suffix | Input/result |
 |---|---|
 | GET `context` | User/guild, safe credential status, advisory readiness/blockers/remaining actions |
-| GET `inventory?offset=0` | Up to 50 channels/roles/rules/groups each, individual next offsets, settings/reference count, no paths |
+| GET `inventory?offset=0` | Up to 50 channels/roles/rules/groups each, individual next offsets, settings/reference count, no paths; channels retain `parent_id` and `position` for server category ordering |
 | GET `starters` | Four compositions, canonical text definitions and requirements/cost notice |
 | POST `plans` | Strict `{presets,channels,excludedChannels,exemptRoles,logChannel,customizations}`; returns ten-minute exact before/after plan with additions/skips/digest |
 | POST `plan` | `{planId,digest}`; fresh plan or persisted applied receipt |

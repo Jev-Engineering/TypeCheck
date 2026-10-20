@@ -1,6 +1,7 @@
 import { Throttle, Deferred, retryAt, scopeHash } from './throttle.js';
 import { AppError, assert, snowflake, type Action, type ImageMessage, type MemberInfo, type Settings } from '../shared/domain.js';
 import { readBounded } from './images.js';
+import type { ChannelMetadata } from '../shared/channels.js';
 const API = 'https://discord.com/api/v10';
 const P = { ADMIN: 8n, MANAGE_GUILD: 32n, VIEW: 1024n, SEND: 2048n, MANAGE_MESSAGES: 8192n, KICK: 2n, BAN: 4n, MODERATE: 1n << 40n };
 export interface DiscordRole {
@@ -23,12 +24,8 @@ export interface DiscordMember {
     roles: string[];
     communication_disabled_until?: string | null;
 }
-export interface DiscordChannel {
-    id: string;
+export interface DiscordChannel extends ChannelMetadata {
     guild_id?: string;
-    name?: string;
-    type: number;
-    parent_id?: string | null;
     permission_overwrites?: {
         id: string;
         type: number;

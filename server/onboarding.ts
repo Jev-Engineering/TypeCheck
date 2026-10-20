@@ -55,7 +55,7 @@ export class Onboarding {
         assert(Number.isSafeInteger(offset) && offset >= 0 && offset <= 10000, 'invalid_offset');
         const meta = await this.services.discord.metadata(guild), s = await snapshot(this.services.store, guild);
         const page = <T>(items: T[]) => ({ items: items.slice(offset, offset + 50), nextOffset: items.length > offset + 50 ? offset + 50 : null, total: items.length });
-        return { untrustedData: true, name: meta.name, channels: page(meta.channels.map(({id,name,type}) => ({id,name,type}))), roles: page(meta.roles.map(({id,name}) => ({id,name}))), settings: s.settings, rules: page(s.rules), groups: page(s.groups), referenceCount: s.images.length };
+        return { untrustedData: true, name: meta.name, channels: page(meta.channels.map(({id,name,type,parent_id,position}) => ({id,name,type,parent_id,position}))), roles: page(meta.roles.map(({id,name}) => ({id,name}))), settings: s.settings, rules: page(s.rules), groups: page(s.groups), referenceCount: s.images.length };
     }
     async plan(guild: string, actor: string, binding: string, raw: unknown) {
         await requireManager(this.services, guild, actor);

@@ -1,0 +1,37 @@
+{
+  "scope": "Offline compiled UI, real isolated HTTP and in-memory transactions. Synthetic Discord/provider and asynchronous WebMCP registry. No live Discord or provider acceptance claimed.",
+  "browser": "153.0.8010.0",
+  "results": [
+    {
+      "viewport": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "colorScheme": "dark",
+      "eligibleChannels": 63,
+      "verified": [
+        "native list rendering",
+        "category grouping and complete inventory",
+        "selected and excluded states",
+        "no horizontal viewport overflow"
+      ],
+      "screenshot": "channel-picker-dark-desktop.png"
+    },
+    {
+      "viewport": "mobile",
+      "width": 390,
+      "height": 844,
+      "colorScheme": "dark",
+      "eligibleChannels": 63,
+      "verified": [
+        "native list rendering",
+        "category grouping and complete inventory",
+        "selected and excluded states",
+        "no horizontal viewport overflow"
+      ],
+      "screenshot": "channel-picker-dark-mobile.png"
+    }
+  ],
+  "pageErrors": [],
+  "externalRequests": [],
+  "passed": true
+}

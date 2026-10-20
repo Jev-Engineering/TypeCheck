@@ -1,5 +1,7 @@
 import { canManageServer } from '../../shared/domain.js';
 import { setupPanel } from './onboarding.js';
+import { channelMultiSelect, channelSelect, roleMultiSelect } from './channel-selectors.js';
+import type { ChannelMetadata } from '../../shared/channels.js';
 import type { Pack, PackPreview, ImportOptions, PackKind } from '../../shared/packs.js';
 async function editDefinition(d: any) {
     const name = input(d.name), content = structuredClone(d.content), body = h('div', { class: 'form-stack' }, field('Definition name', name));
@@ -155,12 +157,9 @@ interface Metadata {
         id: string;
         name: string;
         permissions: string;
+        position?: number;
     }[];
-    channels: {
-        id: string;
-        name?: string;
-        type: number;
-    }[];
+    channels: ChannelMetadata[];
 }
 interface SettingsVersion {
     value: Settings;
@@ -639,32 +638,20 @@ async function permissions(parent: HTMLElement) {
         throw new Error('This role has no grant'); await api(`grants/${role.value}`, 'DELETE', { revision: old.revision }); await render(); }, 'danger'))));
     parent.append(panel('Your effective permissions', `User ${authority!.userId} · ${admin() ? 'Server management access' : 'Delegated role access'}`, h('div', { class: 'cap-list' }, ...authority!.capabilities.map(c => badge(pretty(c))))));
 }
-function checklist(title: string, entries: {
-    id: string;
-    name: string;
-}[], selected: string[]) { const boxes = new Map<string, HTMLInputElement>(); const node = h('div', { class: 'selector-list' }); for (const r of entries) {
-    const c = check(r.name, selected.includes(r.id));
-    boxes.set(r.id, c.box);
-    node.append(c.node);
-} return { node: field(title, node), values: () => [...boxes].filter(([, v]) => v.checked).map(([id]) => id) }; }
 async function settingsPage(parent: HTMLElement) {
-    settings = await api<SettingsVersion>('settings');
+    [settings, meta] = await Promise.all([api<SettingsVersion>('settings'), api<Metadata>('meta')]);
     const s = structuredClone(settings.value);
     const textEnabled = check('Enable native message-text analysis', s.textModerationEnabled ?? false, 'Separate from image context. Only enabled, configured text rules run. Automatic actions additionally require current text calibration approval and global enforcement.');
     parent.append(panel('Native text moderation', 'Disabled by default. Raw message text is refetched transiently and is not retained in jobs or decision evidence.', textEnabled.node));
     const contentContext = check('Allow posting-message text as labeled context for content rules', s.contentMessageContext ?? false, 'Never includes history, private messages or unrelated attachments.');
     parent.append(panel('Image content context', 'Opt-in applies only to rules configured to use the posting message.', contentContext.node));
-    const channels = meta.channels.filter(c => [0, 5].includes(c.type)).map(c => ({ id: c.id, name: c.name ?? c.id }));
-    const monitored = checklist('Monitored channels', channels, s.channels), excluded = checklist('Excluded channels', channels, s.excludedChannels);
+    const monitored = channelMultiSelect('Monitored channels (multiple selection)', meta.channels, s.channels), excluded = channelMultiSelect('Excluded channels', meta.channels, s.excludedChannels);
     if (!admin()) {
-        parent.append(panel('Channel configuration', 'Monitoring uses exact channel IDs; no channel is monitored when none is selected.', h('div', { class: 'columns' }, monitored.node, excluded.node), button('Save channels', async () => { await api('channels', 'PUT', { channels: monitored.values(), excludedChannels: excluded.values(), revision: settings!.revision }); await render(); })));
+        parent.append(panel('Channel configuration', 'Choose channels by server category. No channel is monitored when none is selected.', monitored.node, excluded.node, button('Save channels', async () => { await api('channels', 'PUT', { channels: monitored.values(), excludedChannels: excluded.values(), revision: settings!.revision }); await render(); })));
         return;
     }
     const monitoring = check('Monitor selected channels', s.monitoring), enforcement = check('Enable automatic enforcement', s.enforcement), high = check('Allow kick and ban policies', s.highImpactEnabled), any = check('Allow explicit any-image rules', s.anyImageEnabled, 'These rules do not require a Jev match.'), semantic = check('Enable semantic tests and review-only rules', s.semanticEnabled), bots = check('Inspect other bots’ image attachments', s.processBots), webhooks = check('Inspect webhook messages', s.processWebhooks, 'Webhook messages can be deleted; no user-level punishment is applied to webhook identities.'), dm = check('Send optional direct-message notifications', s.dmNotify);
-    const exempt = checklist('Exempt Discord roles', meta.roles, s.exemptRoles), log = select([['', 'No log channel'], ...channels.map(c => [c.id, c.name] as [
-            string,
-            string
-        ])], s.logChannel ?? ''), daily = input(String(s.dailyCallLimit), 'number'), retention = input(String(s.logRetentionDays), 'number'), model = input(s.model), uncertain = select([['review', 'Add uncertain matches to review'], ['ignore', 'Ignore uncertain matches']], s.uncertain);
+    const exempt = roleMultiSelect('Exempt Discord roles', meta.roles, s.exemptRoles), log = channelSelect(meta.channels, s.logChannel ?? ''), daily = input(String(s.dailyCallLimit), 'number'), retention = input(String(s.logRetentionDays), 'number'), model = input(s.model), uncertain = select([['review', 'Add uncertain matches to review'], ['ignore', 'Ignore uncertain matches']], s.uncertain);
     const thresholds = new Map<string, HTMLInputElement>();
     const thresholdGrid = h('div', { class: 'threshold-grid' });
     for (const action of ACTIONS) {
@@ -675,7 +662,7 @@ async function settingsPage(parent: HTMLElement) {
         thresholds.set(action, el);
         thresholdGrid.append(field(action === 'review' ? 'Human-review threshold' : `${pretty(action)} action floor`, el));
     }
-    parent.append(panel('Monitoring & enforcement', 'Default: no monitored channels, no automatic actions. Source images are transient and not retained.', h('div', { class: 'columns' }, h('div', { class: 'form-stack' }, monitoring.node, enforcement.node, high.node, any.node, semantic.node), h('div', { class: 'form-stack' }, bots.node, webhooks.node, dm.node, field('Uncertain result policy', uncertain))), h('div', { class: 'columns' }, monitored.node, excluded.node), exempt.node));
+    parent.append(panel('Monitoring & enforcement', 'Default: no monitored channels, no automatic actions. Source images are transient and not retained.', h('div', { class: 'columns' }, h('div', { class: 'form-stack' }, monitoring.node, enforcement.node, high.node, any.node, semantic.node), h('div', { class: 'form-stack' }, bots.node, webhooks.node, dm.node, field('Uncertain result policy', uncertain))), monitored.node, excluded.node, exempt.node));
     parent.append(panel('Matching, usage & retention', 'Action-specific floors combine with the rule threshold. Changing model or threshold settings makes prior approvals stale. Valid range: 0.5-1.0 inclusive; timeout <= kick <= ban. Standard 0.70 and Strict 0.90 are starting points, not accuracy claims.', h('div', { class: 'form-row' }, field('Pinned Jev model', model), field('Daily request limit (UTC)', daily), field('Log retention, days', retention)), field('Moderator log channel', log), thresholdGrid,
         h('p', {}, 'Jev automation: a comparison must reach the greater of its rule threshold and action floor. Equality qualifies; approvals, verification, permissions and all execution safeguards still apply.'),
         h('p', {}, 'Jev human review: when the uncertain result policy is review and no rule qualifies for its action, comparisons at or above the human-review threshold but below their effective action threshold enter Logs as open moderation events. Below the review threshold, no fallback review is created. Ignore disables this fallback; explicit review rules still apply.'),
