@@ -87,6 +87,8 @@ jobs:
         run: |
           node --test scripts/kaggle-benchmark.test.mjs
           python3 scripts/benchmark_costs_test.py
+          node --test scripts/benchmark-variants.test.mjs scripts/run-benchmark-experiment.test.mjs scripts/coverage-experiment.test.mjs scripts/run-coverage-experiment.test.mjs
+          python3 scripts/benchmark-label-audit.test.py
       - run: node --test scripts/release-guard.test.mjs scripts/release-source.test.mjs scripts/migration-receipt.test.mjs scripts/hosting-handoff.test.mjs
       - run: node dist/server/migrate.js
         env:
