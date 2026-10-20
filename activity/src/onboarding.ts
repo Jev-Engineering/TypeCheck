@@ -1,5 +1,7 @@
 import { canManageServer } from '../../shared/domain.js';
 import { ONBOARDING_PRESETS, ONBOARDING_NOTICE, type SetupPlan } from '../../shared/onboarding.js';
+import type { ChannelMetadata } from '../../shared/channels.js';
+import { channelMultiSelect, channelSelect, roleMultiSelect, type RoleMetadata } from './channel-selectors.js';
 
 type Api = (path: string, method?: string, body?: unknown) => Promise<any>;
 export interface BrowserTool { name: string; description: string; inputSchema: unknown; execute(input: any): Promise<string>; annotations: {readOnlyHint: boolean; untrustedContentHint: boolean} }
@@ -45,6 +47,8 @@ function el(tag: string, text = '', cls = '') { const e=document.createElement(t
 // Inside Discord, openExternal opens the dashboard through the SDK; a plain link does nothing in the Activity iframe.
 export function setupPanel(api: Api, onPlan?: ()=>void, dashboardUrl = '/setup', openExternal?: (url: string)=>unknown) {
     let target: HTMLElement | undefined, plan: any, supported = false, active = true;
+    let metadata: {channels: ChannelMetadata[]; roles: RoleMetadata[]} | undefined, inventoryLoading = false, inventoryError = '';
+    const draft = { presets: [] as string[], channels: [] as string[], excludedChannels: [] as string[], exemptRoles: [] as string[], logChannel: '', customizations: '{}' };
     const controller = new AbortController();
     const stop = () => { active=false; controller.abort(); clearTimeout(expiry); clearInterval(poll); supported=false; if(target)target.prepend(el('p','Session ended or authority changed. Reconnect to continue.','notice error')); };
     const guardedApi: Api = async (...args) => { if(!active)throw new Error('session_expired'); try{const result=await api(...args);if(args[0]==='me'&&!canManageServer(result)){stop();throw new Error('server_management_required');}return result;}catch(e){ if(e && typeof e==='object' && 'status' in e && [401,403].includes(Number(e.status)))stop();throw e; } };
@@ -53,19 +57,46 @@ export function setupPanel(api: Api, onPlan?: ()=>void, dashboardUrl = '/setup',
     const poll=setInterval(()=>{void guardedApi('me').then(a=>{if(!canManageServer(a))stop();}).catch(()=>stop());},30000);
     const actions = (label:string, run:()=>Promise<unknown>) => {const b=el('button',label,'button primary') as HTMLButtonElement;b.type='button';b.onclick=async()=>{b.disabled=true;try{await run();}catch(e){target?.append(el('p',e instanceof Error?e.message:'Request failed','notice error'));}finally{b.disabled=false;}};return b;};
     const pretty=(v: unknown)=>JSON.stringify(v,null,2);
+    async function loadInventory() {
+        inventoryLoading = true; inventoryError = ''; draw();
+        try {
+            // /meta returns the complete guild inventory, including category headings.
+            const result = await guardedApi('meta');
+            if (active) metadata = result;
+        } catch (e) {
+            if (active) inventoryError = 'Could not load channels and roles. Refresh to try again.';
+        } finally {
+            inventoryLoading = false;
+            if (active) draw();
+        }
+    }
     function draw() {
-        if(!target)return;target.replaceChildren();
+        if(!target || !active)return;target.replaceChildren();
         target.append(el('p',supported?'Browser tools registered. Discovery by your agent still depends on browser support and iframe policy.':openExternal?'Set up TypeCheck with the planner below. To let an AI browser agent help instead, open the browser dashboard and sign in there; Discord does not let agents use tools inside Activities.':'Set up TypeCheck with the planner below. AI browser agent tools (WebMCP) are not available in this browser.','notice'));
         if(openExternal)target.append(actions('Open browser dashboard',async()=>{await openExternal(dashboardUrl);}));
         else{const external=el('a','Open browser dashboard','button quiet') as HTMLAnchorElement;external.href=dashboardUrl;external.target='_blank';external.rel='noopener noreferrer';target.append(external);}
         target.append(el('p',ONBOARDING_NOTICE,'muted'));
         const form=el('div','','panel form-stack'), chosen: HTMLInputElement[]=[];
-        for(const preset of ONBOARDING_PRESETS){const label=el('label','','check'), box=document.createElement('input');box.type='checkbox';box.value=preset.id;chosen.push(box);const copy=el('span',preset.name);copy.append(el('small',preset.purpose+' Components: '+preset.components.join(', ')));label.append(box,copy);form.append(label);}
+        for(const preset of ONBOARDING_PRESETS){const label=el('label','','check'), box=document.createElement('input');box.type='checkbox';box.value=preset.id;box.checked=draft.presets.includes(preset.id);chosen.push(box);box.addEventListener('change',()=>{draft.presets=chosen.filter(b=>b.checked).map(b=>b.value);});const copy=el('span',preset.name);copy.append(el('small',preset.purpose+' Components: '+preset.components.join(', ')));label.append(box,copy);form.append(label);}
         const field=(label:string,value:string)=>{const node=el('label',label,'field'), input=document.createElement('textarea');input.value=value;node.append(input);form.append(node);return input;};
-        const channels=field('Add monitored channel IDs (comma separated)',''),excluded=field('Add excluded channel IDs',''),exempt=field('Add exempt role IDs',''),log=field('Log channel ID (empty keeps current destination)','');
-        const custom=field('Optional customization JSON keyed by text component ID (name, question, positive, negative, exceptions)','{}');
-        const split=(v:string)=>v.split(',').map(s=>s.trim()).filter(Boolean);
-        form.append(actions('Preview configuration',async()=>show(await guardedApi('onboarding/plans','POST',{presets:chosen.filter(b=>b.checked).map(b=>b.value),channels:split(channels.value),excludedChannels:split(excluded.value),exemptRoles:split(exempt.value),logChannel:log.value.trim()||null,customizations:JSON.parse(custom.value)}))));target.append(form);
+        form.append(el('p','Choose one or more channels. Use Ctrl (Windows) or Command (Mac) to add individual selections, or Shift to select a range. Channels follow the server’s category order. These selections add to the current configuration.','muted'));
+        if(inventoryLoading)form.append(el('p','Loading channels and roles…','notice'));
+        if(inventoryError)form.append(el('p',inventoryError,'notice error'));
+        if(metadata) {
+            const channels=channelMultiSelect('Selected channels (multiple selection)',metadata.channels,draft.channels,values=>{draft.channels=values;});
+            const excluded=channelMultiSelect('Excluded channels',metadata.channels,draft.excludedChannels,values=>{draft.excludedChannels=values;});
+            const exempt=roleMultiSelect('Exempt roles',metadata.roles,draft.exemptRoles,values=>{draft.exemptRoles=values;});
+            const logLabel=el('label','','field'), log=channelSelect(metadata.channels,draft.logChannel,'Keep current log destination');
+            log.addEventListener('change',()=>{draft.logChannel=log.value;});
+            logLabel.append(el('span','Log channel','field-label'),log);
+            form.append(channels.node,excluded.node,exempt.node,logLabel);
+        }
+        const refresh=actions('Refresh channels and roles',loadInventory);refresh.disabled=inventoryLoading;refresh.className='button quiet';form.append(refresh);
+        const custom=field('Optional customization JSON keyed by text component ID (name, question, positive, negative, exceptions)',draft.customizations);
+        custom.addEventListener('input',()=>{draft.customizations=custom.value;});
+        const preview=actions('Preview configuration',async()=>show(await guardedApi('onboarding/plans','POST',{presets:draft.presets,channels:draft.channels,excludedChannels:draft.excludedChannels,exemptRoles:draft.exemptRoles,logChannel:draft.logChannel||null,customizations:JSON.parse(draft.customizations)})));
+        preview.disabled=inventoryLoading || Boolean(inventoryError) || !metadata?.channels.some(c=>[0,5].includes(c.type));
+        form.append(preview);target.append(form);
         if(plan){
             target.append(el('h2','Proposed configuration'),el('p',`Plan ${plan.id} · ${plan.status} · expires ${new Date(plan.expiresAt).toLocaleString()}`));
             const diff=el('div','','setup-diff');for(const [label,value]of [['Before',plan.before],['After',plan.after]] as const){const section=el('section','','panel');section.append(el('h3',label),el('pre',pretty(value)));diff.append(section);}target.append(diff);
@@ -82,5 +113,6 @@ export function setupPanel(api: Api, onPlan?: ()=>void, dashboardUrl = '/setup',
         }
     }
     void registerTools((document as Document & {modelContext?:ModelContext}).modelContext, guardedApi,show,controller.signal).then(ok=>{supported=ok;draw();}).catch(()=>{controller.abort();supported=false;draw();});
+    void loadInventory();
     return {mount(parent:HTMLElement){target=parent;draw();},stop};
 }
