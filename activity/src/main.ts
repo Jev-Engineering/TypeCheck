@@ -175,6 +175,7 @@ let session = '', guild = '', authority: Authority | null = null, sdk: SDK | nul
 let status: HTMLDivElement;
 let browserDashboardUrl='/setup';
 let agentSetup: ReturnType<typeof setupPanel> | undefined;
+function dashboardFor(guildId: string) { const url=new URL(browserDashboardUrl,location.href); if(guildId)url.searchParams.set('guild',guildId); return url.href; }
 function clearAgentSetup() { agentSetup?.stop(); agentSetup = undefined; }
 function initializeAgentSetup() {
     clearAgentSetup();
@@ -186,7 +187,7 @@ function initializeAgentSetup() {
         if(args[0]==='onboarding/apply'&&result.receipt) settings={value:result.after,revision:result.receipt.settingsRevision};
         if(args[0]==='pause'){settings=await api<SettingsVersion>('settings');void render().catch(fail);}
         return result;
-    },()=>{page='Agent setup';void render().catch(fail);},browserDashboardUrl);
+    },()=>{page='Agent setup';void render().catch(fail);},dashboardFor(expectedGuild),sdk?url=>sdk!.commands.openExternalLink({url}):undefined);
 }
 window.addEventListener('pagehide',clearAgentSetup);
 const can = (cap: Capability) => authority?.capabilities.includes(cap) ?? false;
