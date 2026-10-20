@@ -42,7 +42,8 @@ export async function registerTools(context: ModelContext | undefined, api: Api,
     return true;
 }
 function el(tag: string, text = '', cls = '') { const e=document.createElement(tag); e.textContent=text; e.className=cls; return e; }
-export function setupPanel(api: Api, onPlan?: ()=>void, dashboardUrl = '/setup') {
+// Inside Discord, openExternal opens the dashboard through the SDK; a plain link does nothing in the Activity iframe.
+export function setupPanel(api: Api, onPlan?: ()=>void, dashboardUrl = '/setup', openExternal?: (url: string)=>unknown) {
     let target: HTMLElement | undefined, plan: any, supported = false, active = true;
     const controller = new AbortController();
     const stop = () => { active=false; controller.abort(); clearTimeout(expiry); clearInterval(poll); supported=false; if(target)target.prepend(el('p','Session ended or authority changed. Reconnect to continue.','notice error')); };
@@ -54,8 +55,9 @@ export function setupPanel(api: Api, onPlan?: ()=>void, dashboardUrl = '/setup')
     const pretty=(v: unknown)=>JSON.stringify(v,null,2);
     function draw() {
         if(!target)return;target.replaceChildren();
-        target.append(el('p',supported?'Browser tools registered. Discovery by your agent still depends on browser support and iframe policy.':'WebMCP unavailable or blocked. Use the manual planner below; in Discord, try the standalone dashboard with its own login.','notice'));
-        const external=el('a','Open browser dashboard','button quiet') as HTMLAnchorElement;external.href=dashboardUrl;external.target='_blank';external.rel='noopener noreferrer';target.append(external);
+        target.append(el('p',supported?'Browser tools registered. Discovery by your agent still depends on browser support and iframe policy.':openExternal?'Set up TypeCheck with the planner below. To let an AI browser agent help instead, open the browser dashboard and sign in there; Discord does not let agents use tools inside Activities.':'Set up TypeCheck with the planner below. AI browser agent tools (WebMCP) are not available in this browser.','notice'));
+        if(openExternal)target.append(actions('Open browser dashboard',async()=>{await openExternal(dashboardUrl);}));
+        else{const external=el('a','Open browser dashboard','button quiet') as HTMLAnchorElement;external.href=dashboardUrl;external.target='_blank';external.rel='noopener noreferrer';target.append(external);}
         target.append(el('p',ONBOARDING_NOTICE,'muted'));
         const form=el('div','','panel form-stack'), chosen: HTMLInputElement[]=[];
         for(const preset of ONBOARDING_PRESETS){const label=el('label','','check'), box=document.createElement('input');box.type='checkbox';box.value=preset.id;chosen.push(box);const copy=el('span',preset.name);copy.append(el('small',preset.purpose+' Components: '+preset.components.join(', ')));label.append(box,copy);form.append(label);}

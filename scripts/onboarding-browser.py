@@ -27,7 +27,7 @@ async def main():
             # Permanent visible labeling: screenshots never imply real Discord/provider acceptance.
             await page.evaluate("""() => {const b=document.createElement('p');b.textContent='OFFLINE SYNTHETIC DEMO — fake Discord/Jev; not live acceptance';b.style='background:#ffedb3;color:#191919;padding:14px;font-weight:bold';document.body.prepend(b)}""")
             native=await page.evaluate("({documentAPI:typeof document.modelContext?.registerTool,navigatorAPI:typeof navigator.modelContext?.registerTool})")
-            await page.get_by_text('WebMCP unavailable or blocked.',exact=False).wait_for()
+            await page.get_by_text('AI browser agent tools (WebMCP) are not available',exact=False).wait_for()
             await page.screenshot(path=str(root/'evidence'/f'issue44-fallback-{label}.png'),full_page=True)
             await page.get_by_label('Scam and phishing review',exact=False).check()
             await page.get_by_label('Add monitored channel IDs',exact=False).fill('100000000000000021')
