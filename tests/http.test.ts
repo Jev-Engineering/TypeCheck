@@ -3,7 +3,7 @@ import { test, type TestContext } from 'node:test';
 import { CONTENT_PRESETS } from '../shared/content.js';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { baseRecord, type RoleGrant, type Rule, type Calibration, type ModerationEvent } from '../shared/domain.js';
+import { baseRecord, DATA_USE_NOTICE_VERSION, type Audit, type RoleGrant, type Rule, type Calibration, type ModerationEvent } from '../shared/domain.js';
 import { Worker } from '../server/worker.js';
 import { enable, message } from './helpers.js';
 import { createHttp, type Deployment } from '../server/http.js';
@@ -79,6 +79,58 @@ test('credential values are absent from audit records', async (t) => { const f =
 test('unknown frontend admin claim is rejected by settings schema', async (t) => { const f = await setup(t); const login = await f.login(); const s = await f.store.getSettings(G); assert.equal((await f.request(`/api/g/${G}/settings`, 'PUT', { value: { ...s.value, administrator: true }, revision: s.revision }, login.data.sessionToken)).status, 400); });
 test('enabling enforcement requires explicit acknowledgement and selected channels', async (t) => { const f = await setup(t); const login = await f.login(); const s = await f.store.getSettings(G); const value = { ...s.value, enforcement: true, channels: [CHANNEL] }; assert.equal((await f.request(`/api/g/${G}/settings`, 'PUT', { value, revision: s.revision }, login.data.sessionToken)).status, 400); assert.equal((await f.request(`/api/g/${G}/settings`, 'PUT', { value, revision: s.revision, acknowledgement: 'ENABLE_AUTOMATIC_ENFORCEMENT' }, login.data.sessionToken)).status, 200); });
 test('settings use optimistic revisions, preventing lost updates', async (t) => { const f = await setup(t); const login = await f.login(); const s = await f.store.getSettings(G); assert.equal((await f.request(`/api/g/${G}/settings`, 'PUT', { value: s.value, revision: s.revision }, login.data.sessionToken)).status, 200); assert.equal((await f.request(`/api/g/${G}/settings`, 'PUT', { value: s.value, revision: s.revision }, login.data.sessionToken)).status, 409); });
+
+test('data-use permissions persist independently, revoke and record versioned consent receipts', async t => {
+    const f = await setup(t), login = await f.login(), path = `/api/g/${G}/settings`;
+    const initial = await f.store.getSettings(G);
+    assert.equal(initial.value.typesafeReviewConsent, false);
+    assert.equal(initial.value.completeTechTrainingConsent, false);
+    const save = async (value: unknown) => {
+        const s = await f.store.getSettings(G);
+        return f.request(path, 'PUT', { value, revision: s.revision }, login.data.sessionToken);
+    };
+    assert.equal((await save({ typesafeReviewConsent: true })).status, 200);
+    assert.equal((await save({ completeTechTrainingConsent: true })).status, 200);
+    assert.equal((await save({ typesafeReviewConsent: false })).status, 200);
+    const readback = await f.request(path, 'GET', undefined, login.data.sessionToken);
+    assert.equal(readback.data.value.typesafeReviewConsent, false);
+    assert.equal(readback.data.value.completeTechTrainingConsent, true);
+    assert.equal(readback.data.value.enforcement, initial.value.enforcement);
+    assert.equal(readback.data.value.logRetentionDays, initial.value.logRetentionDays);
+    assert.equal((await f.store.getSettings(G2)).value.completeTechTrainingConsent, false);
+    const receipts = (await f.store.all<Audit>('audit', G)).filter(a => a.event === 'data_use.consent_updated');
+    assert.equal(receipts.length, 3);
+    const withdrawal = receipts.find(a => a.detail.previous && (a.detail.previous as any).typesafeReviewConsent === true && (a.detail.current as any).typesafeReviewConsent === false)!;
+    assert.equal(withdrawal.actor, ADMIN);
+    assert.equal(withdrawal.guildId, G);
+    assert.ok(Number.isFinite(Date.parse(withdrawal.createdAt)));
+    assert.deepEqual(withdrawal.detail, {
+        noticeVersion: DATA_USE_NOTICE_VERSION,
+        previous: { typesafeReviewConsent: true, completeTechTrainingConsent: true },
+        current: { typesafeReviewConsent: false, completeTechTrainingConsent: true }
+    });
+    assert.equal((await save({ completeTechTrainingConsent: false })).status, 200);
+    assert.equal((await f.store.getSettings(G)).value.completeTechTrainingConsent, false);
+    const count = (await f.store.all<Audit>('audit', G)).filter(a => a.event === 'data_use.consent_updated').length;
+    await save({ monitoring: false });
+    assert.equal((await f.store.all<Audit>('audit', G)).filter(a => a.event === 'data_use.consent_updated').length, count);
+});
+
+test('data-use writes reject delegated moderators, cross-guild access, invalid types and stale revisions', async t => {
+    const f = await setup(t), admin = await f.login(), initial = await f.store.getSettings(G);
+    await f.grant(['dashboard.view', 'channels.configure', 'security.manage']);
+    const mod = await f.login('moderator-code');
+    const payload = { value: { completeTechTrainingConsent: true }, revision: initial.revision };
+    assert.equal((await f.request(`/api/g/${G}/settings`, 'PUT', payload, mod.data.sessionToken)).status, 403);
+    assert.equal((await f.request(`/api/g/${G2}/settings`, 'PUT', payload, admin.data.sessionToken)).status, 403);
+    for (const key of ['typesafeReviewConsent', 'completeTechTrainingConsent']) {
+        assert.equal((await f.request(`/api/g/${G}/settings`, 'PUT', { ...payload, value: { [key]: 'true' } }, admin.data.sessionToken)).status, 400);
+    }
+    assert.equal((await f.request(`/api/g/${G}/settings`, 'PUT', payload, admin.data.sessionToken)).status, 200);
+    assert.equal((await f.request(`/api/g/${G}/settings`, 'PUT', { ...payload, value: { completeTechTrainingConsent: false } }, admin.data.sessionToken)).status, 409);
+    assert.equal((await f.store.getSettings(G)).value.completeTechTrainingConsent, true);
+    assert.equal((await f.store.all<Audit>('audit', G)).filter(a => a.event === 'data_use.consent_updated').length, 1);
+});
 test('delegated pause cannot resume enforcement or modify security settings', async (t) => { const f = await setup(t); await f.grant(['enforcement.pause']); const login = await f.login('moderator-code'); assert.equal((await f.request(`/api/g/${G}/pause`, 'POST', {}, login.data.sessionToken)).status, 200); const s = await f.store.getSettings(G); assert.equal((await f.request(`/api/g/${G}/settings`, 'PUT', { value: { ...s.value, enforcement: true }, revision: s.revision }, login.data.sessionToken)).status, 403); });
 test('image upload persists only a normalized guild-owned object', async (t) => { const f = await setup(t); const login = await f.login(); const r = await f.request(`/api/g/${G}/images`, 'POST', { name: 'Test image', groupId: null, enabled: true, base64: PNG.toString('base64') }, login.data.sessionToken); assert.equal(r.status, 201); assert.ok(r.data.objectKey.startsWith(G + '/')); assert.equal(r.data.width, 768); assert.equal(r.data.base64, undefined); });
 test('image library is isolated when a foreign image ID is requested', async (t) => { const f = await setup(t); const login = await f.login(); const r = await f.request(`/api/g/${G}/images/${randomUUID()}/content`, 'GET', undefined, login.data.sessionToken); assert.equal(r.status, 404); });

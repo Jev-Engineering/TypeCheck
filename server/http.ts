@@ -1,4 +1,5 @@
 import { TEXT_STARTERS } from '../shared/text-starters.js';
+import { DATA_USE_NOTICE_VERSION } from '../shared/domain.js';
 import { TEXT_LIMITS } from '../shared/text.js';
 import { installTextStarters } from './text-starters.js';
 import { Deferred } from './throttle.js';
@@ -199,6 +200,14 @@ export function createHttp(services: Services, config: Config, root = process.cw
                 assert([...value.channels, ...value.excludedChannels, ...(value.logChannel ? [value.logChannel] : [])].every(id => channelIds.has(id)), 'channel_not_in_guild');
                 assert(value.exemptRoles.every(id => roleIds.has(id)), 'role_not_in_guild');
                 await tx.putSettings(guild, value, revision);
+                const consentKeys = ['typesafeReviewConsent', 'completeTechTrainingConsent'] as const;
+                if (consentKeys.some(k => (value[k] ?? false) !== (old.value[k] ?? false))) {
+                    await services.audit(guild, a.userId, 'data_use.consent_updated', 'settings', {
+                        noticeVersion: DATA_USE_NOTICE_VERSION,
+                        previous: Object.fromEntries(consentKeys.map(k => [k, old.value[k] ?? false])),
+                        current: Object.fromEntries(consentKeys.map(k => [k, value[k] ?? false]))
+                    }, tx);
+                }
                 await services.audit(guild, a.userId, 'settings.updated', 'settings', { changed: Object.keys(value).filter(k => JSON.stringify(value[k as keyof typeof value]) !== JSON.stringify(old.value[k as keyof typeof value])) }, tx);
             });
             return { body: await store.getSettings(guild) };

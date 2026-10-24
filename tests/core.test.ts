@@ -2,7 +2,7 @@ import { timeoutPreset } from '../shared/domain.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { DEFAULT_SETTINGS, parseSettings, parseRule, baseRecord, effectiveAuthority, AppError, type RoleGrant, type Match, type Rule } from '../shared/domain.js';
+import { DEFAULT_SETTINGS, parseSettings, storedSettings, parseRule, baseRecord, effectiveAuthority, AppError, type RoleGrant, type Match, type Rule } from '../shared/domain.js';
 import { Vault, csvCell } from '../server/security.js';
 import { resolvePolicy, fingerprint } from '../server/policy.js';
 import { parseJev, makeComparison, JevClient } from '../server/jev.js';
@@ -13,6 +13,14 @@ const throwsCode = (f: () => unknown, code: string) => assert.throws(f, (e: unkn
 test('defaults are monitoring-only, no channels, no semantic or any-image rules', () => { assert.equal(DEFAULT_SETTINGS.enforcement, false); assert.deepEqual(DEFAULT_SETTINGS.channels, []); assert.equal(DEFAULT_SETTINGS.anyImageEnabled, false); assert.equal(DEFAULT_SETTINGS.semanticEnabled, false); });
 test('settings reject unversioned model alias', () => throwsCode(() => parseSettings({ model: 'jev-latest' }), 'pin_versioned_jev_model'));
 test('settings reject unknown client authority claims', () => throwsCode(() => parseSettings({ administrator: true }), 'unknown_field'));
+
+test('legacy settings hydrate both data-use permissions as off and preserve saved independent choices', () => {
+    const { typesafeReviewConsent, completeTechTrainingConsent, ...legacy } = DEFAULT_SETTINGS;
+    assert.equal(storedSettings(legacy).typesafeReviewConsent, false);
+    assert.equal(storedSettings(legacy).completeTechTrainingConsent, false);
+    assert.equal(storedSettings({ ...legacy, typesafeReviewConsent: true }).typesafeReviewConsent, true);
+    assert.equal(storedSettings({ ...legacy, typesafeReviewConsent: true }).completeTechTrainingConsent, false);
+});
 test('higher-severity threshold cannot be lower than timeout', () => throwsCode(() => parseSettings({ thresholds: { timeout: 0.99, kick: 0.8 } }), 'severe_threshold_must_not_be_lower'));
 test('settings reject string booleans and NaN budget', () => { throwsCode(() => parseSettings({ enforcement: 'false' }), 'invalid_boolean'); throwsCode(() => parseSettings({ dailyCallLimit: NaN }), 'invalid_number'); });
 test('timeout bounds include 28 days, exclude longer duration', async (t) => { const f = await fixture(t), r = rule(f.ref); const { id, guildId, revision, createdAt, updatedAt, approval, ...input } = r; assert.equal(parseRule({ ...input, timeoutSeconds: 2419200 }).timeoutSeconds, 2419200); throwsCode(() => parseRule({ ...input, timeoutSeconds: 2419201 }), 'invalid_number'); });
