@@ -110,3 +110,26 @@ test('hash calibration is deterministic evidence, never a fabricated Jev calibra
     await assert.rejects(f.services.approveRule(G,USER,r.id,'Synthetic approval must not bypass calibration'),/more_labeled_examples_required/);
     assert.equal(f.control.calls,0);
 });
+
+test('a labeled exact-hash false positive blocks approval instead of disappearing from calibration',async t=>{
+    const f=await versioned(t),r=rule(f.ref);await f.store.put('rules',r,0);
+    await f.services.testRule(G,USER,r.id,f.image,false);
+    await assert.rejects(f.services.approveRule(G,USER,r.id,'Synthetic approval must reject known false positives'),/calibration_failed/);
+    assert.equal(f.control.calls,0);
+});
+
+test('hash-only comparison creates no cost ledger attempt or priced token entry with PR 3',async t=>{
+    const f=await versioned(t),r=rule(f.ref),s=(await f.store.getSettings(G)).value;
+    await f.services.evaluate(G,'a',f.image,[r],[f.ref],s);
+    assert.equal(f.store.analytics.records.size,0);
+    assert.deepEqual((await f.store.analytics.report(G,{start:new Date().toISOString().slice(0,10),end:new Date(Date.now()+86400000).toISOString().slice(0,10),group:'summary',limit:100})).buckets,[]);
+    assert.equal(f.control.calls,0);
+});
+
+test('identical provider input reuses a comparison across distinct reference revisions',async t=>{
+    const f=await fixture(t),r=rule(f.ref,{type:'any_match',referenceId:null}),s=(await f.store.getSettings(G)).value;
+    const other={...f.ref,id:'same-content-different-revision',revision:7};
+    const result=await f.services.evaluate(G,'a',f.image,[r],[f.ref,other],s);
+    assert.equal(f.control.calls,1);assert.equal(result.matches.length,2);
+    assert.equal(result.matches[0]!.referenceRevision,1);assert.equal(result.matches[1]!.referenceRevision,7);
+});

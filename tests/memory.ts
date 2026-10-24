@@ -1,9 +1,11 @@
+import { MemoryAnalytics } from './memory-analytics.js';
 import { randomUUID } from 'node:crypto';
 import { assert, DEFAULT_SETTINGS, type Settings, type Kind, type RecordBase, type Job, type ImageMessage, type Session, type ReferenceImage, type Rule } from '../shared/domain.js';
 import { digest } from '../server/security.js';
 import type { Store, SettingsVersion, Usage, ActionRecord } from '../server/store.js';
 const clone = <T>(v: T): T => structuredClone(v);
 export class MemoryStore implements Store {
+    readonly analytics: MemoryAnalytics = new MemoryAnalytics(this);
     private state = { settings: new Map<string, SettingsVersion>(), records: new Map<string, RecordBase>(), jobs: new Map<string, Job>(), seen: new Set<string>(), actions: new Map<string, ActionRecord>(), usage: new Map<string, Usage>(), nonces: new Map<string, {
             origin: string;
             expires: number;
@@ -37,11 +39,11 @@ export class MemoryStore implements Store {
             assert(!(await this.all<ReferenceImage>('images', g)).some(r => r.groupId === id) && !(await this.all<Rule>('rules', g)).some(r => r.groupId === id), 'record_in_use', 409);
         this.state.records.delete(`${g}:${k}:${id}`);
     }
-    async withGuild<T>(_g: string, work: (s: Store) => Promise<T>): Promise<T> { const run = async () => { const before = clone(this.state); try {
+    async withGuild<T>(_g: string, work: (s: Store) => Promise<T>): Promise<T> { const run = async () => { const before = clone(this.state), records = clone(this.analytics.records), history = clone(this.analytics.history); try {
         return await work(this);
     }
     catch (e) {
-        this.state = before;
+        this.state = before; this.analytics.records = records; this.analytics.history = history;
         throw e;
     } }; const result = this.tail.then(run, run); this.tail = result.catch(() => { }); return result; }
     async enqueue(message: ImageMessage) { const signature = digest(message.attachments.map(a => a.id).sort().join(',')); if ([...this.state.jobs.values()].some(j => j.guildId === message.guildId && j.message.messageId === message.messageId && j.signature === signature))
@@ -55,16 +57,16 @@ export class MemoryStore implements Store {
         return false; this.state.actions.set(key, clone(r)); return true; }
     async finishAction(g: string, m: string, slot: string, status: string, detail: string) { const old = this.state.actions.get(`${g}:${m}:${slot}`)!; old.status = status; old.detail = detail; }
     async actions(g: string) { return clone([...this.state.actions.values()].filter(r => r.guildId === g)); }
-    async reserveCall(g: string, limit: number) { const u = await this.usage(g); assert(u.calls < limit, 'daily_jev_call_budget_exhausted', 429); u.calls++; this.state.usage.set(g, u); }
-    async addTokens(g: string, n: number) { const u = await this.usage(g); u.inputTokens += n; this.state.usage.set(g, u); }
-    async usage(g: string): Promise<Usage> { return clone(this.state.usage.get(g) ?? { day: new Date().toISOString().slice(0, 10), calls: 0, inputTokens: 0 }); }
+    async reserveCall(g: string, limit: number, day = new Date().toISOString().slice(0,10)) { const u = clone(this.state.usage.get(g+':'+day) ?? {day,calls:0,inputTokens:0}); assert(u.calls < limit, 'daily_jev_call_budget_exhausted', 429); u.calls++; this.state.usage.set(g+':'+u.day, u); }
+    async addTokens(g: string, n: number, day = new Date().toISOString().slice(0,10)) { const u = clone(this.state.usage.get(g+':'+day) ?? {day,calls:0,inputTokens:0}); u.inputTokens += n; this.state.usage.set(g+':'+u.day, u); }
+    async usage(g: string): Promise<Usage> { return clone(this.state.usage.get(g+':'+new Date().toISOString().slice(0,10)) ?? { day: new Date().toISOString().slice(0, 10), calls: 0, inputTokens: 0 }); }
     async createNonce(hash: string, origin: string) { this.state.nonces.set(hash, { origin, expires: Date.now() + 300000 }); }
     async consumeNonce(hash: string, origin: string) { const v = this.state.nonces.get(hash); if (v?.origin !== origin || v.expires < Date.now())
         return false; this.state.nonces.delete(hash); return true; }
     async createSession(hash: string, s: Session) { this.state.sessions.set(hash, clone(s)); }
     async session(hash: string) { const s = this.state.sessions.get(hash); return s && s.expiresAt > Date.now() ? clone(s) : null; }
     async deleteSession(hash: string) { this.state.sessions.delete(hash); }
-    async maintenance() { for (const [k, s] of this.state.sessions)
+    async maintenance() { const cutoff = new Date(Date.now()-100*86400000).toISOString().slice(0,10); for(const [key,a] of this.analytics.records) if(a.startedAt.slice(0,10)<cutoff) this.analytics.records.delete(key); for(const [key,u] of this.state.usage) if(u.day<new Date(Date.now()-400*86400000).toISOString().slice(0,10)) this.state.usage.delete(key); for (const [k, s] of this.state.sessions)
         if (s.expiresAt < Date.now())
             this.state.sessions.delete(k); }
 }

@@ -17,7 +17,7 @@ export async function openDatabase(url: string, model = DEFAULT_SETTINGS.model, 
 }
 export async function assertMigrated(pool: SqlPool, kind: 'mysql' | 'postgres') {
     const placeholder = kind === 'mysql' ? '?' : '$1';
-    assert((await pool.query(`SELECT version FROM schema_migrations WHERE version=${placeholder}`, ['001'])).rowCount === 1, 'migration_001_required');
+    assert((await pool.query(`SELECT version FROM schema_migrations WHERE version=${placeholder}`, ['002'])).rowCount === 1, 'migration_002_required');
 }
 export async function migrateDatabase(pool: SqlPool, kind: 'mysql' | 'postgres') {
     const c = await pool.connect();
@@ -25,10 +25,12 @@ export async function migrateDatabase(pool: SqlPool, kind: 'mysql' | 'postgres')
     try {
         const file = kind === 'mysql' ? 'db/mysql/001_initial.sql' : 'db/001_initial.sql';
         const sql = await readFile(file, 'utf8');
+        const upgrade = await readFile(kind === 'mysql' ? 'db/mysql/002_usage.sql' : 'db/002_usage.sql', 'utf8');
         if (kind === 'postgres') {
             await c.query('BEGIN');
             await c.query('SELECT pg_advisory_xact_lock(21474199,2)');
             await c.query(sql);
+            if (!(await c.query("SELECT version FROM schema_migrations WHERE version='002'")).rowCount) await c.query(upgrade);
             await c.query('COMMIT');
         } else {
             const r = await c.query("SELECT GET_LOCK('typecheck:migrate',60) AS locked");
@@ -39,6 +41,8 @@ export async function migrateDatabase(pool: SqlPool, kind: 'mysql' | 'postgres')
             await c.query(statements[0]!);
             if (!(await c.query("SELECT version FROM schema_migrations WHERE version='001'")).rowCount)
                 for (const statement of statements.slice(1)) await c.query(statement);
+            if (!(await c.query("SELECT version FROM schema_migrations WHERE version='002'")).rowCount)
+                for (const statement of upgrade.split(';').map(s => s.trim()).filter(Boolean)) await c.query(statement);
         }
     } catch (e) {
         if (kind === 'postgres') await c.query('ROLLBACK');

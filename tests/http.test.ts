@@ -2,6 +2,8 @@ import { test, type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { baseRecord, type RoleGrant, type Rule, type Calibration, type ModerationEvent } from '../shared/domain.js';
+import { Worker } from '../server/worker.js';
+import { enable, message } from './helpers.js';
 import { createHttp } from '../server/http.js';
 import { digest } from '../server/security.js';
 import { fingerprint } from '../server/policy.js';
@@ -111,6 +113,39 @@ test('standby serves health and authenticated API without requiring a Gateway', 
     assert.equal((await f.request(`/api/g/${G}/me`, 'GET', undefined, login.data.sessionToken)).status, 200);
 });
 
+test('review-band worker result reaches moderator HTTP workflow without a punitive action', async t => {
+    const f = await setup(t);
+    await enable(f, rule(f.ref, { secondVerification: true, deleteMessage: true }));
+    // A second check can reduce an action candidate into the configured review band.
+    f.control.probability = 1; f.control.secondProbability = 0.8;
+    const m = message(); f.discord.messages.set(m.messageId, m);
+    await new Worker(f.services, async () => f.image).process(m);
+    assert.equal(f.control.calls, 2);
+    await f.grant(['logs.view', 'rules.edit']);
+    const login = await f.login('moderator-code'), token = login.data.sessionToken;
+    const listed = await f.request(`/api/g/${G}/events`, 'GET', undefined, token);
+    assert.equal(listed.status, 200); assert.equal(listed.data.items.length, 1);
+    const event = listed.data.items[0];
+    assert.equal(event.intended, 'review'); assert.equal(event.actual, 'suppressed');
+    assert.equal(event.reason, 'uncertain'); assert.equal(event.reviewStatus, 'open');
+    assert.equal(event.matches[0].probability, 0.8); assert.equal(event.matches[0].verified, false);
+    const reviewed = await f.request(`/api/g/${G}/events/${event.id}/review`, 'POST', { status: 'confirmed', revision: event.revision }, token);
+    assert.equal(reviewed.status, 200); assert.equal(reviewed.data.reviewStatus, 'confirmed');
+    assert.equal((await f.store.get<ModerationEvent>('events', G, event.id))?.reviewStatus, 'confirmed');
+    assert.equal(f.discord.performed.length, 0); assert.equal(f.discord.notifications.length, 0);
+    const actions = await f.request(`/api/g/${G}/actions`, 'GET', undefined, token);
+    assert.deepEqual(actions.data.items, []);
+});
+
+test('settings API round trips review thresholds above action floors without rejecting stored settings', async t => {
+    const f = await setup(t), login = await f.login();
+    const old = await f.store.getSettings(G);
+    const updated = await f.request(`/api/g/${G}/settings`, 'PUT', { value: { ...old.value, thresholds: { ...old.value.thresholds, review: 1 } }, revision: old.revision }, login.data.sessionToken);
+    assert.equal(updated.status, 200);
+    const read = await f.request(`/api/g/${G}/settings`, 'GET', undefined, login.data.sessionToken);
+    assert.equal(read.data.value.thresholds.review, 1);
+});
+
 test('hash upload provenance is server-derived and preserved by metadata edits; test API reports no model or usage', async t => {
     const f = await setup(t), token = (await f.login()).data.sessionToken;
     const body = {name:'Synthetic hash reference',groupId:null,enabled:true,base64:PNG.toString('base64')};
@@ -125,3 +160,34 @@ test('hash upload provenance is server-derived and preserved by metadata edits; 
     assert.equal(result.data.matches[0].model,null);assert.equal(result.data.matches[0].provenance,'exact_hash');assert.equal(f.control.calls,0);
     assert.equal((await f.store.usage(G)).calls,0);assert.equal(f.discord.performed.length,0);
 });
+
+
+
+test('analytics permission, tenant, range, pricing revision and audit boundaries', async t => {
+    const f=await setup(t);await f.grant(['dashboard.view']);const mod=(await f.login('moderator-code')).data.sessionToken;
+    const path=`/api/g/${G}/analytics`;
+    assert.equal((await f.request(path+'/summary','GET',undefined,mod)).status,200);
+    assert.equal((await f.request(`/api/g/${G2}/analytics/summary`,'GET',undefined,mod)).status,403);
+    const rate={model:'jev-1.14.0',revision:0,currency:'USD',perMillion:'2.500000',effectiveAt:'2020-01-01T00:00:00.000Z',note:'Synthetic operator rate'};
+    assert.equal((await f.request(path+'/pricing','PUT',rate,mod)).status,403);
+    const admin=(await f.login()).data.sessionToken;
+    assert.equal((await f.request(path+'/pricing','PUT',rate,admin,'')).status,403);
+    assert.equal((await f.request(path+'/pricing','PUT',rate,admin,'https://evil.invalid')).status,403);
+    assert.equal((await f.request(path+'/pricing','PUT',rate,admin)).status,200);
+    assert.equal((await f.request(path+'/pricing','PUT',rate,admin)).status,409);
+    assert.equal((await f.store.all<any>('audit',G)).filter(r=>r.event==='pricing.updated').length,1);
+    for(const params of ['limit=101','group=invalid','purpose=invalid','verification=bad','range=custom&start=2026-01-01&end=2026-12-01','before=bad']) assert.equal((await f.request(path+'/attempts?'+params,'GET',undefined,mod)).status,400);
+    assert.equal((await f.request(path+'/export','GET',undefined,mod)).status,200);
+    await f.grant(['images.view']);assert.equal((await f.request(path+'/summary','GET',undefined,mod)).status,403);
+});
+
+test('analytics CSV export is bounded, cursor paginated and formula safe',async t=>{
+    const f=await setup(t),session=(await f.login()).data.sessionToken;
+    await f.services.testCredential(G);await f.services.testCredential(G);
+    const row=[...f.store.analytics.records.values()][0]!;row.model='=HYPERLINK("bad")';
+    const p=`/api/g/${G}/analytics/export?limit=1`;
+    const first=await f.request(p,'GET',undefined,session);assert.equal(first.status,200);assert.equal(first.raw.split('\r\n').length,2);assert.ok(first.headers.get('x-next-before'));
+    const cursor=new URLSearchParams({before:first.headers.get('x-next-before')!,beforeId:first.headers.get('x-next-before-id')!});
+    const second=await f.request(p+'&'+cursor,'GET',undefined,session);assert.equal(second.status,200);assert.equal(second.headers.get('x-next-before'),null);
+    assert.ok((first.raw+second.raw).includes("'="));assert.ok(!(first.raw+second.raw).includes(API_KEY));
+});

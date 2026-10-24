@@ -18,7 +18,7 @@ test('source deletion and timeout are distinct action slots', async (t) => { con
 test('later attachment edit cannot repeat or escalate a prior sanction', async (t) => { const f = await fixture(t); await enable(f, rule(f.ref)); const m = message(); f.discord.messages.set(m.messageId, m); const w = workerFor(f); await w.process(m); m.attachments.push(message(2).attachments[0]!); f.discord.messages.set(m.messageId, m); await w.process(m); assert.equal(f.discord.performed.length, 1); });
 test('monitor-only records intended action but performs no mutation', async (t) => { const f = await fixture(t); await enable(f, rule(f.ref)); const s = await f.store.getSettings(G); s.value.enforcement = false; await f.store.putSettings(G, s.value, s.revision); const m = message(); f.discord.messages.set(m.messageId, m); await workerFor(f).process(m); assert.equal(f.discord.performed.length, 0); assert.equal((await f.store.all<ModerationEvent>('events', G))[0]?.reason, 'monitoring_only'); });
 test('negative Jev result never sanctions', async (t) => { const f = await fixture(t); await enable(f, rule(f.ref)); f.control.probability = 0.01; const m = message(); f.discord.messages.set(m.messageId, m); await workerFor(f).process(m); assert.equal(f.discord.performed.length, 0); });
-test('uncertain Jev result creates a review event, not punishment', async (t) => { const f = await fixture(t); await enable(f, rule(f.ref)); f.control.probability = 0.7; const m = message(); f.discord.messages.set(m.messageId, m); await workerFor(f).process(m); assert.equal(f.discord.performed.length, 0); assert.equal((await f.store.all<ModerationEvent>('events', G))[0]?.intended, 'review'); });
+test('uncertain Jev result creates a review event, not punishment', async (t) => { const f = await fixture(t); await enable(f, rule(f.ref)); f.control.probability = 0.8; const m = message(); f.discord.messages.set(m.messageId, m); await workerFor(f).process(m); assert.equal(f.discord.performed.length, 0); assert.equal((await f.store.all<ModerationEvent>('events', G))[0]?.intended, 'review'); });
 test('Jev authentication failure produces no punishment or synthetic match', async (t) => { const f = await fixture(t); await enable(f, rule(f.ref)); f.control.fail = true; const m = message(); f.discord.messages.set(m.messageId, m); await assert.rejects(workerFor(f).process(m)); assert.equal(f.discord.performed.length, 0); assert.equal((await f.store.all('events', G)).length, 0); });
 test('missing credential prevents Jev-dependent actions', async (t) => { const f = await fixture(t); await enable(f, rule(f.ref)); const c = await f.services.credential(G); await f.store.remove('credentials', G, c!.id, c!.revision); const m = message(); f.discord.messages.set(m.messageId, m); await assert.rejects(workerFor(f).process(m)); assert.equal(f.discord.performed.length, 0); });
 test('any-image action can operate without Jev only when explicitly enabled and approved', async (t) => { const f = await fixture(t), r = rule(f.ref, { type: 'any_image', referenceId: null, action: 'delete' }); const s = await f.store.getSettings(G); s.value.anyImageEnabled = true; await f.store.putSettings(G, s.value, s.revision); await enable(f, r); const c = await f.services.credential(G); await f.store.remove('credentials', G, c!.id, c!.revision); const m = message(); f.discord.messages.set(m.messageId, m); await workerFor(f).process(m); assert.deepEqual(f.discord.performed.map(a => a.action), ['delete']); assert.equal(f.control.calls, 0); });
@@ -44,4 +44,19 @@ test('deployment acceptance blocks persisted approved enforcement settings', asy
     assert.equal(f.discord.performed.length, 0);
     assert.equal((await f.store.actions(G)).length, 0);
     assert.equal((await f.store.all<ModerationEvent>('events', G))[0]?.reason, 'deployment_acceptance_required');
+});
+
+test('below-default-review and ignore results retain evaluations without opening review or actions', async t => {
+    const f = await fixture(t); await enable(f, rule(f.ref));
+    for (const [n, probability, uncertain] of [[30, 0.7, 'review'], [31, 0.8, 'ignore']] as const) {
+        const s = await f.store.getSettings(G); s.value.uncertain = uncertain;
+        await f.store.putSettings(G, s.value, s.revision);
+        f.control.probability = probability;
+        const m = message(n); f.discord.messages.set(m.messageId, m);
+        await workerFor(f).process(m);
+    }
+    assert.equal((await f.store.all('evaluations', G)).length, 2);
+    assert.deepEqual(await f.store.all('events', G), []);
+    assert.deepEqual(await f.store.actions(G), []);
+    assert.equal(f.discord.performed.length, 0);
 });

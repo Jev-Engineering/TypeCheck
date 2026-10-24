@@ -1,3 +1,5 @@
+import type { Completion } from '../shared/analytics.js';
+import { safeError } from './security.js';
 import { randomUUID } from 'node:crypto';
 import { assert, AppError, type Mode } from '../shared/domain.js';
 import { readBounded } from './images.js';
@@ -48,7 +50,9 @@ export interface CompareOptions {
     model: string;
     mode: Mode;
     verification?: boolean;
-    onAttempt: () => Promise<void>;
+    onAttempt: (attempt?: { id: string; retry: number; startedAt: string }) => Promise<void>;
+    onDispatch?: (id: string) => Promise<void>;
+    onComplete?: (id: string, completion: Completion) => Promise<void>;
 }
 export class JevClient {
     constructor(private http: typeof fetch = fetch, private sleep: (ms: number) => Promise<void> = ms => new Promise(r => setTimeout(r, ms))) { }
@@ -56,40 +60,39 @@ export class JevClient {
         assert(o.key.length >= 8 && o.key.length <= 4096 && !/[\r\n]/.test(o.key), 'invalid_api_key');
         const { body } = makeComparison(submitted, reference, o.model, o.mode, o.verification);
         for (let attempt = 0; attempt < 3; attempt++) {
-            await o.onAttempt();
-            let r: Response;
+            const id = randomUUID(), startedAt = new Date().toISOString();
+            await o.onAttempt({ id, retry: attempt, startedAt });
+            // Persistence callbacks are outside provider retry catches.
+            await o.onDispatch?.(id);
+            let response: Response | undefined, completion: Completion;
+            let result: JevResult | undefined, failure: unknown, retry = false, wait = 500 * 2 ** attempt;
+            let tokens: number | null = null, responseComplete = false;
             try {
-                r = await this.http(JEV_ENDPOINT, { method: 'POST', headers: { Authorization: `Bearer ${o.key}`, 'TypeSafe-Danger-Zone-Images': 'true' }, body, redirect: 'error', signal: AbortSignal.timeout(20000) });
-            }
-            catch {
-                if (attempt < 2) {
-                    await this.sleep(500 * 2 ** attempt);
-                    continue;
+                response = await this.http(JEV_ENDPOINT, { method: 'POST', headers: { Authorization: `Bearer ${o.key}`, 'TypeSafe-Danger-Zone-Images': 'true' }, body, redirect: 'error', signal: AbortSignal.timeout(20000) });
+                // Read usage even on HTTP/schema failures. Never relax answer validation.
+                let data: unknown;
+                try { const bytes = await readBounded(response, 128 * 1024); responseComplete = true; data = JSON.parse(bytes.toString('utf8')); }
+                catch { if (response.ok) throw new AppError('jev_response_schema_invalid', 502); }
+                const n = (data as { usage?: { input_tokens?: unknown } } | null)?.usage?.input_tokens;
+                if (typeof n === 'number' && Number.isSafeInteger(n) && n >= 0) tokens = n;
+                if (!response.ok) {
+                    retry = [429,529,502,503,504].includes(response.status) && attempt < 2;
+                    const h = response.headers.get('retry-after'), seconds = h ? Number(h) : NaN;
+                    wait = Number.isFinite(seconds) ? Math.max(0, seconds * 1000) : wait;
+                    if (retry && wait > 30000) { retry = false; throw new AppError('jev_rate_limit_deferred', 503); }
+                    throw new AppError(response.status === 401 || response.status === 403 ? 'jev_authentication_failed' : `jev_http_${response.status}`, 503);
                 }
-                throw new AppError('jev_network_error', 503);
+                result = parseJev(data, o.model);
+                completion = { outcome: 'success', inputTokens: tokens, error: null, completedAt: new Date().toISOString() };
+            } catch (e) {
+                failure = response ? e : new AppError('jev_network_error', 503);
+                if (!response) retry = attempt < 2;
+                completion = { outcome: responseComplete ? 'failure' : 'uncertain', inputTokens: tokens, error: safeError(failure), completedAt: new Date().toISOString() };
             }
-            if ([429, 529, 502, 503, 504].includes(r.status) && attempt < 2) {
-                await r.body?.cancel();
-                const h = r.headers.get('retry-after');
-                const seconds = h ? Number(h) : NaN;
-                const wait = Number.isFinite(seconds) ? Math.max(0, seconds * 1000) : 500 * 2 ** attempt;
-                assert(wait <= 30000, 'jev_rate_limit_deferred', 503);
-                await this.sleep(wait + Math.random() * 100);
-                continue;
-            }
-            if (!r.ok) {
-                await r.body?.cancel();
-                throw new AppError(r.status === 401 || r.status === 403 ? 'jev_authentication_failed' : `jev_http_${r.status}`, 503);
-            }
-            const bytes = await readBounded(r, 128 * 1024);
-            let data: unknown;
-            try {
-                data = JSON.parse(bytes.toString('utf8'));
-            }
-            catch {
-                throw new AppError('jev_response_schema_invalid', 502);
-            }
-            return parseJev(data, o.model);
+            await o.onComplete?.(id, completion);
+            if (result) return result;
+            if (!retry) throw failure;
+            await this.sleep(wait);
         }
         throw new AppError('jev_unavailable', 503);
     }
